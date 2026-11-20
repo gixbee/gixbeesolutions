@@ -464,7 +464,7 @@ pub(super) async fn action(
         });
     }
     let business = sqlx::query(
-        r#"SELECT id,"ownerId",status::text AS status,"offlineDays"::jsonb AS offline
+        r#"SELECT id,"ownerId",status::text AS status
            FROM businesses WHERE id=$1"#,
     )
     .bind(business_id)
@@ -577,27 +577,6 @@ pub(super) async fn action(
                 super::catalogues::check_daily_limit(
                     &mut tx, biz_id, &service_type, plan_id, start, end,
                 ).await?;
-                let offset = chrono::FixedOffset::east_opt(19800).unwrap();
-                let first = start.with_timezone(&offset).date_naive();
-                let last = (end - chrono::Duration::milliseconds(1))
-                    .with_timezone(&offset)
-                    .date_naive();
-                if business
-                    .get::<Option<Value>, _>("offline")
-                    .and_then(|v| v.as_array().cloned())
-                    .unwrap_or_default()
-                    .iter()
-                    .any(|v| {
-                        v.as_str()
-                            .and_then(|s| s.get(..10))
-                            .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
-                            .is_some_and(|d| d >= first && d <= last)
-                    })
-                {
-                    return Err(AppError::Conflict(
-                        "The business is unavailable on an event day".into(),
-                    ));
-                }
                 let conflict: bool = sqlx::query_scalar(
                     r#"SELECT EXISTS(SELECT 1 FROM event_quotes q JOIN event_plans p ON p.id=q."planId"
                 WHERE q."businessId"=$1 AND q.status IN ('CONFIRMED','CANCEL_REQUESTED') AND p."startTime"<$3 AND p."endTime">$2

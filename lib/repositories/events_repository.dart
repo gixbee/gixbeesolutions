@@ -108,6 +108,21 @@ class EventsRepository {
     await _dio.delete('/events/vendor/calendar/$businessId/$id');
   }
 
+  /// Marks or clears one civil day on the vendor interval calendar.
+  /// The server stores an IST midnight-to-midnight row titled Unavailable.
+  Future<void> setUnavailable(String businessId, DateTime date,
+      {required bool blocked}) async {
+    final key =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    if (blocked) {
+      await _dio.post('/events/vendor/calendar/$businessId/unavailable',
+          data: {'date': key});
+    } else {
+      await _dio.delete('/events/vendor/calendar/$businessId/unavailable',
+          queryParameters: {'date': key});
+    }
+  }
+
   Future<Map<String, dynamic>> saveCatalogue(
     String businessId,
     String service,

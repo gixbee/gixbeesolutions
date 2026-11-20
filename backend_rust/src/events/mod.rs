@@ -17,6 +17,18 @@ mod settlement;
 mod payment_evidence;
 pub const SERVICES: [&str;8] = ["HALL","CATERING","DECORATION","PHOTOGRAPHY","DJ","MAKEUP","MEHENDI","INVITATIONS"];
 
+/// Photography, catering, and other non-hall services mark a full IST day
+/// unavailable on `event_vendor_calendar`. Halls use `hall_calendar_blocks`.
+pub async fn set_vendor_unavailable_day(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    business: Uuid,
+    actor: Uuid,
+    day: chrono::NaiveDate,
+    add: bool,
+) -> AppResult<()> {
+    calendar::set_unavailable_day(&mut *tx, business, actor, day, add).await
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new().route("/",get(my_plans).post(create_plan))
         .route("/vendor/inbox",get(vendor_inbox))

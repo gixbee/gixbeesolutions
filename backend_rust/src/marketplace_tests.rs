@@ -155,7 +155,31 @@ async fn business_ownership_and_calendar_persist() {
         .0,
         404
     );
-    let calendar = format!("{path}/calendar/offline");
+    let (status, _) = api(
+        &app,
+        &owner,
+        "POST",
+        &format!("{path}/calendar/offline"),
+        json!({"date":"2027-01-10"}),
+    )
+    .await;
+    assert_eq!(status, 400);
+    let (status, catering) = api(
+        &app,
+        &owner,
+        "POST",
+        "/businesses",
+        json!({"name":"Test Catering","type":"SERVICE","serviceType":"CATERING","address":"Test City"}),
+    )
+    .await;
+    assert_eq!(status, 200, "{catering}");
+    let calendar = format!("/businesses/{}/calendar/offline", catering["id"].as_str().unwrap());
+    assert_eq!(
+        api(&app, &stranger, "POST", &calendar, json!({"date":"2027-01-10"}))
+            .await
+            .0,
+        404
+    );
     let (status, result) = api(
         &app,
         &owner,
@@ -166,7 +190,8 @@ async fn business_ownership_and_calendar_persist() {
     .await;
     assert_eq!(status, 200, "{result}");
     assert_eq!(result["offlineDays"].as_array().unwrap().len(), 1);
-    let (_, read) = api(&app, &owner, "GET", &path, Value::Null).await;
+    let catering_path = format!("/businesses/{}", catering["id"].as_str().unwrap());
+    let (_, read) = api(&app, &owner, "GET", &catering_path, Value::Null).await;
     assert_eq!(read["offlineDays"], result["offlineDays"]);
     let (status, result) = api(
         &app,

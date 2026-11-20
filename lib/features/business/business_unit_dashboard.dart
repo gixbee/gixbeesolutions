@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/business_repository.dart';
+import '../../repositories/events_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/glass_container.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -667,7 +668,9 @@ class _BusinessCard extends ConsumerWidget {
     );
     if (picked == null) return;
     try {
-      await ref.read(businessRepositoryProvider).addOfflineDay(biz.id, picked);
+      await ref
+          .read(eventsRepositoryProvider)
+          .setUnavailable(biz.id, picked, blocked: true);
       ref.invalidate(myBusinessesProvider);
       if (context.mounted) {
         showGxSnack(
@@ -705,8 +708,8 @@ class _BusinessCard extends ConsumerWidget {
     if (picked == null || !context.mounted) return;
     try {
       await ref
-          .read(businessRepositoryProvider)
-          .removeOfflineDay(biz.id, picked);
+          .read(eventsRepositoryProvider)
+          .setUnavailable(biz.id, picked, blocked: false);
       ref.invalidate(myBusinessesProvider);
       if (context.mounted) {
         showGxSnack(

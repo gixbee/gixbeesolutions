@@ -35,7 +35,9 @@ async fn list(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<V
     .bind(uid)
     .fetch_all(&state.db)
     .await?;
-    Ok(Json(rows.iter().map(business_json).collect()))
+    let mut items: Vec<Value> = rows.iter().map(business_json).collect();
+    overlay_offline_days(&state.db, &mut items).await?;
+    Ok(Json(items))
 }
 
 async fn create(
@@ -156,6 +158,7 @@ async fn get_one(
         result.as_object_mut().unwrap().remove("operatorIds");
         result.as_object_mut().unwrap().remove("hiringProfile");
     }
+    overlay_offline_days(&state.db, std::slice::from_mut(&mut result)).await?;
     Ok(Json(result))
 }
 
@@ -368,15 +371,16 @@ async fn admin_list(
         (SELECT jsonb_build_object('id',u.id,'name',u.name,'phoneNumber',u."phoneNumber") FROM users u WHERE u.id=businesses."ownerId") AS owner
         FROM businesses WHERE ($1::text IS NULL OR status::text=$1) ORDER BY "createdAt" DESC LIMIT 500"#))
         .bind(q.status).fetch_all(&state.db).await?;
-    Ok(Json(
-        rows.iter()
-            .map(|row| {
-                let mut value = business_json(row);
-                value["owner"] = row.get::<Value, _>("owner");
-                value
-            })
-            .collect(),
-    ))
+    let mut items: Vec<Value> = rows
+        .iter()
+        .map(|row| {
+            let mut value = business_json(row);
+            value["owner"] = row.get::<Value, _>("owner");
+            value
+        })
+        .collect();
+    overlay_offline_days(&state.db, &mut items).await?;
+    Ok(Json(items))
 }
 
 async fn admin_status(
@@ -493,33 +497,150 @@ async fn change_offline_day(
     let date_key = date
         .get(..10)
         .ok_or_else(|| AppError::BadRequest("A valid date is required".into()))?;
-    chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d")
+    let day = chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d")
         .map_err(|_| AppError::BadRequest("A valid date is required".into()))?;
     let bid = Uuid::parse_str(id)?;
+    let actor = Uuid::parse_str(&user.user_id)?;
     let mut tx = state.db.begin().await?;
-    let days = sqlx::query_scalar::<_, Option<Value>>(
-        r#"SELECT "offlineDays"::jsonb FROM businesses WHERE id = $1 AND "ownerId" = $2 FOR UPDATE"#)
-        .bind(bid).bind(Uuid::parse_str(&user.user_id)?).fetch_optional(&mut *tx).await?
-        .ok_or_else(|| AppError::NotFound("Business not found on your account".into()))?;
-    let mut days = days.and_then(|v| v.as_array().cloned()).unwrap_or_default();
-    days.retain(|v| v.as_str().and_then(|s| s.get(..10)) != Some(date_key));
-    if add {
-        let booked:bool=sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM event_quotes q JOIN event_plans p ON p.id=q."planId"
-            WHERE q."businessId"=$1 AND q.status IN ('CONFIRMED','CANCEL_REQUESTED')
-            AND (p."startTime" AT TIME ZONE 'Asia/Kolkata')::date <= $2::date
-            AND ((p."endTime" - INTERVAL '1 millisecond') AT TIME ZONE 'Asia/Kolkata')::date >= $2::date)"#)
-            .bind(bid).bind(chrono::NaiveDate::parse_from_str(date_key,"%Y-%m-%d").unwrap()).fetch_one(&mut *tx).await?;
-        if booked {return Err(AppError::Conflict("This date has a confirmed event. Resolve the booking before marking it unavailable".into()));}
-        days.push(json!(format!("{date_key}T00:00:00.000")));
-    }
-    sqlx::query(
-        r#"UPDATE businesses SET "offlineDays" = $1::jsonb, "updatedAt" = NOW() WHERE id = $2"#,
+    let kind = sqlx::query(
+        r#"SELECT type::text AS type, "serviceType"::text AS service
+           FROM businesses WHERE id = $1 AND "ownerId" = $2 FOR UPDATE"#,
     )
-    .bind(Value::Array(days))
     .bind(bid)
-    .execute(&mut *tx)
-    .await?;
+    .bind(actor)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Business not found on your account".into()))?;
+    if kind.get::<String, _>("type") != "SERVICE" {
+        return Err(AppError::BadRequest(
+            "This business does not use a service calendar".into(),
+        ));
+    }
+    if kind.get::<Option<String>, _>("service").as_deref() == Some("HALL") {
+        set_hall_unavailable_day(&mut tx, bid, actor, day, add).await?;
+    } else {
+        crate::events::set_vendor_unavailable_day(&mut tx, bid, actor, day, add).await?;
+    }
     tx.commit().await?;
+    Ok(())
+}
+
+fn ist_day_bounds(day: chrono::NaiveDate) -> AppResult<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)> {
+    use chrono::TimeZone;
+    let offset = chrono::FixedOffset::east_opt(19800).unwrap();
+    let next = day
+        .succ_opt()
+        .ok_or_else(|| AppError::BadRequest("A valid date is required".into()))?;
+    let start = day
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_local_timezone(offset)
+        .single()
+        .ok_or_else(|| AppError::BadRequest("A valid date is required".into()))?
+        .with_timezone(&chrono::Utc);
+    let end = next
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_local_timezone(offset)
+        .single()
+        .ok_or_else(|| AppError::BadRequest("A valid date is required".into()))?
+        .with_timezone(&chrono::Utc);
+    Ok((start, end))
+}
+
+/// Venue-wide hall block for one IST day. Does not write `offlineDays`.
+async fn set_hall_unavailable_day(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    business_id: Uuid,
+    actor: Uuid,
+    day: chrono::NaiveDate,
+    add: bool,
+) -> AppResult<()> {
+    use crate::halls::audit::{bump_hall_caches, write_audit};
+    use crate::halls::availability::{acquire_hall_scope_locks, availability_check, Interval};
+    let (start, end) = ist_day_bounds(day)?;
+    let interval = Interval::new(start, end)?;
+    acquire_hall_scope_locks(&mut *tx, business_id, None).await?;
+    if add {
+        let covered: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(
+                 SELECT 1 FROM hall_calendar_blocks
+                 WHERE "businessId"=$1 AND "hallId" IS NULL AND "releasedAt" IS NULL
+                   AND "startAt" <= $2 AND "endAt" >= $3
+               )"#,
+        )
+        .bind(business_id)
+        .bind(start)
+        .bind(end)
+        .fetch_one(&mut *tx)
+        .await?;
+        if covered {
+            return Ok(());
+        }
+        availability_check(&mut *tx, business_id, None, interval, None).await?;
+        let id = Uuid::new_v4();
+        sqlx::query(
+            r#"INSERT INTO hall_calendar_blocks
+               (id, "businessId", "hallId", "startAt", "endAt", reason, notes, "createdBy")
+               VALUES ($1,$2,NULL,$3,$4,'offline','Unavailable',$5)"#,
+        )
+        .bind(id)
+        .bind(business_id)
+        .bind(start)
+        .bind(end)
+        .bind(actor)
+        .execute(&mut *tx)
+        .await?;
+        write_audit(
+            &mut *tx,
+            business_id,
+            None,
+            "block",
+            &id.to_string(),
+            "create",
+            actor,
+            json!({"reason": "offline"}),
+        )
+        .await?;
+        bump_hall_caches(tx, business_id, None).await?;
+        crate::outbox::notify(
+            tx,
+            business_id,
+            actor,
+            "Calendar updated",
+            "A calendar block was added.",
+            json!({"type": "hall_calendar_update", "businessId": business_id, "blockId": id}),
+        )
+        .await?;
+    } else {
+        let ids: Vec<Uuid> = sqlx::query_scalar(
+            r#"UPDATE hall_calendar_blocks
+               SET "releasedAt" = NOW(), "releasedBy" = $4
+               WHERE "businessId"=$1 AND "hallId" IS NULL AND "releasedAt" IS NULL
+                 AND "startAt"=$2 AND "endAt"=$3
+               RETURNING id"#,
+        )
+        .bind(business_id)
+        .bind(start)
+        .bind(end)
+        .bind(actor)
+        .fetch_all(&mut *tx)
+        .await?;
+        for id in ids {
+            write_audit(
+                &mut *tx,
+                business_id,
+                None,
+                "block",
+                &id.to_string(),
+                "release",
+                actor,
+                json!({}),
+            )
+            .await?;
+        }
+        bump_hall_caches(tx, business_id, None).await?;
+    }
     Ok(())
 }
 
@@ -538,11 +659,68 @@ fn business_json(row: &sqlx::postgres::PgRow) -> Value {
         "documentUrl": row.get::<Option<String>, _>("documentUrl"),
         "status": row.get::<String, _>("status"),
         "operatorIds": row.try_get::<Option<String>, _>("operatorIds").ok().flatten().unwrap_or_default().split(',').filter(|s| !s.is_empty()).collect::<Vec<_>>(),
-        "offlineDays": row.try_get::<Value, _>("offlineDays").ok().unwrap_or(json!([])),
+        "offlineDays": json!([]),
         "hiringProfile": row.try_get::<Value, _>("hiringProfile").ok().unwrap_or(json!({})),
         "createdAt": crate::common::pg::date_json(row,"createdAt"),
         "updatedAt": crate::common::pg::date_json(row,"updatedAt"),
     })
+}
+
+/// `offlineDays` in API responses is the IST days covered by interval rows.
+/// The `businesses."offlineDays"` column is not a calendar.
+async fn overlay_offline_days(db: &sqlx::PgPool, items: &mut [Value]) -> AppResult<()> {
+    let ids: Vec<Uuid> = items
+        .iter()
+        .filter_map(|item| item.get("id").and_then(Value::as_str))
+        .filter_map(|id| Uuid::parse_str(id).ok())
+        .collect();
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let rows = sqlx::query(
+        r#"SELECT "businessId", day FROM (
+             SELECT e."businessId",
+                    to_char((e."startAt" AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD')
+                      || 'T00:00:00.000' AS day
+             FROM event_vendor_calendar e
+             WHERE e."businessId" = ANY($1)
+               AND e."cancelledAt" IS NULL
+               AND e.title = 'Unavailable'
+             UNION
+             SELECT b."businessId",
+                    to_char(d, 'YYYY-MM-DD') || 'T00:00:00.000'
+             FROM hall_calendar_blocks b
+             CROSS JOIN LATERAL generate_series(
+               (b."startAt" AT TIME ZONE 'Asia/Kolkata')::date,
+               ((b."endAt" - INTERVAL '1 millisecond') AT TIME ZONE 'Asia/Kolkata')::date,
+               INTERVAL '1 day'
+             ) AS d
+             WHERE b."businessId" = ANY($1)
+               AND b."releasedAt" IS NULL
+               AND b."hallId" IS NULL
+           ) days
+           ORDER BY "businessId", day"#,
+    )
+    .bind(&ids)
+    .fetch_all(db)
+    .await?;
+    let mut by_business: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for row in rows {
+        let id: Uuid = row.get("businessId");
+        let day: String = row.get("day");
+        let days = by_business.entry(id.to_string()).or_default();
+        if !days.contains(&day) {
+            days.push(day);
+        }
+    }
+    for item in items.iter_mut() {
+        let id = item.get("id").and_then(Value::as_str).unwrap_or("");
+        let days = by_business.remove(id).unwrap_or_default();
+        if let Some(object) = item.as_object_mut() {
+            object.insert("offlineDays".into(), json!(days));
+        }
+    }
+    Ok(())
 }
 
 fn hiring_profile(value: Option<&Value>, biz_type: &str) -> AppResult<Value> {

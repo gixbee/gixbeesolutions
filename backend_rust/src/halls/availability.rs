@@ -308,38 +308,6 @@ async fn check_legacy_path(
             "The business has another event at this time".into(),
         ));
     }
-    // Legacy offlineDays until fully migrated.
-    let offline = sqlx::query(
-        r#"SELECT "offlineDays"::jsonb AS offline FROM businesses WHERE id = $1"#,
-    )
-    .bind(business_id)
-    .fetch_optional(&mut *tx)
-    .await?;
-    if let Some(row) = offline {
-        let offset = chrono::FixedOffset::east_opt(19800).unwrap();
-        let first = interval.start.with_timezone(&offset).date_naive();
-        let last = (interval.end - chrono::Duration::milliseconds(1))
-            .with_timezone(&offset)
-            .date_naive();
-        if row
-            .try_get::<Option<serde_json::Value>, _>("offline")
-            .ok()
-            .flatten()
-            .and_then(|v| v.as_array().cloned())
-            .unwrap_or_default()
-            .iter()
-            .any(|v| {
-                v.as_str()
-                    .and_then(|s| s.get(..10))
-                    .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
-                    .is_some_and(|d| d >= first && d <= last)
-            })
-        {
-            return Err(AppError::Conflict(
-                "The business is unavailable on an event day".into(),
-            ));
-        }
-    }
     Ok(())
 }
 

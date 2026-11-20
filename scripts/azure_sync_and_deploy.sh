@@ -22,11 +22,12 @@ if [[ -d "$ROOT" ]]; then mv "$ROOT" "/home/azureuser/gixbeesolutions.bak.$(date
 mv /home/azureuser/gixbeesolutions_new "$ROOT"
 cd "$ROOT"
 
-sed -i 's/\r$//' scripts/azure_sync_and_deploy.sh scripts/azure_hiring_migrations.sql scripts/cache_versions.sql scripts/master_data_audit.sql scripts/azure_hall_migrations.sql scripts/azure_event_quote_milestones.sql 2>/dev/null || true
+sed -i 's/\r$//' scripts/azure_sync_and_deploy.sh scripts/azure_hiring_migrations.sql scripts/cache_versions.sql scripts/master_data_audit.sql scripts/azure_hall_migrations.sql scripts/availability_intervals.sql scripts/azure_event_quote_milestones.sql 2>/dev/null || true
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_hiring_migrations.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/cache_versions.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/master_data_audit.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_hall_migrations.sql
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/availability_intervals.sql
 # Required before rolling out Rust milestone routes; fail deployment if migration fails.
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_event_quote_milestones.sql
 # Private delivery history, reconciliation and disputes: do not launch Rust before migration.

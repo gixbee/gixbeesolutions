@@ -24,8 +24,8 @@ class Business {
   /// a TypeORM simple-array). Empty when none.
   final List<String> operatorIds;
 
-  /// Days the unit is marked unavailable (backend `offlineDays`,
-  /// a simple-json array of ISO date strings). Empty when none.
+  /// IST days projected from hall blocks or vendor Unavailable intervals.
+  /// Empty when none. The businesses.offlineDays column is not this list.
   final List<DateTime> offlineDays;
 
   /// Hiring registration extras (employer kind, industries, pin, role).

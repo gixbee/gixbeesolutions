@@ -152,35 +152,8 @@ CREATE INDEX IF NOT EXISTS hall_reservations_hall_range
 CREATE INDEX IF NOT EXISTS hall_reservations_biz
   ON hall_reservations ("businessId", status);
 
--- offlineDays → venue-wide blocks (one-shot: skipped if any migrated block exists).
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM hall_calendar_blocks WHERE notes = 'Migrated from business offlineDays'
-  ) THEN
-    INSERT INTO hall_calendar_blocks (
-      id, "businessId", "hallId", "startAt", "endAt", reason, notes, "createdBy"
-    )
-    SELECT
-      uuid_generate_v4(),
-      b.id,
-      NULL,
-      (left(elem, 10)::date AT TIME ZONE 'Asia/Kolkata'),
-      ((left(elem, 10)::date + 1) AT TIME ZONE 'Asia/Kolkata'),
-      'offline',
-      'Migrated from business offlineDays',
-      b."ownerId"
-    FROM businesses b
-    CROSS JOIN LATERAL jsonb_array_elements_text(
-      COALESCE(b."offlineDays"::jsonb, '[]'::jsonb)
-    ) AS elem
-    WHERE b.type = 'SERVICE'
-      AND b."serviceType"::text = 'HALL'
-      AND length(elem) >= 10;
-  END IF;
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'offlineDays backfill skipped: %', SQLERRM;
-END $$;
+-- Day-list backfill lives in scripts/availability_intervals.sql.
+-- This file only creates hall tables. It does not copy offlineDays.
 
 INSERT INTO business_hall_venue ("businessId")
 SELECT id FROM businesses

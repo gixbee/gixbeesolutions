@@ -6,7 +6,6 @@ import '../../theme.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_network_error.dart';
 import '../../shared/widgets/gx_empty.dart';
-import '../../repositories/business_repository.dart';
 import '../../repositories/events_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_snackbar.dart';
@@ -15,8 +14,8 @@ import 'photography_calendar_math.dart';
 import 'event_plans_screen.dart';
 import 'event_vendor_calendar_screen.dart';
 
-/// Owner's photography schedule. Confirmed Gixbee quotes and outside shoots
-/// originate from Rust; unavailable days reuse the existing Business API.
+/// Owner's photography schedule. Confirmed Gixbee quotes, outside shoots,
+/// and unavailable days all come from the vendor interval calendar.
 class PhotographyOwnerCalendarScreen extends ConsumerStatefulWidget {
   const PhotographyOwnerCalendarScreen({super.key, required this.business});
   final Business business;
@@ -103,12 +102,11 @@ class _PhotographyOwnerCalendarScreenState
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final repo = ref.read(businessRepositoryProvider);
-      if (blocked) {
-        await repo.addOfflineDay(widget.business.id, _selected);
-      } else {
-        await repo.removeOfflineDay(widget.business.id, _selected);
-      }
+      await ref.read(eventsRepositoryProvider).setUnavailable(
+            widget.business.id,
+            _selected,
+            blocked: blocked,
+          );
       if (!mounted) return;
       setState(() {
         if (blocked) { _blocked.add(_key(_selected)); }

@@ -32,6 +32,7 @@ class BusinessRepository {
     await _dio.post('/businesses/$businessId/operators', data: {'userId': userId, 'role': role});
   }
 
+  /// Compatibility adapter. The server writes an interval, not the day column.
   Future<void> addOfflineDay(String businessId, DateTime date) async {
     await _dio.post('/businesses/$businessId/calendar/offline', data: {'date': date.toIso8601String()});
   }
