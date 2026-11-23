@@ -6,6 +6,7 @@ import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import 'hall_policy.dart';
+import 'hall_slot_options.dart';
 
 const _eventOptions = [
   'wedding',
@@ -74,6 +75,9 @@ class _HallPackageWizardScreenState
   final _roomsCtrl = TextEditingController(text: '0');
 
   bool _morning = true;
+  final _slotOptions = {
+    for (final id in ['morning', 'evening', 'fullday']) id: HallSlotOptions(),
+  };
   bool _evening = true;
   bool _fullday = true;
   final _mFrom = TextEditingController(text: '09:00');
@@ -136,8 +140,8 @@ class _HallPackageWizardScreenState
       if (pkg is Map) _applyPackage(Map<String, dynamic>.from(pkg));
       setState(() {
         _ready = true;
-        _editing = hall['packageSaved'] == true ||
-            hall['packageRevisionId'] != null;
+        _editing =
+            hall['packageSaved'] == true || hall['packageRevisionId'] != null;
         _loadError = null;
       });
     } catch (e) {
@@ -183,6 +187,7 @@ class _HallPackageWizardScreenState
       for (final raw in slots) {
         if (raw is! Map) continue;
         final slot = Map<String, dynamic>.from(raw);
+        _slotOptions[slot['id']]?.load(slot);
         final discount = _discounts[slot['id']];
         if (discount != null) {
           discount.$1.text = '${slot['discountNoAcPct'] ?? 0}';
@@ -289,6 +294,9 @@ class _HallPackageWizardScreenState
     _eAc.dispose();
     _fNoAc.dispose();
     _fAc.dispose();
+    for (final options in _slotOptions.values) {
+      options.dispose();
+    }
     for (final (regular, ac) in _discounts.values) {
       regular.dispose();
       ac.dispose();
@@ -319,20 +327,32 @@ class _HallPackageWizardScreenState
       TextEditingController price,
       TextEditingController acPrice,
     ) {
-      if (!enabled) return;
+      final options = _slotOptions[id]!;
       offers.add({
         'id': id,
         'label': label,
         'hallFrom': from.text.trim(),
         'hallTo': to.text.trim(),
-        'enabled': true,
-        'offerNoAc': true,
-        'offerAc': offerAc,
-        'priceNoAc': int.parse(price.text.trim()),
-        'priceAc': offerAc ? int.parse(acPrice.text.trim()) : 0,
-        'discountNoAcPct': int.parse(_discounts[id]!.$1.text.trim()),
-        'discountAcPct':
-            offerAc ? int.parse(_discounts[id]!.$2.text.trim()) : 0,
+        'enabled': enabled,
+        'offerNoAc': options.offerNoAc,
+        'offerAc': offerAc && options.offerAc,
+        'priceNoAc': int.tryParse(price.text.trim()) ?? 0,
+        'priceAc': int.tryParse(acPrice.text.trim()) ?? 0,
+        'discountNoAcEnabled': options.discountNoAc,
+        'discountAcEnabled': options.discountAc,
+        'discountNoAcPct': options.discountNoAc
+            ? int.tryParse(_discounts[id]!.$1.text.trim()) ?? 0
+            : 0,
+        'discountAcPct': options.discountAc
+            ? int.tryParse(_discounts[id]!.$2.text.trim()) ?? 0
+            : 0,
+        'acUsage': options.usage,
+        'acHours': double.tryParse(options.hours.text) ?? 1,
+        'acTiming': options.timing,
+        'acFrom': options.from.text.trim(),
+        'acTo': options.to.text.trim(),
+        if (enabled && offerAc && options.offerAc)
+          ...options.json(from.text, to.text),
       });
     }
 
@@ -386,7 +406,8 @@ class _HallPackageWizardScreenState
       final dine =
           _whole(_dineCtrl.text, 'Dining capacity', min: 0, max: 100000);
       if (dine != null) return dine;
-      final rooms=_whole(_roomsCtrl.text,'Private / changing rooms',min:0,max:10000);
+      final rooms = _whole(_roomsCtrl.text, 'Private / changing rooms',
+          min: 0, max: 10000);
       if (rooms != null) return rooms;
     }
     if (step == 3) {
@@ -410,16 +431,25 @@ class _HallPackageWizardScreenState
         if (_minutes(from.text) >= _minutes(to.text)) {
           return '$label end time must be after its start time';
         }
-        final rent = _whole(price.text, '$label price', min: 0, max: 100000000);
+        final options = _slotOptions[id]!;
+        final optionError = options.validate(from.text, to.text, _offersAc);
+        if (optionError != null) return '$label: $optionError';
+        final rent = options.offerNoAc
+            ? _whole(price.text, '$label price', min: 0, max: 100000000)
+            : null;
         if (rent != null) return rent;
         final discount = _discounts[id]!;
-        final discountError =
-            _whole(discount.$1.text, '$label discount', min: 0, max: 99);
+        final discountError = options.offerNoAc && options.discountNoAc
+            ? _whole(discount.$1.text, '$label discount', min: 0, max: 99)
+            : null;
         if (discountError != null) return discountError;
-        if (_offersAc) {
+        if (_offersAc && options.offerAc) {
           return _whole(acPrice.text, '$label AC price',
                   min: 0, max: 100000000) ??
-              _whole(discount.$2.text, '$label AC discount', min: 0, max: 99);
+              (options.discountAc
+                  ? _whole(discount.$2.text, '$label AC discount',
+                      min: 0, max: 99)
+                  : null);
         }
         return null;
       }
@@ -753,6 +783,59 @@ class _HallPackageWizardScreenState
     TextEditingController acPrice,
     String priceLabel,
   ) {
+    final options = _slotOptions[id]!;
+    Widget pricing(bool ac) {
+      final controller = ac ? acPrice : price;
+      final discount = ac ? _discounts[id]!.$2 : _discounts[id]!.$1;
+      final offered = ac ? options.offerAc : options.offerNoAc;
+      final discounted = ac ? options.discountAc : options.discountNoAc;
+      return Column(children: [
+        CheckboxListTile(
+          title: Text(ac ? 'With AC — Base Rent' : priceLabel),
+          value: offered,
+          onChanged: (value) => setState(() {
+            if (ac) {
+              options.offerAc = value!;
+            } else {
+              options.offerNoAc = value!;
+            }
+          }),
+        ),
+        if (offered) ...[
+          GxTextField(
+              controller: controller,
+              label: 'Base rent ₹ (GST incl.)',
+              keyboardType: TextInputType.number),
+          SwitchListTile(
+              title: const Text('Offer discount on this price?'),
+              value: discounted,
+              onChanged: (value) => setState(() {
+                    if (ac) {
+                      options.discountAc = value;
+                    } else {
+                      options.discountNoAc = value;
+                    }
+                  })),
+          if (discounted)
+            GxTextField(
+                controller: discount,
+                label: 'Discount (%)',
+                keyboardType: TextInputType.number),
+          AnimatedBuilder(
+              animation: Listenable.merge([controller, discount]),
+              builder: (context, child) {
+                final base = int.tryParse(controller.text) ?? 0;
+                final percent = discounted
+                    ? (int.tryParse(discount.text) ?? 0).clamp(0, 99)
+                    : 0;
+                final total = (base * (100 - percent) + 50) ~/ 100;
+                return Text(
+                    'Customer will see: ${discounted ? '₹$base • $percent% off → ' : ''}₹$total (GST incl.)');
+              }),
+        ],
+      ]);
+    }
+
     return Column(
       children: [
         SwitchListTile(
@@ -770,24 +853,67 @@ class _HallPackageWizardScreenState
             ],
           ),
           const SizedBox(height: 8),
-          GxTextField(
-              controller: price,
-              label: priceLabel,
-              keyboardType: TextInputType.number),
-          GxTextField(
-              controller: _discounts[id]!.$1,
-              label: 'Discount (%)',
-              keyboardType: TextInputType.number),
+          pricing(false),
           if (_offersAc) ...[
-            const SizedBox(height: 8),
-            GxTextField(
-                controller: acPrice,
-                label: 'With AC ₹',
-                keyboardType: TextInputType.number),
-            GxTextField(
-                controller: _discounts[id]!.$2,
-                label: 'AC discount (%)',
-                keyboardType: TextInputType.number),
+            pricing(true),
+            if (options.offerAc) ...[
+              const Text('AC Usage (With AC Package)'),
+              DropdownButton<String>(
+                  value: options.usage,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'full', child: Text('AC for full hall window')),
+                    DropdownMenuItem(
+                        value: 'partial',
+                        child: Text('AC for part of the hall window')),
+                  ],
+                  onChanged: (value) => setState(() => options.usage = value!)),
+              if (options.usage == 'partial')
+                GxTextField(
+                    controller: options.hours,
+                    label: 'AC hours included',
+                    onChanged: (value) {
+                      final duration =
+                          ((HallSlotOptions.minutes(to.text) ?? 0) -
+                                  (HallSlotOptions.minutes(from.text) ?? 0)) /
+                              60;
+                      if (duration > 0 && double.tryParse(value) == duration) {
+                        setState(() => options.usage = 'full');
+                      }
+                    },
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true)),
+              AnimatedBuilder(
+                  animation: Listenable.merge([from, to, options.hours]),
+                  builder: (context, child) {
+                    final duration = ((HallSlotOptions.minutes(to.text) ?? 0) -
+                            (HallSlotOptions.minutes(from.text) ?? 0)) /
+                        60;
+                    final included = options.usage == 'full'
+                        ? duration
+                        : double.tryParse(options.hours.text);
+                    return Text(included == duration
+                        ? '$duration AC hours • Full hall window'
+                        : '${included ?? '—'} AC hours included');
+                  }),
+              DropdownButton<String>(
+                  value: options.timing,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'flexible', child: Text('Flexible AC timing')),
+                    DropdownMenuItem(
+                        value: 'fixed', child: Text('Fixed AC schedule')),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => options.timing = value!)),
+              if (options.timing == 'flexible')
+                const Text(
+                    'Customers agree AC operating times with hall management.'),
+              if (options.timing == 'fixed') ...[
+                GxTextField(controller: options.from, label: 'AC from (HH:MM)'),
+                GxTextField(controller: options.to, label: 'AC to (HH:MM)'),
+              ],
+            ],
           ],
           const SizedBox(height: 8),
         ],
@@ -971,8 +1097,16 @@ class _HallPackageWizardScreenState
     TextEditingController price,
     TextEditingController acPrice,
   ) {
-    final rent = '₹${price.text.trim()}';
-    final ac = _offersAc ? ', AC ₹${acPrice.text.trim()}' : '';
+    final id = label == 'Morning'
+        ? 'morning'
+        : label == 'Evening'
+            ? 'evening'
+            : 'fullday';
+    final options = _slotOptions[id]!;
+    final rent = options.offerNoAc ? 'Without AC ₹${price.text.trim()}' : '';
+    final ac = _offersAc && options.offerAc
+        ? ', With AC ₹${acPrice.text.trim()} (${options.usage == 'full' ? 'full window' : '${options.hours.text} hours'}, ${options.timing})'
+        : '';
     return '$label ${from.text.trim()}–${to.text.trim()} $rent$ac';
   }
 

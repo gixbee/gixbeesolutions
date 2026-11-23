@@ -27,6 +27,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
   List<Map<String, dynamic>> _prefs = [];
   Map<String, dynamic>? _talent;
   bool _loading = true;
+  final Set<String> _updatingPreferences = {};
 
   @override
   void initState() {
@@ -138,24 +139,26 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
   Future<void> _setPreferencePaused(
       Map<String, dynamic> pref, bool paused) async {
     final id = pref['id']?.toString();
-    if (id == null) return;
+    if (id == null || _updatingPreferences.contains(id)) return;
+    setState(() => _updatingPreferences.add(id));
     try {
       await ref.read(matchingRepositoryProvider).updatePreference(id, {
         'matchingPaused': paused,
       });
-      await _load();
       if (!mounted) return;
-      showGxSnack(
-        context,
-        paused
-            ? '${pref['jobType']} paused — other profiles stay active'
-            : '${pref['jobType']} is active for matching again',
-        type: GxSnackType.success,
-      );
+      setState(() {
+        for (final profile in _prefs) {
+          if (profile['id']?.toString() == id) {
+            profile['matchingPaused'] = paused;
+          }
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       showGxSnack(context, 'Could not update profile: $e',
           type: GxSnackType.error);
+    } finally {
+      if (mounted) setState(() => _updatingPreferences.remove(id));
     }
   }
 
@@ -409,6 +412,31 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                                 ),
                                             ],
                                           ),
+                                          SwitchListTile(
+                                            key: ValueKey(
+                                                'job-profile-switch-${p['id']}'),
+                                            contentPadding: EdgeInsets.zero,
+                                            title: Text(prefPaused
+                                                ? 'Matching off'
+                                                : 'Matching on'),
+                                            subtitle: _talent?[
+                                                            'profileStatus'] ==
+                                                        'PAUSED' &&
+                                                    !prefPaused
+                                                ? const Text(
+                                                    'Turn on Open to work to receive matches')
+                                                : null,
+                                            value: !prefPaused,
+                                            activeThumbColor:
+                                                GixbeeTheme.accentPurple,
+                                            onChanged:
+                                                _updatingPreferences.contains(
+                                                        p['id']?.toString())
+                                                    ? null
+                                                    : (enabled) =>
+                                                        _setPreferencePaused(
+                                                            p, !enabled),
+                                          ),
                                           const SizedBox(height: 6),
                                           if (p['isPaid'] == true)
                                             Text(
@@ -494,18 +522,6 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                                 onPressed: () =>
                                                     _openForm(existing: p),
                                                 child: const Text('Edit'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    _setPreferencePaused(
-                                                  p,
-                                                  !prefPaused,
-                                                ),
-                                                child: Text(
-                                                  prefPaused
-                                                      ? 'Resume'
-                                                      : 'Pause',
-                                                ),
                                               ),
                                               TextButton.icon(
                                                 onPressed: () =>

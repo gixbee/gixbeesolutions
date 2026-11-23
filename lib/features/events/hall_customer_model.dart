@@ -7,7 +7,8 @@ class HallCustomerModel {
     if (raw['enabled'] == false) return null;
     if (ac ? raw['offerAc'] != true : raw['offerNoAc'] == false) return null;
     final base = raw[ac ? 'priceAc' : 'priceNoAc'];
-    final pct = raw[ac ? 'discountAcPct' : 'discountNoAcPct'] ?? 0;
+    final pct = raw[ac ? 'discountAcEnabled' : 'discountNoAcEnabled'] == false
+        ? 0 : raw[ac ? 'discountAcPct' : 'discountNoAcPct'] ?? 0;
     if (base is! int || base < 0 || base > 100000000 ||
         pct is! int || pct < 0 || pct > 99) return null;
     return (base * (100 - pct) + 50) ~/ 100;
@@ -87,6 +88,12 @@ class HallCustomerModel {
           'slotId':offer['id'], 'label':offer['label'],
           'start':raw['start'], 'end':raw['end'],
           'withAc':withAc, 'price':price,
+          if (withAc) ...{
+            'acHours': offer['acHours'],
+            'acUsage': offer['acUsage'] ?? 'full',
+            'acTiming': offer['acTiming'] ?? 'flexible',
+            'acFrom': offer['acFrom'], 'acTo': offer['acTo'],
+          },
           'basePrice':offer[withAc ? 'listPriceAc' : 'listPriceNoAc'] ?? price,
           'discountPercent':offer[withAc
             ? 'discountAcPct' : 'discountNoAcPct'] ?? 0,

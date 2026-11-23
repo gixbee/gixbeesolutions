@@ -316,6 +316,10 @@ class _HallCustomerSlotsScreenState
                   subtitle:Column(
                     crossAxisAlignment:CrossAxisAlignment.start,children:[
                     Text('${_time(row['start'])} – ${_time(row['end'])} IST'),
+                    if (row['withAc'] == true)
+                      Text(row['acTiming'] == 'fixed'
+                        ? 'AC: ${row['acFrom']} – ${row['acTo']} (${row['acHours']} hours included)'
+                        : 'AC: ${row['acHours'] ?? 'Full window'} hours included • Agree timings with hall management'),
                     Wrap(spacing:8,children:[
                       Text(hallMoney(row['price'] as int),
                         style:const TextStyle(color:_hallGreen,

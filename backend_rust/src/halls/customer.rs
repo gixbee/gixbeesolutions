@@ -88,7 +88,8 @@ fn rent(offer: &Value, with_ac: bool) -> Option<i64> {
     if !offer[enabled].as_bool().unwrap_or(!with_ac) {
         return None;
     }
-    let percent = offer[discount].as_i64().unwrap_or(0).clamp(0, 99);
+    let switch = if with_ac { "discountAcEnabled" } else { "discountNoAcEnabled" };
+    let percent = if offer[switch] == false { 0 } else { offer[discount].as_i64().unwrap_or(0).clamp(0, 99) };
     offer[price]
         .as_i64()
         .map(|base| (base * (100 - percent) + 50) / 100)

@@ -557,12 +557,22 @@ async fn put_package(
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
     require_perm(&state.db, business_id, Some(hall_id), uid, Perm::Owner).await?;
-    let pkg = body
+    let mut pkg = body
         .get("package")
         .cloned()
         .or_else(|| Some(body.clone()))
         .unwrap();
     validate_package(&pkg)?;
+    for offer in pkg["slotOffers"].as_array_mut().unwrap() {
+        if offer["enabled"] == false || offer["offerAc"] != true { continue; }
+        let duration = validate_clock(offer.get("hallTo"), "hallTo")?
+            - validate_clock(offer.get("hallFrom"), "hallFrom")?;
+        if offer["acUsage"].as_str().unwrap_or("full") == "full"
+            || (offer["acHours"].as_f64().unwrap_or(0.0) * 60.0 - duration as f64).abs() < 0.000001 {
+            offer["acUsage"] = json!("full");
+            offer["acHours"] = json!(duration as f64 / 60.0);
+        }
+    }
     let mut tx = state.db.begin().await?;
     acquire_hall_scope_locks(&mut *tx, business_id, Some(&[hall_id])).await?;
     let exists: bool = sqlx::query_scalar(
@@ -689,6 +699,69 @@ fn validate_parking(value: &Value) -> AppResult<()> {
     Ok(())
 }
 
+fn validate_ac_options(offer: &Value, from: u32, to: u32) -> AppResult<()> {
+    let bad = |message: &str| AppError::BadRequest(message.into());
+    for field in ["offerAc", "offerNoAc", "discountAcEnabled", "discountNoAcEnabled"] {
+        if offer.get(field).is_some_and(|value| !value.is_boolean()) {
+            return Err(bad("Pricing switches must be boolean"));
+        }
+    }
+    if offer["offerAc"] != true {
+        if offer["offerNoAc"] == false { return Err(bad("Select a pricing option")); }
+        return Ok(());
+    }
+    let window = (to - from) as f64;
+    let hours = match offer["acUsage"].as_str().unwrap_or("full") {
+        "full" => window / 60.0,
+        "partial" => offer["acHours"].as_f64().ok_or_else(|| bad("AC hours required"))?,
+        _ => return Err(bad("AC usage must be full or partial")),
+    };
+    if !hours.is_finite() || hours <= 0.0 || hours * 60.0 > window {
+        return Err(bad("AC hours must be positive and within the booking window"));
+    }
+    match offer["acTiming"].as_str().unwrap_or("flexible") {
+        "flexible" => (),
+        "fixed" => {
+            let start = validate_clock(offer.get("acFrom"), "acFrom")?;
+            let end = validate_clock(offer.get("acTo"), "acTo")?;
+            if start < from || end > to || end <= start || ((end - start) as f64 - hours * 60.0).abs() > 0.000001 {
+                return Err(bad("Fixed AC schedule must fit the booking window and match included hours"));
+            }
+        }
+        _ => return Err(bad("AC timing must be flexible or fixed")),
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod ac_options_tests {
+    use super::*;
+
+    #[test]
+    fn partial_and_fixed_ac_respect_booking_window() {
+        let mut offer = json!({"offerAc":true,"acUsage":"partial","acHours":6});
+        assert!(validate_ac_options(&offer, 600, 900).is_err());
+        offer["acHours"] = json!(5);
+        assert!(validate_ac_options(&offer, 600, 900).is_ok());
+        offer["acHours"] = json!(1.5);
+        offer["acTiming"] = json!("fixed");
+        offer["acFrom"] = json!("11:00");
+        offer["acTo"] = json!("12:30");
+        assert!(validate_ac_options(&offer, 600, 900).is_ok());
+        offer["acTo"] = json!("13:00");
+        assert!(validate_ac_options(&offer, 600, 900).is_err());
+        offer["acFrom"] = json!("09:00");
+        assert!(validate_ac_options(&offer, 600, 900).is_err());
+    }
+
+    #[test]
+    fn legacy_ac_and_without_ac_are_supported() {
+        assert!(validate_ac_options(&json!({"offerAc":true}), 600, 900).is_ok());
+        assert!(validate_ac_options(&json!({"offerNoAc":true,"offerAc":false}), 600, 900).is_ok());
+        assert!(validate_ac_options(&json!({"offerNoAc":false,"offerAc":false}), 600, 900).is_err());
+    }
+}
+
 fn validate_package(pkg: &Value) -> AppResult<()> {
     let events = pkg
         .get("events")
@@ -739,6 +812,7 @@ fn validate_package(pkg: &Value) -> AppResult<()> {
             )));
         }
         let offer_ac = offer.get("offerAc").and_then(|v| v.as_bool()).unwrap_or(false);
+        validate_ac_options(offer, from, to)?;
         if offer_ac && !has_ac {
             return Err(AppError::BadRequest(
                 "AC pricing requires the AC facility".into(),
