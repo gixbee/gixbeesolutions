@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../theme.dart';
 import '../../repositories/hall_repository.dart';
 import '../../shared/models/business.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -575,7 +577,7 @@ class _HallPackageWizardScreenState
     final busy = _saving || _advancing;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Price & packages · Step $_step/5'),
+        title: const Text('Price & packages'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: busy
@@ -596,22 +598,53 @@ class _HallPackageWizardScreenState
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    Text(
+                      'Step $_step of 5 · ${const [
+                        'Event categories',
+                        'Venue details',
+                        'Pricing & time slots',
+                        'Payment & policies',
+                        'Review package'
+                      ][_step - 1]}',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      value: _step / 5,
+                      color: context.gx.accent,
+                      backgroundColor: context.gx.border,
+                      borderRadius: BorderRadius.circular(4),
+                      minHeight: 5,
+                    ),
+                    const SizedBox(height: 24),
                     if (_step == 1) _step1(),
                     if (_step == 2) _step2(),
                     if (_step == 3) _step3(),
                     if (_step == 4) _step4(),
                     if (_step == 5) _step5(),
-                    const SizedBox(height: 20),
-                    GxButton(
-                      label: _step == 5
-                          ? (_saving
-                              ? (_editing ? 'Updating…' : 'Saving…')
-                              : (_editing ? 'Update Package' : 'Save Package'))
-                          : (_advancing ? 'Please wait…' : 'Continue'),
-                      onTap: busy ? null : _next,
-                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
+      bottomNavigationBar: !_ready || _loadError != null
+          ? null
+          : SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  color: context.gx.bg,
+                  border: Border(top: BorderSide(color: context.gx.border)),
+                ),
+                child: GxButton(
+                  label: _step == 5
+                      ? (_saving
+                          ? (_editing ? 'Updating…' : 'Saving…')
+                          : (_editing ? 'Update Package' : 'Save Package'))
+                      : (_advancing ? 'Please wait…' : 'Continue'),
+                  onTap: busy ? null : _next,
+                ),
+              ),
+            ),
     );
   }
 
@@ -757,18 +790,116 @@ class _HallPackageWizardScreenState
   }
 
   Widget _step3() {
-    final outdoor = _spaceType == 'outdoor';
-    final priceLabel = outdoor || !_offersAc ? 'Slot rent ₹' : 'Without AC ₹';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _slotEditor('morning', 'Morning', _morning, (v) => _morning = v, _mFrom,
-            _mTo, _mNoAc, _mAc, priceLabel),
+            _mTo, _mNoAc, _mAc),
         _slotEditor('evening', 'Evening', _evening, (v) => _evening = v, _eFrom,
-            _eTo, _eNoAc, _eAc, priceLabel),
+            _eTo, _eNoAc, _eAc),
         _slotEditor('fullday', 'Full day', _fullday, (v) => _fullday = v,
-            _fFrom, _fTo, _fNoAc, _fAc, priceLabel),
+            _fFrom, _fTo, _fNoAc, _fAc),
       ],
+    );
+  }
+
+  Widget _panel(String title, List<Widget> children,
+      {IconData? icon, Widget? trailing}) {
+    final colors = context.gx;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          if (icon != null) ...[
+            Icon(icon, size: 22, color: colors.accent),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+              child: Text(title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700, color: colors.ink))),
+          if (trailing != null) trailing,
+        ]),
+        if (children.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ]),
+    );
+  }
+
+  Widget _labelValue(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+              flex: 5,
+              child: Text(label,
+                  style: TextStyle(
+                      color: context.gx.ink.withValues(alpha: 0.65)))),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 6,
+              child: Text(value,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: context.gx.ink))),
+        ]),
+      );
+
+  String _money(String raw) {
+    final value = num.tryParse(raw.trim());
+    return value == null
+        ? '—'
+        : NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0)
+            .format(value);
+  }
+
+  Widget _priceTotal(TextEditingController rent, TextEditingController discount,
+      bool discounted) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([rent, discount]),
+      builder: (context, _) {
+        final base = int.tryParse(rent.text.trim());
+        final pct = discounted ? int.tryParse(discount.text.trim()) : 0;
+        final valid =
+            base != null && base >= 0 && pct != null && pct >= 0 && pct <= 99;
+        final total = valid ? (base * (100 - pct) + 50) ~/ 100 : null;
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.gx.accentSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Customer price',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                    valid && pct > 0
+                        ? '$pct% off · GST included'
+                        : 'GST included',
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
+            )),
+            const SizedBox(width: 8),
+            Flexible(
+                child: Text(total == null ? '—' : _money('$total'),
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: context.gx.accent,
+                        fontWeight: FontWeight.w800))),
+          ]),
+        );
+      },
     );
   }
 
@@ -781,7 +912,6 @@ class _HallPackageWizardScreenState
     TextEditingController to,
     TextEditingController price,
     TextEditingController acPrice,
-    String priceLabel,
   ) {
     final options = _slotOptions[id]!;
     Widget pricing(bool ac) {
@@ -789,136 +919,193 @@ class _HallPackageWizardScreenState
       final discount = ac ? _discounts[id]!.$2 : _discounts[id]!.$1;
       final offered = ac ? options.offerAc : options.offerNoAc;
       final discounted = ac ? options.discountAc : options.discountNoAc;
-      return Column(children: [
-        CheckboxListTile(
-          title: Text(ac ? 'With AC — Base Rent' : priceLabel),
-          value: offered,
-          onChanged: (value) => setState(() {
-            if (ac) {
-              options.offerAc = value!;
-            } else {
-              options.offerNoAc = value!;
-            }
-          }),
+      return Container(
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.gx.bg,
+          border: Border.all(color: context.gx.border),
+          borderRadius: BorderRadius.circular(14),
         ),
-        if (offered) ...[
-          GxTextField(
-              controller: controller,
-              label: 'Base rent ₹ (GST incl.)',
-              keyboardType: TextInputType.number),
-          SwitchListTile(
-              title: const Text('Offer discount on this price?'),
-              value: discounted,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Icon(ac ? Icons.ac_unit : Icons.meeting_room_outlined,
+                size: 20, color: context.gx.ink.withValues(alpha: 0.65)),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(
+                    ac
+                        ? 'With AC'
+                        : _offersAc
+                            ? 'Without AC'
+                            : 'Hall rental',
+                    style: const TextStyle(fontWeight: FontWeight.w700))),
+            Checkbox(
+              value: offered,
+              activeColor: context.gx.accent,
               onChanged: (value) => setState(() {
-                    if (ac) {
-                      options.discountAc = value;
-                    } else {
-                      options.discountNoAc = value;
-                    }
-                  })),
-          if (discounted)
-            GxTextField(
-                controller: discount,
-                label: 'Discount (%)',
-                keyboardType: TextInputType.number),
-          AnimatedBuilder(
-              animation: Listenable.merge([controller, discount]),
-              builder: (context, child) {
-                final base = int.tryParse(controller.text) ?? 0;
-                final percent = discounted
-                    ? (int.tryParse(discount.text) ?? 0).clamp(0, 99)
-                    : 0;
-                final total = (base * (100 - percent) + 50) ~/ 100;
-                return Text(
-                    'Customer will see: ${discounted ? '₹$base • $percent% off → ' : ''}₹$total (GST incl.)');
+                if (ac) {
+                  options.offerAc = value!;
+                } else {
+                  options.offerNoAc = value!;
+                }
               }),
-        ],
-      ]);
+            ),
+          ]),
+          if (offered) ...[
+            const SizedBox(height: 8),
+            GxTextField(
+                controller: controller,
+                blur: false,
+                label: 'Base rent · GST included',
+                prefixIcon: Icons.currency_rupee,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 8),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Offer a discount'),
+              value: discounted,
+              activeThumbColor: context.gx.accent,
+              onChanged: (value) => setState(() {
+                if (ac) {
+                  options.discountAc = value;
+                } else {
+                  options.discountNoAc = value;
+                }
+              }),
+            ),
+            if (discounted) ...[
+              GxTextField(
+                  controller: discount,
+                  blur: false,
+                  label: 'Discount',
+                  suffix: const Text('%'),
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+            ],
+            _priceTotal(controller, discount, discounted),
+          ],
+        ]),
+      );
     }
 
-    return Column(
-      children: [
-        SwitchListTile(
-          title: Text(title),
-          value: enabled,
-          onChanged: (v) => setState(() => onEnabled(v)),
-        ),
-        if (enabled) ...[
-          Row(
-            children: [
-              Expanded(
-                  child: GxTextField(controller: from, label: 'From (HH:MM)')),
-              const SizedBox(width: 8),
-              Expanded(child: GxTextField(controller: to, label: 'To (HH:MM)')),
-            ],
-          ),
-          const SizedBox(height: 8),
-          pricing(false),
-          if (_offersAc) ...[
-            pricing(true),
-            if (options.offerAc) ...[
-              const Text('AC Usage (With AC Package)'),
-              DropdownButton<String>(
-                  value: options.usage,
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'full', child: Text('AC for full hall window')),
-                    DropdownMenuItem(
-                        value: 'partial',
-                        child: Text('AC for part of the hall window')),
+    return _panel(
+        title,
+        enabled
+            ? [
+                Row(children: [
+                  Expanded(
+                      child: GxTextField(
+                          controller: from,
+                          blur: false,
+                          label: 'Hall opens',
+                          prefixIcon: Icons.schedule_outlined,
+                          hint: '09:00')),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: GxTextField(
+                          controller: to,
+                          blur: false,
+                          label: 'Hall closes',
+                          prefixIcon: Icons.schedule_outlined,
+                          hint: '14:00')),
+                ]),
+                const SizedBox(height: 4),
+                Text('24-hour time · IST',
+                    style: Theme.of(context).textTheme.bodySmall),
+                pricing(false),
+                if (_offersAc) ...[
+                  pricing(true),
+                  if (options.offerAc) ...[
+                    const SizedBox(height: 20),
+                    const Text('AC availability',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: options.usage,
+                      key: ValueKey('$id-usage-${options.usage}'),
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                          labelText: 'Included AC usage',
+                          border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'full', child: Text('Entire hall booking')),
+                        DropdownMenuItem(
+                            value: 'partial', child: Text('Limited hours')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => options.usage = value!),
+                    ),
+                    if (options.usage == 'partial') ...[
+                      const SizedBox(height: 16),
+                      GxTextField(
+                          controller: options.hours,
+                          blur: false,
+                          label: 'Included AC hours',
+                          suffix: const Text('hrs'),
+                          onChanged: (value) {
+                            final duration =
+                                ((HallSlotOptions.minutes(to.text) ?? 0) -
+                                        (HallSlotOptions.minutes(from.text) ??
+                                            0)) /
+                                    60;
+                            if (duration > 0 &&
+                                double.tryParse(value) == duration) {
+                              setState(() => options.usage = 'full');
+                            }
+                          },
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true)),
+                    ],
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: options.timing,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                          labelText: 'AC operating schedule',
+                          border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'flexible',
+                            child: Text('Agree timing with customer')),
+                        DropdownMenuItem(
+                            value: 'fixed',
+                            child: Text('Fixed operating hours')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => options.timing = value!),
+                    ),
+                    if (options.timing == 'fixed') ...[
+                      const SizedBox(height: 16),
+                      Row(children: [
+                        Expanded(
+                            child: GxTextField(
+                                controller: options.from,
+                                blur: false,
+                                label: 'AC starts')),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: GxTextField(
+                                controller: options.to,
+                                blur: false,
+                                label: 'AC ends')),
+                      ]),
+                    ],
                   ],
-                  onChanged: (value) => setState(() => options.usage = value!)),
-              if (options.usage == 'partial')
-                GxTextField(
-                    controller: options.hours,
-                    label: 'AC hours included',
-                    onChanged: (value) {
-                      final duration =
-                          ((HallSlotOptions.minutes(to.text) ?? 0) -
-                                  (HallSlotOptions.minutes(from.text) ?? 0)) /
-                              60;
-                      if (duration > 0 && double.tryParse(value) == duration) {
-                        setState(() => options.usage = 'full');
-                      }
-                    },
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true)),
-              AnimatedBuilder(
-                  animation: Listenable.merge([from, to, options.hours]),
-                  builder: (context, child) {
-                    final duration = ((HallSlotOptions.minutes(to.text) ?? 0) -
-                            (HallSlotOptions.minutes(from.text) ?? 0)) /
-                        60;
-                    final included = options.usage == 'full'
-                        ? duration
-                        : double.tryParse(options.hours.text);
-                    return Text(included == duration
-                        ? '$duration AC hours • Full hall window'
-                        : '${included ?? '—'} AC hours included');
-                  }),
-              DropdownButton<String>(
-                  value: options.timing,
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'flexible', child: Text('Flexible AC timing')),
-                    DropdownMenuItem(
-                        value: 'fixed', child: Text('Fixed AC schedule')),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => options.timing = value!)),
-              if (options.timing == 'flexible')
-                const Text(
-                    'Customers agree AC operating times with hall management.'),
-              if (options.timing == 'fixed') ...[
-                GxTextField(controller: options.from, label: 'AC from (HH:MM)'),
-                GxTextField(controller: options.to, label: 'AC to (HH:MM)'),
-              ],
-            ],
-          ],
-          const SizedBox(height: 8),
-        ],
-      ],
-    );
+                ],
+              ]
+            : [],
+        icon: switch (id) {
+          'morning' => Icons.wb_sunny_outlined,
+          'evening' => Icons.nights_stay_outlined,
+          _ => Icons.calendar_today_outlined,
+        },
+        trailing: Switch.adaptive(
+            value: enabled,
+            activeThumbColor: context.gx.accent,
+            onChanged: (value) => setState(() => onEnabled(value))));
   }
 
   Widget _step4() {
@@ -1049,73 +1236,198 @@ class _HallPackageWizardScreenState
     );
   }
 
-  Widget _step5() {
-    final slots = <String>[
-      if (_morning) _slotSummary('Morning', _mFrom, _mTo, _mNoAc, _mAc),
-      if (_evening) _slotSummary('Evening', _eFrom, _eTo, _eNoAc, _eAc),
-      if (_fullday) _slotSummary('Full day', _fFrom, _fTo, _fNoAc, _fAc),
-    ];
-    final advance = _advanceType == 'percent'
-        ? '${_advancePct.text.trim()}% of the quote'
-        : '₹${_advanceFixed.text.trim()}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Space: ${_nameCtrl.text.trim()} ($_spaceType)'),
-        Text('Events: ${_events.join(', ')}'),
-        Text('Facilities: ${_facilities.join(', ')}'),
-        Text(
-            'Seating ${_seatCtrl.text.trim()}, dining ${_dineCtrl.text.trim()}'),
-        Text('Catering in-house $_caterIn, outside $_caterOut'),
-        Text('Decor by hall $_decorHall, outside decor $_decorOut'),
-        const SizedBox(height: 8),
-        const Text('Slots', style: TextStyle(fontWeight: FontWeight.w700)),
-        for (final line in slots) Text(line),
-        const SizedBox(height: 8),
-        Text('Advance: $advance'),
-        Text('Full payment due ${_fullDue.text.trim()} days before the event'),
-        Text('Deduction basis: $_deductionBasis'),
-        Text('Book up to ${_bookMonths.text.trim()} months ahead'),
-        Text('Minimum notice: ${_minNotice.text.trim()} days'),
-        const SizedBox(height: 8),
-        Text('Cancellation: ${_editorSummary(_cancelFields)}'),
-        Text('Reschedule: ${_editorSummary(_rescheduleFields)}'),
-        const SizedBox(height: 12),
-        Text(
-          _editing
-              ? 'Times for customers will be shown in IST (Kolkata). Tap Update Package to save your changes.'
-              : 'Times for customers will be shown in IST (Kolkata). Tap Save Package to unlock calendar and operators.',
-        ),
-      ],
-    );
+  Widget _reviewSection(String title, int step, List<Widget> children,
+      {IconData? icon}) {
+    return _panel(title, children,
+        icon: icon,
+        trailing: TextButton(
+          onPressed: _saving ? null : () => setState(() => _step = step),
+          child: const Text('Edit'),
+        ));
   }
 
-  String _slotSummary(
+  Widget _policyTable(String title, List<_TierEditors> fields) {
+    return _panel(
+        title,
+        [
+          Text(
+          'Deducted from ${_deductionBasis == 'TOTAL_QUOTE' ? 'the booking total' : 'the advance payment'}.',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          Table(
+            columnWidths: const {0: FlexColumnWidth(3), 1: FlexColumnWidth(2)},
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            border: TableBorder(
+                horizontalInside: BorderSide(color: context.gx.border)),
+            children: [
+              const TableRow(children: [
+                Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Text('Before event',
+                        style: TextStyle(fontWeight: FontWeight.w700))),
+                Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Text('Deduction',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(fontWeight: FontWeight.w700))),
+              ]),
+              for (final field in fields)
+                TableRow(children: [
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Text(_dayRange(field))),
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Text('${field.pct.text.trim()}%',
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w600))),
+                ]),
+            ],
+          ),
+        ],
+        trailing: TextButton(
+            onPressed: _saving ? null : () => setState(() => _step = 4),
+            child: const Text('Edit')));
+  }
+
+  String _dayRange(_TierEditors field) {
+    final min = field.min.text.trim();
+    final max = field.max.text.trim();
+    if (min == '0' && max == '0') return 'Event day';
+    if (max.isEmpty) return '$min+ days';
+    if (min == max) return '$min day${min == '1' ? '' : 's'}';
+    return '$min–$max days';
+  }
+
+  Widget _reviewSlot(
+    String id,
     String label,
     TextEditingController from,
     TextEditingController to,
     TextEditingController price,
     TextEditingController acPrice,
   ) {
-    final id = label == 'Morning'
-        ? 'morning'
-        : label == 'Evening'
-            ? 'evening'
-            : 'fullday';
     final options = _slotOptions[id]!;
-    final rent = options.offerNoAc ? 'Without AC ₹${price.text.trim()}' : '';
-    final ac = _offersAc && options.offerAc
-        ? ', With AC ₹${acPrice.text.trim()} (${options.usage == 'full' ? 'full window' : '${options.hours.text} hours'}, ${options.timing})'
-        : '';
-    return '$label ${from.text.trim()}–${to.text.trim()} $rent$ac';
+    String total(bool ac) {
+      final raw = ac ? acPrice.text : price.text;
+      final discountOn = ac ? options.discountAc : options.discountNoAc;
+      final controller = ac ? _discounts[id]!.$2 : _discounts[id]!.$1;
+      final base = int.tryParse(raw.trim()) ?? 0;
+      final discount = discountOn
+          ? (int.tryParse(controller.text.trim()) ?? 0).clamp(0, 99)
+          : 0;
+      final result = _money('${(base * (100 - discount) + 50) ~/ 100}');
+      return discount > 0 ? '$result · $discount% off' : result;
+    }
+
+    return _reviewSection(
+        label,
+        3,
+        [
+          Text('${from.text.trim()}–${to.text.trim()} · IST',
+              style: TextStyle(color: context.gx.ink.withValues(alpha: 0.65))),
+          const SizedBox(height: 8),
+          if (options.offerNoAc)
+            _labelValue(_offersAc ? 'Without AC' : 'Hall rental', total(false)),
+          if (_offersAc && options.offerAc) ...[
+            _labelValue('With AC', total(true)),
+            _labelValue(
+                'AC included',
+                options.usage == 'full'
+                    ? 'Entire hall booking'
+                    : '${options.hours.text.trim()} hours'),
+            _labelValue(
+                'AC schedule',
+                options.timing == 'flexible'
+                    ? 'Agreed with customer'
+                    : '${options.from.text.trim()}–${options.to.text.trim()}'),
+          ],
+          const SizedBox(height: 8),
+          Text('Prices include GST',
+              style: Theme.of(context).textTheme.bodySmall),
+        ],
+        icon: Icons.schedule_outlined);
   }
 
-  String _editorSummary(List<_TierEditors> fields) {
-    return fields.map((field) {
-      final max = field.max.text.trim();
-      final end = max.isEmpty ? 'and later' : 'to $max days';
-      return '${field.min.text.trim()} $end: ${field.pct.text.trim()}%';
-    }).join('; ');
+  Widget _step5() {
+    final advance = _advanceType == 'percent'
+        ? '${_advancePct.text.trim()}% of the quote'
+        : _money(_advanceFixed.text);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _reviewSection(
+            'Venue details',
+            2,
+            [
+              Text(_nameCtrl.text.trim(),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              _labelValue(
+                  'Space', _spaceType == 'outdoor' ? 'Outdoor' : 'Indoor'),
+              _labelValue('Seating capacity', _seatCtrl.text.trim()),
+              _labelValue('Dining capacity', _dineCtrl.text.trim()),
+              _labelValue('Private / changing rooms', _roomsCtrl.text.trim()),
+              const Divider(height: 24),
+              const Text('Facilities',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final facility in _facilities)
+                  Chip(
+                      label: Text(facility),
+                      visualDensity: VisualDensity.compact),
+              ]),
+              const SizedBox(height: 8),
+              _labelValue('In-house catering',
+                  _caterIn == 'yes' ? 'Available' : 'Unavailable'),
+              _labelValue('Outside catering',
+                  _caterOut == 'yes' ? 'Allowed' : 'Unavailable'),
+              _labelValue('Decor by hall',
+                  _decorHall == 'yes' ? 'Available' : 'Unavailable'),
+              _labelValue('Outside decor',
+                  _decorOut == 'yes' ? 'Allowed' : 'Unavailable'),
+            ],
+            icon: Icons.meeting_room_outlined),
+        _reviewSection(
+            'Events you host',
+            1,
+            [
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final event in _events)
+                  Chip(
+                      label: Text(event.isEmpty
+                          ? event
+                          : '${event[0].toUpperCase()}${event.substring(1)}'),
+                      visualDensity: VisualDensity.compact),
+              ]),
+            ],
+            icon: Icons.celebration_outlined),
+        if (_morning)
+          _reviewSlot('morning', 'Morning', _mFrom, _mTo, _mNoAc, _mAc),
+        if (_evening)
+          _reviewSlot('evening', 'Evening', _eFrom, _eTo, _eNoAc, _eAc),
+        if (_fullday)
+          _reviewSlot('fullday', 'Full day', _fFrom, _fTo, _fNoAc, _fAc),
+        _reviewSection(
+            'Payment & booking',
+            4,
+            [
+              _labelValue('Advance payment', advance),
+              _labelValue(
+                  'Balance due', '${_fullDue.text.trim()} days before event'),
+              _labelValue(
+                  'Booking window', '${_bookMonths.text.trim()} months ahead'),
+              _labelValue('Minimum notice', '${_minNotice.text.trim()} days'),
+            ],
+            icon: Icons.receipt_long_outlined),
+        _policyTable('Cancellation policy', _cancelFields),
+        _policyTable('Rescheduling policy', _rescheduleFields),
+      ],
+    );
   }
 }
 
