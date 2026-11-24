@@ -341,6 +341,23 @@ pub async fn release_holds_for_quote(
     Ok(())
 }
 
+/// Release an assignment hold so the same enquiry can be assigned again.
+/// Confirmed bookings stay, and still block the overlap check.
+pub async fn release_held_for_enquiry(
+    tx: &mut PgConnection,
+    enquiry_id: Uuid,
+) -> AppResult<()> {
+    sqlx::query(
+        r#"UPDATE hall_reservations
+           SET status = 'RELEASED', "releasedAt" = NOW(), "updatedAt" = NOW()
+           WHERE "enquiryId" = $1 AND status = 'HELD'"#,
+    )
+    .bind(enquiry_id)
+    .execute(&mut *tx)
+    .await?;
+    Ok(())
+}
+
 pub async fn release_holds_for_enquiry(
     tx: &mut PgConnection,
     enquiry_id: Uuid,

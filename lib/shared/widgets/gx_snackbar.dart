@@ -181,6 +181,8 @@ class _GxSnackBody extends StatelessWidget {
               Expanded(
                 child: Text(
                   message,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.3,

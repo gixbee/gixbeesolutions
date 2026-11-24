@@ -14,7 +14,7 @@ use crate::error::{AppError, AppResult};
 use crate::halls::audit::{bump_hall_caches, write_audit};
 use crate::halls::availability::{
     acquire_hall_scope_locks, assign_hold_expires_at, availability_check,
-    release_holds_for_enquiry, Interval,
+    release_held_for_enquiry, release_holds_for_enquiry, Interval,
 };
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
@@ -494,6 +494,10 @@ async fn assign_hall(
     let package = crate::halls::load_hall_package(&mut *tx, body.hall_id).await?;
     crate::halls::ensure_package_window(package.as_ref(), start)?;
 
+    // Release this enquiry's temporary hold first. The overlap check would
+    // otherwise treat the hold being replaced as someone else's booking.
+    // Confirmed bookings stay and still block. A failed check rolls back.
+    release_held_for_enquiry(&mut *tx, enquiry_id).await?;
     availability_check(&mut *tx, business_id, Some(body.hall_id), interval, None).await?;
 
     let hold_hours: i64 = sqlx::query_scalar(
@@ -511,7 +515,6 @@ async fn assign_hall(
     .unwrap_or(72) as i64;
 
     let expires = assign_hold_expires_at(Utc::now(), start, hold_hours);
-    // Release prior assignment holds for this enquiry.
     release_holds_for_enquiry(&mut *tx, enquiry_id).await?;
 
     let hold_id = Uuid::new_v4();

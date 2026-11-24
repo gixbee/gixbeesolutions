@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../repositories/events_repository.dart';
 import '../../repositories/hall_enquiry_repository.dart';
 import '../../repositories/hall_repository.dart';
 import '../../shared/models/business.dart';
+import '../../shared/utils/api_error_message.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../events/event_plan_detail_screen.dart';
 
@@ -47,7 +49,8 @@ class _HallEnquiriesInboxScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      showGxSnack(context, '$e', type: GxSnackType.error);
+      showGxSnack(context, apiErrorMessage(e, fallback: 'Could not load hall enquiries.'),
+          type: GxSnackType.error);
     }
   }
 
@@ -59,7 +62,8 @@ class _HallEnquiriesInboxScreenState
       _load();
     } catch (e) {
       if (!mounted) return;
-      showGxSnack(context, '$e', type: GxSnackType.error);
+      showGxSnack(context, apiErrorMessage(e, fallback: 'Could not accept this request.'),
+          type: GxSnackType.error);
     }
   }
 
@@ -71,7 +75,8 @@ class _HallEnquiriesInboxScreenState
       _load();
     } catch (e) {
       if (!mounted) return;
-      showGxSnack(context, '$e', type: GxSnackType.error);
+      showGxSnack(context, apiErrorMessage(e, fallback: 'Could not reject this request.'),
+          type: GxSnackType.error);
     }
   }
 
@@ -120,7 +125,11 @@ class _HallEnquiriesInboxScreenState
       await _openQuote(e['eventPlanId'] as String);
     } catch (err) {
       if (!mounted) return;
-      showGxSnack(context, '$err', type: GxSnackType.error);
+      showGxSnack(
+        context,
+        apiErrorMessage(err, fallback: 'Could not assign this hall.'),
+        type: GxSnackType.error,
+      );
     }
   }
 
@@ -201,8 +210,7 @@ class _HallEnquiriesInboxScreenState
             ),
           ]),
           const SizedBox(height: 12),
-          _detailRow(
-              Icons.event, 'Start: ${e['startTime'] ?? 'Not specified'}'),
+          _detailRow(Icons.event, 'Start: ${eventDate(e['startTime'])}'),
           _detailRow(Icons.group_outlined,
               '${e['guestCount'] ?? '?'} guests · Times in $tz'),
           if (e['requestedHallName'] != null)

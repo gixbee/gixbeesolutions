@@ -625,6 +625,49 @@ class _EventServiceCatalogueScreenState
     ]);
   }
 
+  Widget _sectionTitle(String title) => Padding(
+        padding: const EdgeInsets.only(top: 22, bottom: 10),
+        child: Text(title,
+            style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF1B2559),
+                fontWeight: FontWeight.w800)),
+      );
+
+  Widget _labeledField({
+    String? label,
+    required TextEditingController controller,
+    String? hint,
+    int maxLines = 1,
+    int? maxLength,
+    TextInputType? keyboardType,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (label != null) ...[
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF334155),
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+        ],
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          keyboardType: keyboardType,
+          onChanged: (_) => setState(() => _hasUnsavedChanges = true),
+          decoration: InputDecoration(
+            hintText: hint,
+            floatingLabelBehavior: FloatingLabelBehavior.never,
+          ),
+        ),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -649,26 +692,45 @@ class _EventServiceCatalogueScreenState
                        if (_catering) _cateringHub()
                         else if (_decoration) _decorationHub()
                         else _photographyHub(),
-                      TextField(
-                          controller: _about,
-                           onChanged: (_) => setState(() => _hasUnsavedChanges = true),
-                          maxLength: 3000,
-                          maxLines: 3,
-                          decoration: const InputDecoration(
-                              labelText: 'About your business')),
-                      Text('Additional service areas',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      _sectionTitle('About your business'),
+                      _labeledField(
+                        controller: _about,
+                        hint: 'What customers should know before they book',
+                        maxLines: 4,
+                        maxLength: 3000,
+                      ),
+                      _sectionTitle('Additional service areas'),
                       ref.watch(citiesProvider).when(
                             loading: () => const LinearProgressIndicator(),
                             error: (_, __) => TextButton(
                                 onPressed: () => ref.invalidate(citiesProvider),
                                 child: const Text('Retry service areas')),
-                            data: (cities) => Wrap(spacing: 8, children: [
-                              for (final city in cities)
-                                FilterChip(
-                                    label: Text(city.displayName),
-                                    selected: _serviceCities.contains(city.id),
-                                    onSelected: (on) => setState(() {
+                            data: (cities) => Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final city in cities)
+                                      FilterChip(
+                                        label: Text(city.displayName),
+                                        selected:
+                                            _serviceCities.contains(city.id),
+                                        showCheckmark: false,
+                                        selectedColor: const Color(0xFFD1FAE5),
+                                        labelStyle: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: _serviceCities
+                                                  .contains(city.id)
+                                              ? const Color(0xFF047857)
+                                              : const Color(0xFF334155),
+                                        ),
+                                        side: BorderSide(
+                                          color: _serviceCities
+                                                  .contains(city.id)
+                                              ? const Color(0xFF12B76A)
+                                              : const Color(0xFFE2E8F0),
+                                        ),
+                                        onSelected: (on) => setState(() {
                                           _hasUnsavedChanges = true;
                                           if (on &&
                                               _serviceCities.length < 30) {
@@ -677,43 +739,51 @@ class _EventServiceCatalogueScreenState
                                           if (!on) {
                                             _serviceCities.remove(city.id);
                                           }
-                                        })),
-                            ]),
+                                        }),
+                                      ),
+                                  ],
+                                ),
                           ),
-                      Text('Booking settings',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      for (final (label, controller) in [
-                        ('Minimum notice (days)', _notice),
-                        ('Advance booking window (days)', _advance),
-                        ('Max bookings per day', _perDay),
-                      ])
-                        TextField(
-                            controller: controller,
-                            keyboardType: TextInputType.number,
-                             onChanged: (_) => setState(() => _hasUnsavedChanges = true),
-                            decoration: InputDecoration(labelText: label)),
-                      const SizedBox(height: 16),
-                      Text('Gallery',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      _sectionTitle('Booking settings'),
+                      _labeledField(
+                        label: 'Minimum notice (days)',
+                        controller: _notice,
+                        keyboardType: TextInputType.number,
+                      ),
+                      _labeledField(
+                        label: 'Advance booking window (days)',
+                        controller: _advance,
+                        keyboardType: TextInputType.number,
+                      ),
+                      _labeledField(
+                        label: 'Max bookings per day',
+                        controller: _perDay,
+                        keyboardType: TextInputType.number,
+                      ),
+                      _sectionTitle('Gallery'),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         for (final photo in _photos)
                           if (eventPhoto(photo) case final image?)
                             Column(mainAxisSize: MainAxisSize.min, children: [
                               image,
                               TextButton(
-                                  onPressed: () =>
-                                      setState(() {
-                                         _photos.remove(photo);
-                                         _hasUnsavedChanges = true;
-                                       }),
+                                  onPressed: () => setState(() {
+                                        _photos.remove(photo);
+                                        _hasUnsavedChanges = true;
+                                      }),
                                   child: const Text('Remove photo')),
                             ]),
                       ]),
-                      TextButton.icon(
-                        onPressed: _photos.length >= 24 ? null : _photo,
-                        icon: const Icon(Icons.add_a_photo_outlined),
-                        label: const Text('Add photo'),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _photos.length >= 24 ? null : _photo,
+                          icon: const Icon(Icons.add_a_photo_outlined),
+                          label: const Text('Add photo'),
+                        ),
                       ),
+                      const SizedBox(height: 8),
                       GxButton(
                           label: _hasUnsavedChanges ? 'Save changes' : 'Save catalogue',
                           onTap: _save,
