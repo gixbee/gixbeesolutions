@@ -1,4 +1,4 @@
-import { Component, inject, signal, HostListener } from '@angular/core';
+import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
@@ -43,7 +43,7 @@ interface NavItem {
                  [ngModel]="navQuery()" (ngModelChange)="navQuery.set($event)">
         </div>
         <nav class="gx-nav-scroll" aria-label="Workspace pages">
-        <ng-container *ngFor="let section of filteredSections">
+        <ng-container *ngFor="let section of filteredSections()">
           <div class="gx-nav-section">{{ section.title }}</div>
           <a *ngFor="let item of section.items"
              class="gx-nav-link"
@@ -55,7 +55,7 @@ interface NavItem {
             <i class="bi" [ngClass]="item.icon"></i> {{ item.label }}
           </a>
         </ng-container>
-        @if (!filteredSections.length) {
+        @if (!filteredSections().length) {
           <p class="gx-nav-empty">No matching pages.</p>
         }
         </nav>
@@ -129,14 +129,14 @@ export class LayoutComponent {
     this.currentSection.set('Gixbee');
   }
 
-  get filteredSections() {
+  readonly filteredSections = computed(() => {
     const query = this.navQuery().trim().toLowerCase();
     return this.visibleSections.map(section => ({
       ...section,
       items: section.items.filter(item =>
         (section.title + ' ' + item.label).toLowerCase().includes(query)),
     })).filter(section => section.items.length > 0);
-  }
+  });
 
   get roleLabel() {
     return this.staffRole === 'SUPER_ADMIN' ? 'Super admin' : 'Operator';
