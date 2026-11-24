@@ -62,7 +62,21 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return null;
+    try {
+      const payload = token.split('.')[1];
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const claims = JSON.parse(atob(normalized));
+      if (typeof claims.exp === 'number' && claims.exp * 1000 > Date.now()) {
+        return token;
+      }
+    } catch {
+      // A malformed or expired session must require a fresh sign-in.
+    }
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    return null;
   }
 
   hasToken(): boolean {
