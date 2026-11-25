@@ -962,18 +962,21 @@ class _HallPackageWizardScreenState
                 prefixIcon: Icons.currency_rupee,
                 keyboardType: TextInputType.number),
             const SizedBox(height: 8),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Offer a discount'),
-              value: discounted,
-              activeThumbColor: context.gx.accent,
-              onChanged: (value) => setState(() {
-                if (ac) {
-                  options.discountAc = value;
-                } else {
-                  options.discountNoAc = value;
-                }
-              }),
+            Material(
+              type: MaterialType.transparency,
+              child: SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Offer a discount'),
+                value: discounted,
+                activeThumbColor: context.gx.accent,
+                onChanged: (value) => setState(() {
+                  if (ac) {
+                    options.discountAc = value;
+                  } else {
+                    options.discountNoAc = value;
+                  }
+                }),
+              ),
             ),
             if (discounted) ...[
               GxTextField(

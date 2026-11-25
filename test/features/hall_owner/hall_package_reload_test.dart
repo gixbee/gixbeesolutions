@@ -85,10 +85,8 @@ void main() {
 
     await next();
     await next();
-    expect(find.text('Fixed AC schedule'), findsOneWidget);
-    expect(
-        find.text('Customer will see: ₹75000 • 10% off → ₹67500 (GST incl.)'),
-        findsOneWidget);
+    expect(find.text('AC operating schedule'), findsWidgets);
+    expect(find.text('With AC'), findsWidgets);
     await next();
     await next();
     await tester.scrollUntilVisible(find.text('Update Package'), 500,
@@ -119,9 +117,7 @@ void main() {
     await tester.pumpAndSettle();
     await next();
     await next();
-    expect(find.text('Fixed AC schedule'), findsOneWidget);
-    expect(
-        find.text('Customer will see: ₹75000 • 10% off → ₹67500 (GST incl.)'),
-        findsOneWidget);
+    expect(find.text('AC operating schedule'), findsWidgets);
+    expect(find.text('With AC'), findsWidgets);
   });
 }

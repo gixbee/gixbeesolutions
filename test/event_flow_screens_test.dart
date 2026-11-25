@@ -66,8 +66,8 @@ void main() {
       guests: 200,
     )));
     expect(find.text('Booking Details'), findsOneWidget);
-    expect(find.textContaining('₹15000.00'), findsWidgets);
-    expect(find.text('Continue · Request to Book'), findsOneWidget);
+    expect(find.textContaining('₹15,000'), findsWidgets);
+    expect(find.text('Request to Book'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull);
   });

@@ -14,15 +14,30 @@ import 'photography_calendar_math.dart';
 import 'event_plans_screen.dart';
 import 'event_vendor_calendar_screen.dart';
 
-/// Owner's photography schedule. Confirmed Gixbee quotes, outside shoots,
-/// and unavailable days all come from the vendor interval calendar.
+/// Owner schedule for photography or catering. Confirmed Gixbee quotes,
+/// outside bookings, and unavailable days all come from the vendor interval
+/// calendar. [service] selects which confirmed quotes are shown.
 class PhotographyOwnerCalendarScreen extends ConsumerStatefulWidget {
-  const PhotographyOwnerCalendarScreen({super.key, required this.business});
+  const PhotographyOwnerCalendarScreen({
+    super.key,
+    required this.business,
+    this.service = 'PHOTOGRAPHY',
+  });
   final Business business;
+  final String service;
+
+  bool get catering => service == 'CATERING';
 
   @override
   ConsumerState<PhotographyOwnerCalendarScreen> createState() =>
       _PhotographyOwnerCalendarScreenState();
+}
+
+/// Catering owner calendar. Same schedule as photography, filtered to
+/// confirmed catering quotes and the catering booking settings.
+class CateringOwnerCalendarScreen extends PhotographyOwnerCalendarScreen {
+  const CateringOwnerCalendarScreen({super.key, required super.business})
+      : super(service: 'CATERING');
 }
 
 class _PhotographyOwnerCalendarScreenState
@@ -42,6 +57,15 @@ class _PhotographyOwnerCalendarScreenState
   int _advanceDays = 365;
   int _noticeDays = 0;
 
+  bool get _catering => widget.catering;
+  String get _noun => _catering ? 'events' : 'shoots';
+  String get _addLabel => _catering ? 'Add event' : 'Add shoot';
+  String get _fallbackTitle =>
+      _catering ? 'Catering event' : 'Photography shoot';
+  String get _legend => _catering
+      ? 'Green: open · Orange: events · Red: full · Grey: unavailable'
+      : 'Green: open · Orange: shoots · Red: full · Grey: unavailable';
+
   String _key(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
   @override
@@ -52,8 +76,10 @@ class _PhotographyOwnerCalendarScreenState
   }
 
   Future<List<Map<String, dynamic>>> _loadBookings() =>
-      ref.read(eventsRepositoryProvider)
-          .photographyCalendar(widget.business.id);
+      ref.read(eventsRepositoryProvider).vendorCalendarOverview(
+            widget.business.id,
+            service: widget.service,
+          );
 
   Future<void> _loadSettings() async {
     if (mounted) setState(() {
@@ -62,7 +88,7 @@ class _PhotographyOwnerCalendarScreenState
     });
     try {
       final result = await ref.read(eventsRepositoryProvider)
-          .catalogue(widget.business.id, 'PHOTOGRAPHY');
+          .catalogue(widget.business.id, widget.service);
       if (!mounted) return;
       final c = Map<String, dynamic>.from(
           result['catalogue'] as Map? ?? {});
@@ -125,7 +151,7 @@ class _PhotographyOwnerCalendarScreenState
     setState(() => _busy = true);
     try {
       final result = await ref.read(eventsRepositoryProvider).saveCatalogue(
-        widget.business.id, 'PHOTOGRAPHY', _revision,
+        widget.business.id, widget.service, _revision,
         {
           ..._catalogue,
           'maxBookingsPerDay': _dailyLimit,
@@ -274,7 +300,7 @@ class _PhotographyOwnerCalendarScreenState
                 full ? Colors.redAccent :
                 booked > 0 ? Colors.orange : _green;
             return InkWell(
-              key: ValueKey('photo-day-${_key(date)}'),
+              key: ValueKey('${_catering ? 'catering' : 'photo'}-day-${_key(date)}'),
               onTap: () => setState(() => _selected = date),
               child: Container(
                 decoration: BoxDecoration(
@@ -299,7 +325,7 @@ class _PhotographyOwnerCalendarScreenState
           },
         ),
         const SizedBox(height: 9),
-        Text('Green: open · Orange: shoots · Red: full · Grey: unavailable',
+        Text(_legend,
             style: TextStyle(color: context.gx.ink.withValues(alpha: 0.60), fontSize: 11)),
         const Divider(height: 30),
         Text(DateFormat('EEE, d MMM yyyy').format(_selected),
@@ -320,13 +346,13 @@ class _PhotographyOwnerCalendarScreenState
           TextButton.icon(
             onPressed: _openOutsideBookings,
             icon: const Icon(Icons.add_circle_outline),
-            label: const Text('Add shoot'),
+            label: Text(_addLabel),
           ),
         ]),
         if (selectedRows.isEmpty)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 24),
+          Padding(padding: const EdgeInsets.symmetric(vertical: 24),
             child: GxEmptyState(icon: Icons.event_available_outlined,
-              title: 'No shoots scheduled',
+              title: 'No $_noun scheduled',
               message: 'No bookings are scheduled for this date.')),
         for (final row in selectedRows) _bookingCard(row),
       ],
@@ -345,7 +371,7 @@ class _PhotographyOwnerCalendarScreenState
         _monthBar(),
         Card(color: context.gx.card2,
           child: ListTile(
-            title: Text('${monthEntries.length} shoots in this month',
+            title: Text('${monthEntries.length} $_noun in this month',
               style: TextStyle(color: context.gx.ink,
                 fontWeight: FontWeight.w900)),
             subtitle: Text(
@@ -359,9 +385,9 @@ class _PhotographyOwnerCalendarScreenState
           label: const Text('Manage outside bookings'),
         ),
         if (monthEntries.isEmpty)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 24),
+          Padding(padding: const EdgeInsets.symmetric(vertical: 24),
             child: GxEmptyState(icon: Icons.event_note_outlined,
-              title: 'No shoots this month',
+              title: 'No $_noun this month',
               message: 'Confirmed and outside bookings appear here.')),
         for (final row in monthEntries)
           _bookingCard(row),
@@ -382,9 +408,14 @@ class _PhotographyOwnerCalendarScreenState
     final platform = item['source'] == 'gixbee';
     return Card(
       child: ListTile(
-        leading: Icon(platform ? Icons.verified_user_outlined :
-            Icons.photo_camera_outlined, color: context.gx.accent),
-        title: Text(item['title']?.toString() ?? 'Photography shoot',
+        leading: Icon(
+            platform
+                ? Icons.verified_user_outlined
+                : (_catering
+                    ? Icons.restaurant_outlined
+                    : Icons.photo_camera_outlined),
+            color: context.gx.accent),
+        title: Text(item['title']?.toString() ?? _fallbackTitle,
           style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text([
           if (start != null)
@@ -424,7 +455,7 @@ class _PhotographyOwnerCalendarScreenState
               setState(() => _dailyLimit = n)),
       ]),
       const SizedBox(height: 10),
-      Text('You can confirm up to $_dailyLimit shoots per day.',
+      Text('You can confirm up to $_dailyLimit $_noun per day.',
         style: TextStyle(color: context.gx.ink.withValues(alpha: 0.60))),
       const SizedBox(height: 18),
       const Text('Customer booking window',

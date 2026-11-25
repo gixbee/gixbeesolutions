@@ -18,6 +18,7 @@ import '../rentals/owner_rentals_screen.dart';
 import '../events/event_plans_screen.dart';
 import '../events/event_service_catalogue_screen.dart';
 import '../events/photography_owner_calendar_screen.dart';
+import '../events/service_areas_flow_screen.dart';
 import 'event_business_settings_screen.dart';
 import 'hiring_pipeline_screen.dart';
 import 'hire_employee_screen.dart';
@@ -251,6 +252,22 @@ class _BusinessCard extends ConsumerWidget {
                       builder: (_) => EventServiceCatalogueScreen(business: business, service: service),
                     )),
                   ),
+                  if (service == 'CATERING' || service == 'PHOTOGRAPHY') ...[
+                    const SizedBox(height: 10),
+                    _BizAction(
+                      icon: Icons.map_outlined,
+                      label: service == 'CATERING'
+                          ? 'Catering service areas'
+                          : 'Photography service areas',
+                      primary: false,
+                      onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                        builder: (_) => ServiceAreasFlowScreen(
+                          business: business,
+                          service: service,
+                        ),
+                      )),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                 ],
             if (_isHiring) ...[
@@ -520,16 +537,46 @@ class _BusinessCard extends ConsumerWidget {
                       label: 'Calendar',
                       primary: true,
                       onTap: () async {
-                         if (business.serviceType == 'PHOTOGRAPHY' ||
-                             business.eventServices.contains('PHOTOGRAPHY')) {
-                           await Navigator.push(context, MaterialPageRoute<void>(
-                             builder: (_) =>
-                               PhotographyOwnerCalendarScreen(business: business),
-                           ));
-                           ref.invalidate(myBusinessesProvider);
-                         } else {
+                         final services = <String>[
+                           if (business.serviceType == 'PHOTOGRAPHY' ||
+                               business.eventServices.contains('PHOTOGRAPHY'))
+                             'PHOTOGRAPHY',
+                           if (business.serviceType == 'CATERING' ||
+                               business.eventServices.contains('CATERING'))
+                             'CATERING',
+                         ];
+                         if (services.isEmpty) {
                            await _manageOfflineDays(context, ref, business);
+                           return;
                          }
+                         var chosen = services.first;
+                         if (services.length > 1) {
+                           final picked = await showGxSheet<String>(
+                             context,
+                             title: 'Calendar',
+                             child: Column(
+                               mainAxisSize: MainAxisSize.min,
+                               children: [
+                                 for (final service in services)
+                                   ListTile(
+                                     title: Text(service == 'CATERING'
+                                         ? 'Catering calendar'
+                                         : 'Photography calendar'),
+                                     onTap: () => Navigator.pop(context, service),
+                                   ),
+                               ],
+                             ),
+                           );
+                           if (picked == null || !context.mounted) return;
+                           chosen = picked;
+                         }
+                         if (!context.mounted) return;
+                         await Navigator.push(context, MaterialPageRoute<void>(
+                           builder: (_) => chosen == 'CATERING'
+                               ? CateringOwnerCalendarScreen(business: business)
+                               : PhotographyOwnerCalendarScreen(business: business),
+                         ));
+                         ref.invalidate(myBusinessesProvider);
                        },
                     ),
                   ),

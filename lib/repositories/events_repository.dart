@@ -67,12 +67,22 @@ class EventsRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  /// Confirmed platform bookings plus manually entered outside shoots.
+  /// Confirmed photography bookings plus manually entered outside shoots.
   /// Server-side owner authorization is required for this endpoint.
   Future<List<Map<String, dynamic>>> photographyCalendar(
-      String businessId) async {
+          String businessId) =>
+      vendorCalendarOverview(businessId);
+
+  /// Same owner schedule as [photographyCalendar]. Pass `CATERING` to load
+  /// confirmed catering quotes instead of photography quotes. Outside
+  /// bookings stay on the shared vendor calendar either way.
+  Future<List<Map<String, dynamic>>> vendorCalendarOverview(
+      String businessId, {String service = 'PHOTOGRAPHY'}) async {
     final response = await _dio.get(
-      '/events/vendor/calendar/$businessId/overview');
+      '/events/vendor/calendar/$businessId/overview',
+      queryParameters:
+          service == 'PHOTOGRAPHY' ? null : {'service': service},
+    );
     return (response.data as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();

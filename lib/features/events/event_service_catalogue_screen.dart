@@ -14,6 +14,7 @@ import 'catering_food_item_screen.dart';
 import 'photography_package_wizard_screen.dart';
 import 'photography_service_wizard_screen.dart';
 import 'photography_owner_pricing.dart';
+import 'service_areas_flow_screen.dart';
 import 'decoration_entry_screen.dart';
 import '../../shared/widgets/gx_network_error.dart';
 
@@ -668,6 +669,50 @@ class _EventServiceCatalogueScreenState
     );
   }
 
+  Widget _serviceAreasEntry() {
+    final count = _serviceCities.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          count == 0
+              ? 'No service areas selected yet.'
+              : '$count service ${count == 1 ? 'area' : 'areas'} selected.',
+          style: const TextStyle(
+              fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _busy
+                ? null
+                : () async {
+                    final picked = await Navigator.push<Set<String>>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ServiceAreasFlowScreen(
+                          business: widget.business,
+                          service: widget.service,
+                          persist: false,
+                          initialCityIds: _serviceCities,
+                        ),
+                      ),
+                    );
+                    if (picked == null || !mounted) return;
+                    setState(() {
+                      _serviceCities = picked;
+                      _hasUnsavedChanges = true;
+                    });
+                  },
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Manage service areas'),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -700,6 +745,9 @@ class _EventServiceCatalogueScreenState
                         maxLength: 3000,
                       ),
                       _sectionTitle('Additional service areas'),
+                      if (_catering || _photography)
+                        _serviceAreasEntry()
+                      else
                       ref.watch(citiesProvider).when(
                             loading: () => const LinearProgressIndicator(),
                             error: (_, __) => TextButton(

@@ -142,4 +142,17 @@ void main() {
     expect(entries.first['source'],'gixbee');
     expect(entries.last['source'],'offline');
   });
+
+  test('catering calendar overview asks for catering quotes', () async {
+    final dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(onRequest:(o,h) {
+      expect(o.method,'GET');
+      expect(o.path,'/events/vendor/calendar/$businessId/overview');
+      expect(o.queryParameters['service'],'CATERING');
+      h.resolve(Response(requestOptions:o,data:<Map<String,dynamic>>[]));
+    }));
+    final entries = await EventsRepository(dio)
+        .vendorCalendarOverview(businessId, service: 'CATERING');
+    expect(entries, isEmpty);
+  });
 }

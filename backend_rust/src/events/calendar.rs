@@ -23,6 +23,11 @@ struct EntryInput {
     end_at: DateTime<Utc>,
 }
 
+#[derive(Deserialize, Default)]
+struct OverviewQuery {
+    service: Option<String>,
+}
+
 async fn owner(conn: &mut PgConnection, business: Uuid, uid: Uuid, lock: bool) -> AppResult<()> {
     let query = format!(
         r#"SELECT id FROM businesses WHERE id=$1 AND "ownerId"=$2 AND type='SERVICE'
@@ -64,7 +69,18 @@ async fn overview(
     State(state): State<AppState>,
     user: AuthUser,
     Path(business): Path<Uuid>,
+    Query(query): Query<OverviewQuery>,
 ) -> AppResult<Json<Vec<Value>>> {
+    let service = query
+        .service
+        .as_deref()
+        .filter(|value| !value.is_empty())
+        .unwrap_or("PHOTOGRAPHY");
+    if !matches!(service, "PHOTOGRAPHY" | "CATERING") {
+        return Err(AppError::BadRequest(
+            "Choose photography or catering".into(),
+        ));
+    }
     let mut conn = state.db.acquire().await?;
     owner(&mut conn, business, Uuid::parse_str(&user.user_id)?, false).await?;
     let mut rows: Vec<Value> = sqlx::query_scalar(
@@ -85,11 +101,15 @@ async fn overview(
             'guestCount', p."guestCount",
             'planId', p.id)
           FROM event_quotes q JOIN event_plans p ON p.id=q."planId"
-          WHERE q."businessId"=$1 AND q."serviceType"='PHOTOGRAPHY'
+          WHERE q."businessId"=$1 AND q."serviceType"=$2
             AND q.status IN ('CONFIRMED','CANCEL_REQUESTED','COMPLETED')
             AND p."cancelledAt" IS NULL
           ORDER BY p."startTime" DESC LIMIT 500"#,
-    ).bind(business).fetch_all(&mut *conn).await?;
+    )
+    .bind(business)
+    .bind(service)
+    .fetch_all(&mut *conn)
+    .await?;
     rows.extend(booked);
     Ok(Json(rows))
 }
