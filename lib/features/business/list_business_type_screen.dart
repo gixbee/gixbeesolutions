@@ -3,6 +3,7 @@ import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../theme.dart';
+import '../home/offer_categories.dart';
 import 'hiring_employer_type_screen.dart';
 import 'list_business_details_screen.dart';
 
@@ -30,6 +31,13 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
         MaterialPageRoute(
           builder: (_) => const HiringEmployerTypeScreen(),
         ),
+      );
+      return;
+    }
+    if (_selectedType == BusinessType.shop) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const _ShopCategoryScreen()),
       );
       return;
     }
@@ -98,6 +106,15 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
                       isSelected: _selectedType == BusinessType.rental,
                       onTap: () =>
                           setState(() => _selectedType = BusinessType.rental),
+                    ),
+                    _TypeCard(
+                      type: BusinessType.shop,
+                      icon: Icons.storefront_rounded,
+                      title: 'Shop',
+                      subtitle: 'Jewellery, clinics, gyms, and local stores',
+                      isSelected: _selectedType == BusinessType.shop,
+                      onTap: () =>
+                          setState(() => _selectedType = BusinessType.shop),
                     ),
                   ]),
                 ),
@@ -270,7 +287,36 @@ class _ListBusinessTypeScreenState extends State<ListBusinessTypeScreen> {
 // ─────────────────────────────────────
 // MODELS & WIDGETS
 // ─────────────────────────────────────
-enum BusinessType { service, hiring, rental }
+enum BusinessType { service, hiring, rental, shop }
+
+class _ShopCategoryScreen extends StatelessWidget {
+  const _ShopCategoryScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Shop category')),
+      body: ListView(
+        children: [
+          for (final category in offerCategories)
+            ListTile(
+              title: Text(category.chip),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ListBusinessDetailsScreen(
+                    type: BusinessType.shop,
+                    shopCategory: category.id,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Bento-style selectable type card (Gixbee 2026): squircle icon block in
 /// primary tint when selected, neutral otherwise; check ring on the right.

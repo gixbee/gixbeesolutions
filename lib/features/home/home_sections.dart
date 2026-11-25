@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme.dart';
 import '../../repositories/cities_repository.dart'; // currentCityProvider
+import '../../repositories/business_repository.dart';
 import '../../repositories/master_entries_repository.dart';
 import '../../repositories/worker_repository.dart'; // selectedLocationProvider
 import '../../shared/widgets/gx_pressable.dart';
@@ -13,6 +14,7 @@ import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_skeleton.dart';
 import '../booking/book_services_split_screen.dart';
 import '../booking/instant_request_screen.dart';
+import '../rentals/rentals_catalog_screen.dart';
 
 /// Secondary home sections from the mockup:
 /// quick-service tiles (horizontal scroll), Popular Events, Today's Deals.
@@ -260,6 +262,72 @@ class PopularEventsStrip extends StatelessWidget {
   }
 }
 
+/// Event package cards between Today's Offers and Popular Events.
+class EventPackagesStrip extends StatelessWidget {
+  const EventPackagesStrip({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const cards = [
+      ('🏛', 'Marriage halls', 'Full-day and evening slots'),
+      ('🍽', 'Catering', 'Sadhya, buffet, and plates'),
+      ('📸', 'Photography', 'Wedding and function coverage'),
+      ('✨', 'Decoration', 'Stage, floral, and theme setup'),
+      ('⚡', 'Rentals', 'Power, tents, and sound'),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle(context, 'Event Packages'),
+        SizedBox(
+          height: 132,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: cards.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final card = cards[index];
+              return GxPressable(
+                onTap: () => _push(
+                  context,
+                  index == cards.length - 1
+                      ? const RentalsCatalogScreen()
+                      : const BookServicesSplitScreen(),
+                ),
+                child: Container(
+                  width: 168,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: context.gx.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: context.gx.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(card.$1, style: const TextStyle(fontSize: 22)),
+                      const Spacer(),
+                      Text(card.$2,
+                          style: const TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(card.$3,
+                          maxLines: 2,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: context.gx.ink.withValues(alpha: 0.6))),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Today's Deals (backed by /master-entries?type=DEAL) ───────────────────
 class DealEntry {
   final String id;
@@ -271,6 +339,7 @@ class DealEntry {
   final String? imageUrl;
   final double? lat;
   final double? lng;
+  final String? category;
 
   const DealEntry({
     required this.id,
@@ -282,6 +351,7 @@ class DealEntry {
     this.imageUrl,
     this.lat,
     this.lng,
+    this.category,
   });
 
   factory DealEntry.fromMap(Map<String, dynamic> map) {
@@ -292,6 +362,7 @@ class DealEntry {
     String? imageUrl;
     double? lat;
     double? lng;
+    String? jsonCategory;
     // Rich offers — admin master `value` as JSON:
     //   {"code":"FIT20","discount":"20% OFF","description":"20% OFF on
     //    Memberships","imageUrl":"https://…","lat":8.51,"lng":76.94}
@@ -306,6 +377,7 @@ class DealEntry {
         imageUrl = j['imageUrl']?.toString();
         lat = double.tryParse('${j['lat'] ?? ''}');
         lng = double.tryParse('${j['lng'] ?? ''}');
+        jsonCategory = j['category']?.toString();
       } catch (_) {
         // not JSON after all — treat rawValue as the code
       }
@@ -325,46 +397,41 @@ class DealEntry {
       imageUrl: imageUrl,
       lat: lat,
       lng: lng,
+      category: (map['category'] as String?)?.trim().isNotEmpty == true
+          ? map['category'] as String
+          : jsonCategory,
     );
   }
 }
-
-// Local placeholder promos shown until real deals are seeded via the
-// master-entries admin API (POST /master-entries, type: DEAL).
-const _fallbackDeals = [
-  DealEntry(
-    id: 'local-1',
-    title: 'Flat ₹100 off your first booking',
-    code: 'GIX100',
-    subtitle: 'New customers · any service',
-  ),
-  DealEntry(
-    id: 'local-2',
-    title: '10% off event services this week',
-    code: 'EVENT10',
-    subtitle: 'Hall, catering, decor & more',
-  ),
-  DealEntry(
-    id: 'local-3',
-    title: 'Free visit charge on Instant Help',
-    code: 'INSTANTFREE',
-    subtitle: 'Today only',
-  ),
-];
 
 final dealsProvider = FutureProvider<List<DealEntry>>((ref) async {
   final repo = ref.watch(masterEntriesRepositoryProvider);
   // City scoping: global deals + deals targeted at the selected serviceable
   // city; refetches automatically when the user switches city.
   final city = ref.watch(currentCityProvider);
+  final deals = <DealEntry>[];
   try {
     final entries = await repo.getByType('DEAL', cityId: city?.id);
-    final deals = entries.map((e) => DealEntry.fromMap(e.toMap())).toList();
-    if (deals.isNotEmpty) return deals;
+    deals.addAll(entries.map((e) => DealEntry.fromMap(e.toMap())));
   } catch (e) {
     debugPrint('Error fetching deals: $e');
   }
-  return _fallbackDeals;
+  try {
+    final posted = await ref.watch(businessRepositoryProvider).shopOffers();
+    for (final row in posted) {
+      deals.add(DealEntry(
+        id: '${row['id']}',
+        title: '${row['title'] ?? 'Offer'}',
+        code: '${row['code'] ?? ''}',
+        subtitle: row['businessName']?.toString(),
+        discount: row['discount']?.toString(),
+        category: row['category']?.toString(),
+      ));
+    }
+  } catch (e) {
+    debugPrint('Error fetching shop offers: $e');
+  }
+  return deals;
 });
 
 class DealsStrip extends ConsumerWidget {
@@ -379,9 +446,25 @@ class DealsStrip extends ConsumerWidget {
         padding: EdgeInsets.symmetric(horizontal: 16),
         child: GxSkeleton(width: double.infinity, height: 196, radius: 18),
       ),
-      error: (_, __) => _OffersCarousel(deals: _fallbackDeals, myLoc: myLoc),
-      data: (items) => _OffersCarousel(
-          deals: items.isEmpty ? _fallbackDeals : items, myLoc: myLoc),
+      error: (_, __) => const _EmptyOffers(),
+      data: (items) => items.isEmpty
+          ? const _EmptyOffers()
+          : _OffersCarousel(deals: items, myLoc: myLoc),
+    );
+  }
+}
+
+class _EmptyOffers extends StatelessWidget {
+  const _EmptyOffers();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Text(
+        'No offers yet.',
+        style: TextStyle(color: context.gx.ink.withValues(alpha: 0.62)),
+      ),
     );
   }
 }

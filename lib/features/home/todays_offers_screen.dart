@@ -1,32 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../repositories/cities_repository.dart';
 import '../../theme.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_sheet.dart';
 import 'home_sections.dart';
+import 'offer_categories.dart';
+import 'shop_directory_screen.dart';
 
 class TodaysOffersScreen extends ConsumerStatefulWidget {
-  const TodaysOffersScreen({super.key});
+  const TodaysOffersScreen({super.key, this.initialCategory});
+
+  /// Chip id such as `Jewellery`, or `All`.
+  final String? initialCategory;
 
   @override
   ConsumerState<TodaysOffersScreen> createState() => _TodaysOffersScreenState();
 }
 
 class _TodaysOffersScreenState extends ConsumerState<TodaysOffersScreen> {
-  String _selectedTab = 'All';
+  late String _selectedTab;
 
-  final List<String> _tabs = [
-    'All',
-    '💍 Jewellery',
-    '🥻 Textiles',
-    '💆 Beauty',
-    '👗 Bridal',
-    '📱 Electronics',
-    '🛋 Furniture',
-    '👓 Opticals',
-    '🏋 Fitness',
-    '🦷 Dental'
-  ];
+  List<String> get _tabs =>
+      ['All', ...offerCategories.map((category) => category.chip)];
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialCategory;
+    OfferCategory? match;
+    if (initial != null && initial != 'All') {
+      for (final category in offerCategories) {
+        if (category.id == initial || category.chip == initial) {
+          match = category;
+          break;
+        }
+      }
+    }
+    _selectedTab = match?.chip ?? 'All';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +83,10 @@ class _TodaysOffersScreenState extends ConsumerState<TodaysOffersScreen> {
                       children: [
                         Icon(Icons.location_on_rounded, size: 14, color: context.gx.accentSoft),
                         const SizedBox(width: 4),
-                        Text('All Thrissur', style: TextStyle(fontSize: 12, color: context.gx.ink)),
+                        Text(
+                          ref.watch(currentCityProvider)?.name ?? 'All cities',
+                          style: TextStyle(fontSize: 12, color: context.gx.ink),
+                        ),
                         const SizedBox(width: 4),
                         Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: context.gx.ink.withValues(alpha: 0.54)),
                       ],
@@ -94,9 +109,18 @@ class _TodaysOffersScreenState extends ConsumerState<TodaysOffersScreen> {
                   final isSelected = tab == _selectedTab;
                   return GxPressable(
                     onTap: () {
-                      setState(() {
-                        _selectedTab = tab;
-                      });
+                      final category = offerCategoryByChip(tab);
+                      if (category != null && category.isDirectory) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ShopDirectoryScreen(category: category),
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() => _selectedTab = tab);
                     },
                     child: Container(
                       alignment: Alignment.center,
@@ -130,12 +154,19 @@ class _TodaysOffersScreenState extends ConsumerState<TodaysOffersScreen> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (_, __) => const Center(child: Text('Failed to load offers')),
                 data: (deals) {
+                  final visible = deals
+                      .where((deal) =>
+                          matchesOfferCategory(deal.category, _selectedTab))
+                      .toList();
+                  if (visible.isEmpty) {
+                    return const Center(child: Text('No offers in this category'));
+                  }
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    itemCount: deals.length,
+                    itemCount: visible.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
-                      final deal = deals[index];
+                      final deal = visible[index];
                       return _OfferListItem(deal: deal);
                     },
                   );

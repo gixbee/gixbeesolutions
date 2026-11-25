@@ -51,6 +51,7 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => _go(context, const TodaysOffersScreen())),
               ),
               const SliverToBoxAdapter(child: DealsStrip()),
+              const SliverToBoxAdapter(child: EventPackagesStrip()),
               const SliverToBoxAdapter(
                 child: CollegeBanner(),
               ),

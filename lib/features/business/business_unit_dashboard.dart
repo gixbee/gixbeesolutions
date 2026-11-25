@@ -28,6 +28,7 @@ import 'hiring_listing.dart';
 import 'hiring_requests_screen.dart';
 import 'recommended_candidates_screen.dart';
 import 'list_business_type_screen.dart';
+import 'shop_offers_screen.dart';
 import '../../repositories/matching_repository.dart';
 import '../hall_owner/hall_entry.dart';
 import '../hall_owner/hall_enquiries_inbox_screen.dart';
@@ -152,10 +153,12 @@ class _BusinessCard extends ConsumerWidget {
 
   bool get _isHiring => business.type == 'HIRING';
   bool get _isRental => business.type == 'RENTAL';
+  bool get _isShop => business.type == 'SHOP';
 
   String get _typeLabel {
     if (_isHiring) return 'Hiring Unit';
     if (_isRental) return 'Rental Unit';
+    if (_isShop) return 'Shop · ${business.shopCategory ?? 'Store'}';
     final st = business.serviceType;
     if (st != null && st.isNotEmpty) {
       return 'Service · ${st[0]}${st.substring(1).toLowerCase()}';
@@ -166,6 +169,7 @@ class _BusinessCard extends ConsumerWidget {
   IconData get _typeIcon {
     if (_isHiring) return Icons.work_outline;
     if (_isRental) return Icons.car_rental_rounded;
+    if (_isShop) return Icons.storefront_rounded;
     return Icons.handyman_outlined;
   }
 
@@ -270,6 +274,18 @@ class _BusinessCard extends ConsumerWidget {
                   ],
                   const SizedBox(height: 10),
                 ],
+            if (_isShop)
+              _BizAction(
+                icon: Icons.local_offer_outlined,
+                label: 'Offers and enquiries',
+                primary: true,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ShopOffersScreen(business: business),
+                  ),
+                ),
+              ),
             if (_isHiring) ...[
               if (business.status == 'NEEDS_CHANGES') ...[
                 Container(

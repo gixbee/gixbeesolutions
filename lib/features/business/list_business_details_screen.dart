@@ -19,6 +19,7 @@ import '../../theme.dart';
 import '../booking/location_pin_screen.dart';
 import '../profile/addresses/address_line.dart';
 import 'list_business_type_screen.dart';
+import 'shop_offers_screen.dart';
 
 /// Step 2 of the Business Listing flow.
 /// Adapts its form fields based on the selected business type.
@@ -28,8 +29,13 @@ import 'list_business_type_screen.dart';
 /// on this screen is the Submit CTA.
 class ListBusinessDetailsScreen extends ConsumerStatefulWidget {
   final BusinessType type;
+  final String? shopCategory;
 
-  const ListBusinessDetailsScreen({super.key, required this.type});
+  const ListBusinessDetailsScreen({
+    super.key,
+    required this.type,
+    this.shopCategory,
+  });
 
   @override
   ConsumerState<ListBusinessDetailsScreen> createState() =>
@@ -128,6 +134,8 @@ class _ListBusinessDetailsScreenState
         return 'Hiring Business';
       case BusinessType.rental:
         return 'Rental Business';
+      case BusinessType.shop:
+        return 'Shop';
     }
   }
 
@@ -139,6 +147,8 @@ class _ListBusinessDetailsScreenState
         return 'HIRING';
       case BusinessType.rental:
         return 'RENTAL';
+      case BusinessType.shop:
+        return 'SHOP';
     }
   }
 
@@ -150,6 +160,8 @@ class _ListBusinessDetailsScreenState
         return 'Industries you hire for';
       case BusinessType.rental:
         return 'Types of assets you rent out';
+      case BusinessType.shop:
+        return 'Shop category';
     }
   }
 
@@ -161,6 +173,8 @@ class _ListBusinessDetailsScreenState
         return Icons.work_outline_rounded;
       case BusinessType.rental:
         return Icons.car_rental_rounded;
+      case BusinessType.shop:
+        return Icons.storefront_rounded;
     }
   }
 
@@ -245,7 +259,9 @@ class _ListBusinessDetailsScreenState
         name: _nameCtrl.text.trim(),
         type: widget.type.name.toUpperCase(),
         description: _descCtrl.text,
-        specialty: _specialtyCtrl.text,
+        specialty: widget.type == BusinessType.shop
+            ? (widget.shopCategory ?? '')
+            : _specialtyCtrl.text,
         phone: phoneDigits.length == 10 ? phoneDigits : '+$phoneDigits',
         address: address,
         documentUrl: _docUrl,
@@ -255,12 +271,18 @@ class _ListBusinessDetailsScreenState
         cityId: city?.id,
         ownerId: '', // Backend extracts this from JWT
         status: 'PENDING',
+        hiringProfile: widget.type == BusinessType.shop
+            ? {'shopCategory': widget.shopCategory}
+            : null,
       );
 
-      await ref.read(businessRepositoryProvider).registerBusiness(business);
+      final created =
+          await ref.read(businessRepositoryProvider).registerBusiness(business);
 
       if (!mounted) return;
-      await _showSuccessSheet();
+      await _showSuccessSheet(
+        shop: widget.type == BusinessType.shop ? created : null,
+      );
     } catch (e) {
       if (!mounted) return;
       String msg = 'Could not save the business. Please try again.';
@@ -278,7 +300,7 @@ class _ListBusinessDetailsScreenState
 
   /// Glass success sheet. After dismiss, drop the type/details routes so
   /// the owner lands on List My Business (the dashboard they added from).
-  Future<void> _showSuccessSheet() async {
+  Future<void> _showSuccessSheet({Business? shop}) async {
     final cs = Theme.of(context).colorScheme;
     await showGxSheet<void>(
       context,
@@ -328,6 +350,13 @@ class _ListBusinessDetailsScreenState
       ),
     );
     if (!mounted) return;
+    if (shop != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => ShopOffersScreen(business: shop)),
+      );
+      return;
+    }
     // Details + type picker sit on top of List My Business. Two pops land
     // on that dashboard; if the stack is shallower, stop at the first route.
     Navigator.of(context).pop();

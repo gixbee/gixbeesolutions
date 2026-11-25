@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import 'event_plan_detail_screen.dart';
+import 'event_hold_screen.dart';
 import 'event_plans_screen.dart';
 
 import '../../repositories/events_repository.dart';
@@ -336,7 +336,7 @@ class _HallRequestSentScreen extends StatelessWidget {
         FilledButton(
           onPressed:()=>Navigator.pushReplacement(context,
             MaterialPageRoute<void>(builder:(_)=>
-              EventPlanDetailScreen(planId:planId))),
+              EventHoldScreen(planId:planId, title:'Hall request'))),
           child:const Text('View Request Details')),
         const SizedBox(height:8),
         OutlinedButton(

@@ -8,7 +8,7 @@ import '../../shared/widgets/gx_calendar.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
-import 'event_plan_detail_screen.dart';
+import 'event_hold_screen.dart';
 
 class EventPlanCreateScreen extends ConsumerStatefulWidget {
   const EventPlanCreateScreen(
@@ -117,8 +117,10 @@ class _EventPlanCreateScreenState extends ConsumerState<EventPlanCreateScreen> {
       Navigator.pushReplacement(
           context,
           MaterialPageRoute<void>(
-              builder: (_) =>
-                  EventPlanDetailScreen(planId: plan['id'] as String)));
+              builder: (_) => EventHoldScreen(
+                    planId: plan['id'] as String,
+                    title: widget.eventType,
+                  )));
     } catch (e) {
       if (mounted) showGxSnack(context, eventError(e));
     } finally {

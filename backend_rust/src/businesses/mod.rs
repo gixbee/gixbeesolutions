@@ -17,10 +17,15 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", post(create))
         .route("/my", get(list))
+        .route("/shop-directory", get(shop_directory))
+        .route("/shop-offers", get(list_shop_offers))
+        .route("/shop-enquiries", post(create_shop_enquiry))
         .route("/admin/all", get(admin_list))
         .route("/admin/{id}/status", patch(admin_status))
         .route("/{id}", get(get_one).patch(update).delete(remove))
         .route("/{id}/operators", post(add_operator))
+        .route("/{id}/offers", get(list_own_offers).post(create_shop_offer))
+        .route("/{id}/enquiries", get(list_shop_enquiries))
         .route(
             "/{id}/calendar/offline",
             post(add_offline_day).delete(remove_offline_day),
@@ -67,7 +72,7 @@ async fn create(
             "A business name and address are required".into(),
         ));
     }
-    if !["SERVICE", "HIRING", "RENTAL"].contains(&biz_type) {
+    if !["SERVICE", "HIRING", "RENTAL", "SHOP"].contains(&biz_type) {
         return Err(AppError::BadRequest("Unsupported business type".into()));
     }
     let service_type = body.get("serviceType").and_then(Value::as_str);
@@ -723,7 +728,39 @@ async fn overlay_offline_days(db: &sqlx::PgPool, items: &mut [Value]) -> AppResu
     Ok(())
 }
 
+const SHOP_CATEGORIES: &[&str] = &[
+    "Jewellery",
+    "Textiles",
+    "Beauty",
+    "Bridal",
+    "Electronics",
+    "Furniture",
+    "Opticals",
+    "Fitness",
+    "Dental",
+    "Medical",
+    "Paint",
+    "Hardware",
+    "Study Abroad",
+    "Auto",
+    "Tailoring",
+    "Labs",
+];
+
 fn hiring_profile(value: Option<&Value>, biz_type: &str) -> AppResult<Value> {
+    if biz_type == "SHOP" {
+        let category = value
+            .and_then(|v| v.get("shopCategory"))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim();
+        if !SHOP_CATEGORIES.contains(&category) {
+            return Err(AppError::BadRequest(
+                "Choose the shop category".into(),
+            ));
+        }
+        return Ok(json!({ "shopCategory": category }));
+    }
     if biz_type != "HIRING" {
         return Ok(json!({}));
     }
@@ -972,4 +1009,302 @@ mod hiring_profile_tests {
         assert_eq!(v["documentName"], "licence.pdf");
         assert!(v.get("reviewNote").is_none());
     }
+}
+
+#[derive(Deserialize)]
+struct ShopCategoryQuery {
+    category: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ShopOfferBody {
+    kind: String,
+    title: String,
+    code: String,
+    discount: Option<String>,
+    category: Option<String>,
+    endsAt: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ShopEnquiryBody {
+    businessId: Option<String>,
+    placeName: String,
+    category: String,
+    package: Option<String>,
+    message: String,
+}
+
+fn shop_category_ok(category: &str) -> bool {
+    SHOP_CATEGORIES.contains(&category)
+}
+
+async fn owned_shop(
+    state: &AppState,
+    user: &AuthUser,
+    id: &str,
+) -> AppResult<Uuid> {
+    let bid = Uuid::parse_str(id)?;
+    let uid = Uuid::parse_str(&user.user_id)?;
+    let row = sqlx::query(
+        r#"SELECT "ownerId", type::text AS type FROM businesses WHERE id = $1"#,
+    )
+    .bind(bid)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Business not found".into()))?;
+    if row.get::<Uuid, _>("ownerId") != uid {
+        return Err(AppError::Forbidden("Not your business".into()));
+    }
+    if row.get::<String, _>("type") != "SHOP" {
+        return Err(AppError::BadRequest("Offers belong on a shop".into()));
+    }
+    Ok(bid)
+}
+
+async fn shop_directory(
+    State(state): State<AppState>,
+    Query(q): Query<ShopCategoryQuery>,
+) -> AppResult<Json<Vec<Value>>> {
+    let category = q.category.unwrap_or_default();
+    if !shop_category_ok(&category) {
+        return Err(AppError::BadRequest("Unknown shop category".into()));
+    }
+    let rows = sqlx::query(
+        r#"SELECT b.id, b.name, b.location, b.phone, b.description, b."hiringProfile",
+                  COALESCE((
+                    SELECT json_agg(json_build_object(
+                      'id', o.id, 'title', o.title, 'discount', o.discount, 'kind', o.kind
+                    ) ORDER BY o."createdAt" DESC)
+                    FROM shop_offers o
+                    WHERE o."businessId" = b.id AND o."isActive" = true AND o.kind = 'PACKAGE'
+                  )::text, '[]') AS packages
+           FROM businesses b
+           WHERE b.type::text = 'SHOP' AND b.status::text = 'VERIFIED'
+             AND b."hiringProfile"->>'shopCategory' = $1
+           ORDER BY b.name
+           LIMIT 100"#,
+    )
+    .bind(&category)
+    .fetch_all(&state.db)
+    .await?;
+    let items = rows
+        .iter()
+        .map(|row| {
+            json!({
+                "id": row.get::<Uuid, _>("id").to_string(),
+                "name": row.get::<String, _>("name"),
+                "location": row.get::<String, _>("location"),
+                "phone": row.get::<Option<String>, _>("phone"),
+                "description": row.get::<Option<String>, _>("description"),
+                "category": category,
+                "packages": serde_json::from_str::<Value>(
+                    row.get::<String, _>("packages").as_str()
+                ).unwrap_or(json!([])),
+            })
+        })
+        .collect();
+    Ok(Json(items))
+}
+
+async fn list_shop_offers(
+    State(state): State<AppState>,
+    Query(q): Query<ShopCategoryQuery>,
+) -> AppResult<Json<Vec<Value>>> {
+    let rows = sqlx::query(
+        r#"SELECT o.id, o.title, o.code, o.discount, o.category, o.kind, o."endsAt", b.name
+           FROM shop_offers o
+           JOIN businesses b ON b.id = o."businessId"
+           WHERE o."isActive" = true
+             AND o.kind IN ('FLASH', 'NORMAL')
+             AND b.status::text = 'VERIFIED'
+             AND (o."endsAt" IS NULL OR o."endsAt" > NOW())
+             AND ($1::text IS NULL OR o.category = $1)
+           ORDER BY o."createdAt" DESC
+           LIMIT 200"#,
+    )
+    .bind(q.category.as_deref())
+    .fetch_all(&state.db)
+    .await?;
+    let items = rows
+        .iter()
+        .map(|row| {
+            json!({
+                "id": row.get::<Uuid, _>("id").to_string(),
+                "title": row.get::<String, _>("title"),
+                "code": row.get::<String, _>("code"),
+                "discount": row.get::<Option<String>, _>("discount"),
+                "category": row.get::<String, _>("category"),
+                "kind": row.get::<String, _>("kind"),
+                "businessName": row.get::<String, _>("name"),
+                "endsAt": crate::common::pg::date_json(row, "endsAt"),
+            })
+        })
+        .collect();
+    Ok(Json(items))
+}
+
+async fn list_own_offers(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Json<Vec<Value>>> {
+    let bid = owned_shop(&state, &user, &id).await?;
+    let rows = sqlx::query(
+        r#"SELECT id, title, code, discount, category, kind, "endsAt", "isActive"
+           FROM shop_offers WHERE "businessId" = $1 ORDER BY "createdAt" DESC"#,
+    )
+    .bind(bid)
+    .fetch_all(&state.db)
+    .await?;
+    let items = rows
+        .iter()
+        .map(|row| {
+            json!({
+                "id": row.get::<Uuid, _>("id").to_string(),
+                "title": row.get::<String, _>("title"),
+                "code": row.get::<String, _>("code"),
+                "discount": row.get::<Option<String>, _>("discount"),
+                "category": row.get::<String, _>("category"),
+                "kind": row.get::<String, _>("kind"),
+                "isActive": row.get::<bool, _>("isActive"),
+                "endsAt": crate::common::pg::date_json(row, "endsAt"),
+            })
+        })
+        .collect();
+    Ok(Json(items))
+}
+
+async fn create_shop_offer(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<ShopOfferBody>,
+) -> AppResult<Json<Value>> {
+    let bid = owned_shop(&state, &user, &id).await?;
+    let kind = body.kind.trim().to_uppercase();
+    if !["FLASH", "NORMAL", "PACKAGE"].contains(&kind.as_str()) {
+        return Err(AppError::BadRequest(
+            "Offer kind must be flash, normal, or package".into(),
+        ));
+    }
+    let title = body.title.trim();
+    let code = body.code.trim();
+    if title.is_empty() || title.len() > 120 || code.is_empty() || code.len() > 40 {
+        return Err(AppError::BadRequest(
+            "Add a title and a short code".into(),
+        ));
+    }
+    let profile: Value = sqlx::query_scalar(
+        r#"SELECT "hiringProfile" FROM businesses WHERE id = $1"#,
+    )
+    .bind(bid)
+    .fetch_one(&state.db)
+    .await?;
+    let category = body
+        .category
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            profile
+                .get("shopCategory")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+        });
+    if !shop_category_ok(category) {
+        return Err(AppError::BadRequest("Choose the shop category".into()));
+    }
+    let ends_at = match body.endsAt.as_deref() {
+        Some(raw) => Some(
+            chrono::DateTime::parse_from_rfc3339(raw)
+                .map_err(|_| AppError::BadRequest("Offer end time is invalid".into()))?
+                .with_timezone(&chrono::Utc),
+        ),
+        None => None,
+    };
+    let offer_id = Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO shop_offers (id, "businessId", kind, title, code, discount, category, "endsAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
+    )
+    .bind(offer_id)
+    .bind(bid)
+    .bind(&kind)
+    .bind(title)
+    .bind(code)
+    .bind(body.discount.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(category)
+    .bind(ends_at)
+    .execute(&state.db)
+    .await?;
+    Ok(Json(json!({ "id": offer_id.to_string() })))
+}
+
+async fn create_shop_enquiry(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<ShopEnquiryBody>,
+) -> AppResult<Json<Value>> {
+    let place = body.placeName.trim();
+    let message = body.message.trim();
+    let category = body.category.trim();
+    if place.is_empty() || message.is_empty() || !shop_category_ok(category) {
+        return Err(AppError::BadRequest(
+            "Add the place, category, and a message".into(),
+        ));
+    }
+    if message.len() > 2000 {
+        return Err(AppError::BadRequest("Message is too long".into()));
+    }
+    let business_id = match body.businessId.as_deref() {
+        Some(raw) if !raw.is_empty() => Some(Uuid::parse_str(raw)?),
+        _ => None,
+    };
+    let customer_id = Uuid::parse_str(&user.user_id)?;
+    let id = Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO shop_enquiries
+           (id, "businessId", "customerId", "placeName", category, package, message)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+    )
+    .bind(id)
+    .bind(business_id)
+    .bind(customer_id)
+    .bind(place)
+    .bind(category)
+    .bind(body.package.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(message)
+    .execute(&state.db)
+    .await?;
+    Ok(Json(json!({ "id": id.to_string() })))
+}
+
+async fn list_shop_enquiries(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Json<Vec<Value>>> {
+    let bid = owned_shop(&state, &user, &id).await?;
+    let rows = sqlx::query(
+        r#"SELECT id, "placeName", category, package, message, "createdAt"
+           FROM shop_enquiries WHERE "businessId" = $1 ORDER BY "createdAt" DESC LIMIT 100"#,
+    )
+    .bind(bid)
+    .fetch_all(&state.db)
+    .await?;
+    let items = rows
+        .iter()
+        .map(|row| {
+            json!({
+                "id": row.get::<Uuid, _>("id").to_string(),
+                "placeName": row.get::<String, _>("placeName"),
+                "category": row.get::<String, _>("category"),
+                "package": row.get::<Option<String>, _>("package"),
+                "message": row.get::<String, _>("message"),
+                "createdAt": crate::common::pg::date_json(row, "createdAt"),
+            })
+        })
+        .collect();
+    Ok(Json(items))
 }

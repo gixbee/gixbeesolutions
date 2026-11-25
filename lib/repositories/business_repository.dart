@@ -23,6 +23,45 @@ class BusinessRepository {
     return Business.fromJson(res.data);
   }
 
+  Future<List<Map<String, dynamic>>> shopDirectory(String category) async {
+    final res = await _dio.get('/businesses/shop-directory',
+        queryParameters: {'category': category});
+    return (res.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> shopOffers({String? category}) async {
+    final res = await _dio.get('/businesses/shop-offers',
+        queryParameters: {if (category != null) 'category': category});
+    return (res.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> myShopOffers(String businessId) async {
+    final res = await _dio.get('/businesses/$businessId/offers');
+    return (res.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
+  Future<void> createShopOffer(
+      String businessId, Map<String, dynamic> body) async {
+    await _dio.post('/businesses/$businessId/offers', data: body);
+  }
+
+  Future<void> sendShopEnquiry(Map<String, dynamic> body) async {
+    await _dio.post('/businesses/shop-enquiries', data: body);
+  }
+
+  Future<List<Map<String, dynamic>>> shopEnquiries(String businessId) async {
+    final res = await _dio.get('/businesses/$businessId/enquiries');
+    return (res.data as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+  }
+
   Future<List<Business>> getMyBusinesses() async {
     final res = await _dio.get('/businesses/my');
     return (res.data as List).map((json) => Business.fromJson(json)).toList();

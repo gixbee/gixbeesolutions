@@ -9,6 +9,9 @@ import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_glass_card.dart';
 import '../../shared/widgets/gx_pressable.dart';
 import '../../shared/widgets/gx_calendar.dart';
+import '../home/offer_categories.dart';
+import '../home/shop_directory_screen.dart';
+import '../home/todays_offers_screen.dart';
 
 /// Plan an Event module — matches the mockup's "pa" (Plan Ahead) sub-app.
 /// Pick an event type, select the services you need (hall, catering, decor,
@@ -124,6 +127,8 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
                     SliverToBoxAdapter(child: _eventTypeChips(context)),
                     SliverToBoxAdapter(child: _sectionTitle(context, 'Services you need')),
                     SliverToBoxAdapter(child: _serviceGrid(context)),
+                    SliverToBoxAdapter(child: _sectionTitle(context, 'Shops & services')),
+                    SliverToBoxAdapter(child: _shopGrid(context)),
                     SliverToBoxAdapter(child: _sectionTitle(context, 'Event details')),
                     SliverToBoxAdapter(child: _detailsCard(context)),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -134,6 +139,46 @@ class _BookServicesSplitScreenState extends State<BookServicesSplitScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _shopGrid(BuildContext context) {
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: offerCategories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final category = offerCategories[index];
+          return GxPressable(
+            onTap: () {
+              final screen = category.isDirectory
+                  ? ShopDirectoryScreen(category: category)
+                  : TodaysOffersScreen(initialCategory: category.id);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => screen),
+              );
+            },
+            child: Container(
+              width: 84,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: context.gx.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.gx.border),
+              ),
+              child: Text(category.chip,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          );
+        },
       ),
     );
   }

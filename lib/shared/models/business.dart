@@ -28,8 +28,10 @@ class Business {
   /// Empty when none. The businesses.offlineDays column is not this list.
   final List<DateTime> offlineDays;
 
-  /// Hiring registration extras (employer kind, industries, pin, role).
+  /// Hiring registration extras, or `{shopCategory}` for a shop.
   final Map<String, dynamic>? hiringProfile;
+
+  String? get shopCategory => hiringProfile?['shopCategory']?.toString();
 
   Business({
     required this.id,
