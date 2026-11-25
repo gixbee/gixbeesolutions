@@ -112,13 +112,20 @@ async fn remove(
     Ok(Json(json!({ "message": "Deleted" })))
 }
 
+fn numeric_f64(row: &sqlx::postgres::PgRow, col: &str) -> Option<f64> {
+    row.try_get::<Option<rust_decimal::Decimal>, _>(col)
+        .ok()
+        .flatten()
+        .and_then(|d| d.to_string().parse::<f64>().ok())
+}
+
 fn address_json(row: &sqlx::postgres::PgRow) -> Value {
     json!({
         "id": row.get::<Uuid, _>("id").to_string(),
         "userId": row.get::<Uuid, _>("userId").to_string(),
         "line": row.get::<String, _>("line"),
         "label": row.get::<Option<String>, _>("label"),
-        "lat": row.get::<Option<f64>, _>("lat"),
-        "lng": row.get::<Option<f64>, _>("lng"),
+        "lat": numeric_f64(row, "lat"),
+        "lng": numeric_f64(row, "lng"),
     })
 }
