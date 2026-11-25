@@ -37,17 +37,54 @@ Set<String> statesForSelectedCities(List<CityEntry> cities, Set<String> ids) {
   };
 }
 
-/// Three-step service areas: states, cities in those states, then review.
-/// Saved as catalogue `serviceCityIds` (the bookable city master). The HTML
-/// prototypes call the second step districts; this app's master is cities
-/// grouped by state.
+/// One state or district from the India location master.
+class ServiceGeo {
+  const ServiceGeo({
+    required this.id,
+    required this.name,
+    required this.stateName,
+  });
+  final String id;
+  final String name;
+  final String stateName;
+}
+
+/// Whole states are stored as one state id. A partial state stores only the
+/// chosen district ids, so an owner can cover every city without a cap.
+List<String> compactServiceAreaIds({
+  required List<ServiceGeo> states,
+  required List<ServiceGeo> districts,
+  required Set<String> stateNames,
+  required Set<String> districtIds,
+}) {
+  final saved = <String>[];
+  final ordered = [...states]
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  for (final state in ordered) {
+    if (!stateNames.contains(state.name)) continue;
+    final inState =
+        districts.where((district) => district.stateName == state.name).toList();
+    if (inState.isEmpty ||
+        inState.every((district) => districtIds.contains(district.id))) {
+      saved.add(state.id);
+    } else {
+      saved.addAll(inState
+          .where((district) => districtIds.contains(district.id))
+          .map((district) => district.id));
+    }
+  }
+  return saved;
+}
+
+/// Three-step service areas over every active state and district.
+/// A whole state is saved as that state, so the owner can serve all of India.
 class ServiceAreasFlowScreen extends ConsumerStatefulWidget {
   const ServiceAreasFlowScreen({
     super.key,
     required this.business,
     required this.service,
     this.persist = true,
-    this.initialCityIds = const {},
+    this.initialAreaIds = const {},
   });
 
   final Business business;
@@ -56,7 +93,7 @@ class ServiceAreasFlowScreen extends ConsumerStatefulWidget {
   /// When false, the selection is returned to the caller instead of writing
   /// the catalogue. Used while the catalogue form still has unsaved edits.
   final bool persist;
-  final Set<String> initialCityIds;
+  final Set<String> initialAreaIds;
 
   @override
   ConsumerState<ServiceAreasFlowScreen> createState() =>
@@ -64,13 +101,14 @@ class ServiceAreasFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen> {
-  static const _maxAreas = 30;
   int _step = 0;
   bool _loading = true;
   bool _busy = false;
   String? _error;
   int _revision = 0;
   Map<String, dynamic> _catalogue = const {};
+  List<ServiceGeo> _stateRows = const [];
+  List<ServiceGeo> _districts = const [];
   final _selected = <String>{};
   final _states = <String>{};
   String _query = '';
@@ -79,7 +117,7 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
   @override
   void initState() {
     super.initState();
-    _selected.addAll(widget.initialCityIds);
+    _selected.addAll(widget.initialAreaIds);
     _open();
   }
 
@@ -106,16 +144,23 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
         _catalogue = catalogue;
         _selected
           ..clear()
-          ..addAll((catalogue['serviceCityIds'] as List? ?? [])
+          ..addAll((catalogue['serviceAreaIds'] as List? ?? [])
               .map((id) => id.toString())
               .where((id) => id.isNotEmpty));
-      }
-      final cities = await ref.read(citiesProvider.future);
-      if (!mounted) return;
-      setState(() {
-        _states
+      } else {
+        _selected
           ..clear()
-          ..addAll(statesForSelectedCities(cities, _selected));
+          ..addAll(widget.initialAreaIds);
+      }
+      final geography =
+          await ref.read(eventsRepositoryProvider).serviceGeography();
+      if (!mounted) return;
+      final states = _places(geography['states']);
+      final districts = _places(geography['districts']);
+      _applySaved(states, districts);
+      setState(() {
+        _stateRows = states;
+        _districts = districts;
         _loading = false;
       });
     } catch (error) {
@@ -128,24 +173,87 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
     }
   }
 
-  void _toggleState(String state, List<CityEntry> cities, bool on) {
+  List<ServiceGeo> _places(Object? raw) {
+    final rows = raw is List ? raw : const [];
+    return [
+      for (final row in rows)
+        if (row is Map)
+          ServiceGeo(
+            id: '${row['id'] ?? ''}',
+            name: '${row['name'] ?? ''}'.trim(),
+            stateName: '${row['stateName'] ?? row['name'] ?? ''}'.trim(),
+          ),
+    ].where((place) => place.id.isNotEmpty && place.name.isNotEmpty).toList();
+  }
+
+  void _applySaved(List<ServiceGeo> states, List<ServiceGeo> districts) {
+    final saved = {..._selected};
+    final stateById = {for (final state in states) state.id: state};
+    final districtById = {for (final district in districts) district.id: district};
+    _states.clear();
+    _selected.clear();
+    for (final id in saved) {
+      final state = stateById[id];
+      if (state != null) {
+        _states.add(state.name);
+        _selected.addAll(districts
+            .where((district) => district.stateName == state.name)
+            .map((district) => district.id));
+        continue;
+      }
+      final district = districtById[id];
+      if (district != null) {
+        _states.add(district.stateName);
+        _selected.add(district.id);
+      }
+    }
+  }
+
+  List<ServiceGeo> _districtsIn(String state) => _districts
+      .where((district) => district.stateName == state)
+      .toList();
+
+  bool get _everywhere =>
+      _stateRows.isNotEmpty &&
+      _stateRows.every((state) => _states.contains(state.name)) &&
+      _districts.every((district) => _selected.contains(district.id));
+
+  void _toggleEverywhere(bool on) {
+    setState(() {
+      if (!on) {
+        _states.clear();
+        _selected.clear();
+        return;
+      }
+      _states.addAll(_stateRows.map((state) => state.name));
+      _selected.addAll(_districts.map((district) => district.id));
+    });
+  }
+
+  void _toggleState(String state, bool on) {
     setState(() {
       if (on) {
         _states.add(state);
         return;
       }
       _states.remove(state);
-      _selected.removeAll(cities
-          .where((city) => serviceAreaState(city) == state)
-          .map((city) => city.id));
+      _selected.removeAll(_districtsIn(state).map((district) => district.id));
+    });
+  }
+
+  void _toggleAllInState(String state, bool on) {
+    setState(() {
+      final ids = _districtsIn(state).map((district) => district.id);
+      if (on) {
+        _states.add(state);
+        _selected.addAll(ids);
+      } else {
+        _selected.removeAll(ids);
+      }
     });
   }
 
   void _toggleCity(String id, bool on) {
-    if (on && !_selected.contains(id) && _selected.length >= _maxAreas) {
-      showGxSnack(context, 'You can list up to $_maxAreas service areas.');
-      return;
-    }
     setState(() {
       if (on) {
         _selected.add(id);
@@ -157,7 +265,12 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
 
   Future<void> _save() async {
     if (_busy) return;
-    final ids = _selected.take(_maxAreas).toList();
+    final ids = compactServiceAreaIds(
+      states: _stateRows,
+      districts: _districts,
+      stateNames: _states,
+      districtIds: _selected,
+    );
     if (!widget.persist) {
       Navigator.pop(context, ids.toSet());
       return;
@@ -172,7 +285,7 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
           ..._catalogue,
           'items': _catalogue['items'] ?? const [],
           'photos': _catalogue['photos'] ?? const [],
-          'serviceCityIds': ids,
+          'serviceAreaIds': ids,
         },
       );
       if (!mounted) return;
@@ -187,7 +300,6 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cities = ref.watch(citiesProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Service Areas'),
@@ -213,20 +325,11 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
                   title: 'Service areas unavailable',
                   onRetry: _open,
                 )
-              : cities.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => GxNetworkError(
-                    error: error,
-                    title: 'Service areas unavailable',
-                    onRetry: () => ref.invalidate(citiesProvider),
-                  ),
-                  data: (rows) => _body(rows),
-                ),
+              : _body(),
     );
   }
 
-  Widget _body(List<CityEntry> cities) {
-    final grouped = serviceAreasByState(cities);
+  Widget _body() {
     final titles = const ['Select states', 'Select cities', 'Review'];
     return Column(children: [
       Padding(
@@ -239,9 +342,9 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
       ),
       Expanded(
         child: switch (_step) {
-          0 => _statesStep(grouped),
-          1 => _citiesStep(grouped),
-          _ => _reviewStep(grouped),
+          0 => _statesStep(),
+          1 => _citiesStep(),
+          _ => _reviewStep(),
         },
       ),
       Padding(
@@ -269,39 +372,53 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
     ]);
   }
 
-  Widget _statesStep(Map<String, List<CityEntry>> grouped) {
-    if (grouped.isEmpty) {
-      return const Center(child: Text('No serviceable cities are available yet.'));
+  Widget _statesStep() {
+    if (_stateRows.isEmpty) {
+      return const Center(child: Text('No states are available yet.'));
     }
+    final rows = [..._stateRows]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return ListView(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-          child: Text('Select states where you accept bookings.',
+          child: Text(
+              'Choose the states you serve. This is your business, so you can cover every state.',
               style: TextStyle(color: context.gx.ink.withValues(alpha: 0.7))),
         ),
-        for (final entry in grouped.entries)
+        CheckboxListTile(
+          value: _everywhere,
+          title: const Text('All states and cities',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+          subtitle: Text('${_stateRows.length} states · ${_districts.length} cities'),
+          onChanged: (on) => _toggleEverywhere(on ?? false),
+        ),
+        for (final state in rows)
           CheckboxListTile(
-            value: _states.contains(entry.key),
-            title: Text(entry.key,
+            value: _states.contains(state.name),
+            title: Text(state.name,
                 style: const TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text(
-                '${entry.value.length} ${entry.value.length == 1 ? 'city' : 'cities'}'),
-            onChanged: (on) => _toggleState(entry.key, entry.value, on ?? false),
+            subtitle: Text(() {
+              final count = _districtsIn(state.name).length;
+              return count == 0
+                  ? 'Whole state'
+                  : '$count ${count == 1 ? 'city' : 'cities'}';
+            }()),
+            onChanged: (on) => _toggleState(state.name, on ?? false),
           ),
       ],
     );
   }
 
-  Widget _citiesStep(Map<String, List<CityEntry>> grouped) {
+  Widget _citiesStep() {
     final query = _query.trim().toLowerCase();
     final states = _states.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       children: [
-        Text('Select the cities where you accept bookings.',
+        Text('Select the cities where you accept bookings, or take the whole state.',
             style: TextStyle(color: context.gx.ink.withValues(alpha: 0.7))),
         const SizedBox(height: 10),
         TextField(
@@ -320,25 +437,41 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
                   fontWeight: FontWeight.w900,
                   fontSize: 16)),
           const SizedBox(height: 6),
-          for (final city in grouped[state] ?? const <CityEntry>[])
-            if (query.isEmpty ||
-                city.name.toLowerCase().contains(query) ||
-                city.displayName.toLowerCase().contains(query))
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _selected.contains(city.id),
-                title: Text(city.name),
-                onChanged: (on) => _toggleCity(city.id, on ?? false),
-              ),
+          if (_districtsIn(state).isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text('Selecting this state covers the whole state.'),
+            )
+          else ...[
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _districtsIn(state)
+                  .every((district) => _selected.contains(district.id)),
+              title: Text('All cities in $state'),
+              onChanged: (on) => _toggleAllInState(state, on ?? false),
+            ),
+            for (final city in ([..._districtsIn(state)]
+              ..sort((a, b) =>
+                  a.name.toLowerCase().compareTo(b.name.toLowerCase()))))
+              if (query.isEmpty || city.name.toLowerCase().contains(query))
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _selected.contains(city.id),
+                  title: Text(city.name),
+                  onChanged: (on) => _toggleCity(city.id, on ?? false),
+                ),
+          ],
         ],
       ],
     );
   }
 
-  Widget _reviewStep(Map<String, List<CityEntry>> grouped) {
+  Widget _reviewStep() {
     final states = _states.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    final shown = <String>{};
+    final any = states.any((state) =>
+        _districtsIn(state).isEmpty ||
+        _districtsIn(state).any((city) => _selected.contains(city.id)));
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -349,28 +482,33 @@ class _ServiceAreasFlowScreenState extends ConsumerState<ServiceAreasFlowScreen>
                 fontSize: 18)),
         const SizedBox(height: 8),
         Text(
-          'You can add or remove states and cities later from your dashboard.',
+          'You can change this later. A whole state means you serve every city there.',
           style: TextStyle(color: context.gx.ink.withValues(alpha: 0.7)),
         ),
         const SizedBox(height: 16),
-        if (_selected.isEmpty)
+        if (!any)
           const Text('No cities selected. Saving clears your service areas.'),
         for (final state in states) ...[
-          if ((grouped[state] ?? const <CityEntry>[])
-              .any((city) => _selected.contains(city.id))) ...[
-            Text(state,
-                style: const TextStyle(fontWeight: FontWeight.w900)),
+          if (_districtsIn(state).isEmpty ||
+              _districtsIn(state).any((city) => _selected.contains(city.id))) ...[
+            Text(state, style: const TextStyle(fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final city in grouped[state] ?? const <CityEntry>[])
-                if (_selected.contains(city.id)) ...[
-                  if (shown.add(city.id))
+            if (_districtsIn(state).isEmpty ||
+                _districtsIn(state)
+                    .every((city) => _selected.contains(city.id)))
+              const Padding(
+                padding: EdgeInsets.only(bottom: 14),
+                child: Text('All cities'),
+              )
+            else
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final city in _districtsIn(state))
+                  if (_selected.contains(city.id))
                     Chip(
                       label: Text(city.name),
                       onDeleted: () => _toggleCity(city.id, false),
                     ),
-                ],
-            ]),
+              ]),
             const SizedBox(height: 14),
           ],
         ],

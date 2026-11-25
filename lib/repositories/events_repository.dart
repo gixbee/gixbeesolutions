@@ -61,6 +61,12 @@ class EventsRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Active Indian states and districts from the hiring location master.
+  Future<Map<String, dynamic>> serviceGeography() async {
+    final response = await _dio.get('/hiring/locations/geography');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<Map<String, dynamic>> catalogue(
       String businessId, String service) async {
     final response = await _dio.get('/events/catalogues/$businessId/$service');

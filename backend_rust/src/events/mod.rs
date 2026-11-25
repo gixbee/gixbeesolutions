@@ -142,7 +142,25 @@ async fn create_plan(State(state):State<AppState>,user:AuthUser,Json(mut input):
                  AND type='SERVICE' AND status='VERIFIED'
                  AND ("cityId"=$3::uuid OR EXISTS (
                    SELECT 1 FROM event_service_catalogues c WHERE c."businessId"=businesses.id
-                     AND c."serviceType"=$4 AND c.catalogue->'serviceCityIds' ? ($3::uuid)::text))
+                     AND c."serviceType"=$4 AND (
+                       c.catalogue->'serviceCityIds' ? ($3::uuid)::text
+                       OR EXISTS (
+                         SELECT 1 FROM cities searched
+                         WHERE searched.id = $3
+                           AND EXISTS (
+                             SELECT 1
+                             FROM jsonb_array_elements_text(
+                               COALESCE(c.catalogue->'serviceAreaIds', '[]'::jsonb)) picked(id)
+                             JOIN hiring_locations area
+                               ON area.id = picked.id AND area."isActive"
+                             WHERE (area.kind = 'STATE'
+                                    AND lower(btrim(area.name)) = lower(btrim(searched.state)))
+                                OR (area.kind = 'DISTRICT'
+                                    AND lower(btrim(area."stateName")) = lower(btrim(searched.state))
+                                    AND lower(btrim(area.name)) = lower(btrim(searched.name)))
+                           )
+                       )
+                     )))
                  AND ("serviceType"::text=$4 OR "eventServices" ? $4) FOR UPDATE"#,
         ).bind(business).bind(uid).bind(input.city_id).bind(service)
             .fetch_optional(&mut *tx).await?;

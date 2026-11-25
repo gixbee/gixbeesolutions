@@ -36,6 +36,7 @@ class _EventServiceCatalogueScreenState
   final _advance = TextEditingController(text: '730');
   final _perDay = TextEditingController(text: '1');
   Set<String> _serviceCities = {};
+  Set<String> _serviceAreas = {};
   List<Map<String, dynamic>> _items = [];
   List<String> _photos = [];
   int _revision = 0;
@@ -86,6 +87,10 @@ class _EventServiceCatalogueScreenState
         _serviceCities = (catalogue['serviceCityIds'] as List? ?? [])
             .whereType<String>()
             .toSet();
+        _serviceAreas = (catalogue['serviceAreaIds'] as List? ?? [])
+            .map((id) => id.toString())
+            .where((id) => id.isNotEmpty)
+            .toSet();
         _items = (catalogue['items'] as List)
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
@@ -132,6 +137,8 @@ class _EventServiceCatalogueScreenState
           'maxAdvanceDays': advance,
           'maxBookingsPerDay': limit,
           'serviceCityIds': _serviceCities.toList(),
+          if (_catering || _photography)
+            'serviceAreaIds': _serviceAreas.toList(),
         },
       );
       if (!mounted) return false;
@@ -670,7 +677,7 @@ class _EventServiceCatalogueScreenState
   }
 
   Widget _serviceAreasEntry() {
-    final count = _serviceCities.length;
+    final count = _serviceAreas.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -695,13 +702,13 @@ class _EventServiceCatalogueScreenState
                           business: widget.business,
                           service: widget.service,
                           persist: false,
-                          initialCityIds: _serviceCities,
+                          initialAreaIds: _serviceAreas,
                         ),
                       ),
                     );
                     if (picked == null || !mounted) return;
                     setState(() {
-                      _serviceCities = picked;
+                      _serviceAreas = picked;
                       _hasUnsavedChanges = true;
                     });
                   },

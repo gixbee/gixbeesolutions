@@ -21,4 +21,35 @@ void main() {
         [kochi, thrissur, chennai], {'thrissur', 'chennai'}),
         {'Kerala', 'Tamil Nadu'});
   });
+
+  test('a fully selected state is stored as the state itself', () {
+    const kerala = ServiceGeo(id: 'KL', name: 'Kerala', stateName: 'Kerala');
+    const tamil = ServiceGeo(
+        id: 'TN', name: 'Tamil Nadu', stateName: 'Tamil Nadu');
+    const kochi = ServiceGeo(
+        id: 'ekm', name: 'Ernakulam', stateName: 'Kerala');
+    const thrissur = ServiceGeo(
+        id: 'tsr', name: 'Thrissur', stateName: 'Kerala');
+    const chennai = ServiceGeo(
+        id: 'che', name: 'Chennai', stateName: 'Tamil Nadu');
+
+    expect(
+      compactServiceAreaIds(
+        states: const [tamil, kerala],
+        districts: const [chennai, kochi, thrissur],
+        stateNames: {'Kerala', 'Tamil Nadu'},
+        districtIds: {'ekm', 'tsr', 'che'},
+      ),
+      ['KL', 'TN'],
+    );
+    expect(
+      compactServiceAreaIds(
+        states: const [kerala],
+        districts: const [kochi, thrissur],
+        stateNames: {'Kerala'},
+        districtIds: {'ekm'},
+      ),
+      ['ekm'],
+    );
+  });
 }

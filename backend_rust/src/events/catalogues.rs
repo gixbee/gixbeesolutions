@@ -41,7 +41,25 @@ async fn discover(
         r#"SELECT jsonb_build_object('businessId', b.id, 'name', b.name,
                'location', b.location, 'catalogue', c.catalogue)
            FROM event_service_catalogues c JOIN businesses b ON b.id=c."businessId"
-           WHERE c."serviceType"=$1 AND (b."cityId"=$2::uuid OR c.catalogue->'serviceCityIds' ? ($2::uuid)::text)
+           WHERE c."serviceType"=$1 AND (
+             b."cityId"=$2::uuid
+             OR c.catalogue->'serviceCityIds' ? ($2::uuid)::text
+             OR EXISTS (
+               SELECT 1 FROM cities searched
+               WHERE searched.id = $2
+                 AND EXISTS (
+                   SELECT 1
+                   FROM jsonb_array_elements_text(
+                     COALESCE(c.catalogue->'serviceAreaIds', '[]'::jsonb)) picked(id)
+                   JOIN hiring_locations area
+                     ON area.id = picked.id AND area."isActive"
+                   WHERE (area.kind = 'STATE'
+                          AND lower(btrim(area.name)) = lower(btrim(searched.state)))
+                      OR (area.kind = 'DISTRICT'
+                          AND lower(btrim(area."stateName")) = lower(btrim(searched.state))
+                          AND lower(btrim(area.name)) = lower(btrim(searched.name)))
+                 )
+             ))
              AND b.type='SERVICE'
              AND b.status='VERIFIED'
              AND (b."serviceType"::text=$1 OR b."eventServices" ? $1)
@@ -136,6 +154,21 @@ async fn save_catalogue(
             "Choose active, distinct service areas".into(),
         ));
     }
+    let area_ids = service_area_ids(&input.catalogue)?;
+    if !area_ids.is_empty() {
+        let valid_areas: i64 = sqlx::query_scalar(
+            r#"SELECT count(*) FROM hiring_locations
+               WHERE id = ANY($1) AND "isActive" AND kind IN ('STATE','DISTRICT')"#,
+        )
+        .bind(&area_ids)
+        .fetch_one(&mut *tx)
+        .await?;
+        if valid_areas != area_ids.len() as i64 {
+            return Err(AppError::BadRequest(
+                "Choose active states or districts".into(),
+            ));
+        }
+    }
     let revision: i32 = sqlx::query_scalar(
         r#"INSERT INTO event_service_catalogues ("businessId","serviceType",catalogue)
            VALUES ($1,$2,$3)
@@ -154,6 +187,32 @@ async fn save_catalogue(
     ))
 }
 
+fn service_area_ids(catalogue: &Value) -> AppResult<Vec<String>> {
+    let Some(areas) = catalogue.get("serviceAreaIds") else {
+        return Ok(Vec::new());
+    };
+    let areas = areas
+        .as_array()
+        .ok_or_else(|| AppError::BadRequest("Choose active states or districts".into()))?;
+    let mut seen = std::collections::HashSet::new();
+    let mut ids = Vec::with_capacity(areas.len());
+    for area in areas {
+        let id = area
+            .as_str()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| AppError::BadRequest("Choose active states or districts".into()))?
+            .to_string();
+        if !seen.insert(id.clone()) {
+            return Err(AppError::BadRequest(
+                "Choose active states or districts".into(),
+            ));
+        }
+        ids.push(id);
+    }
+    Ok(ids)
+}
+
 fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
     const MAX_TEXT: usize = 3000;
     let invalid = || AppError::BadRequest("Check the catalogue fields and pricing".into());
@@ -166,6 +225,15 @@ fn validate_catalogue(catalogue: &Value, service: &str) -> AppResult<()> {
         || catalogue
             .get("serviceCityIds")
             .is_some_and(|areas| areas.as_array().is_none_or(|a| a.len() > 30))
+        || catalogue.get("serviceAreaIds").is_some_and(|areas| {
+            areas.as_array().is_none_or(|list| {
+                list.len() > 1000
+                    || list.iter().any(|id| {
+                        !id.as_str()
+                            .is_some_and(|value| !value.trim().is_empty() && value.len() <= 80)
+                    })
+            })
+        })
         || catalogue
             .get("maxBookingsPerDay")
             .is_some_and(|v| v.as_i64().is_none_or(|n| !(1..=50).contains(&n)))
