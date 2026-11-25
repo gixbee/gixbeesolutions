@@ -44,7 +44,7 @@ Gixbee is an on-demand service platform consisting of three containerized/native
 When building the release APK, **do NOT rely on `build_apk.bat`** if running in environments subject to terminal encoding or interactive prompt issues. Instead, run the Flutter build command directly with the required `--dart-define` environment flags:
 
 ```powershell
-flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8mbNjXuEC30NmUy52rfi4 --dart-define=API_BASE_URL=http://13.233.60.215:3000 --dart-define=SOCKET_URL=http://13.233.60.215:3000
+flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8mbNjXuEC30NmUy52rfi4 --dart-define=API_BASE_URL=http://103.102.234.152:3000 --dart-define=SOCKET_URL=http://103.102.234.152:3000
 ```
 
 - **Output Location**: `build\app\outputs\flutter-apk\app-release.apk`
@@ -53,36 +53,18 @@ flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8m
 
 ---
 
-## 🚀 3. How to Deploy / Publish Backend to AWS EC2
+## 🚀 3. How to Deploy / Publish Backend to MilesWeb
 
-The production backend and database run via Docker Compose on AWS EC2 Amazon Linux 2023 (`13.233.60.215`).
-- **EC2 Instance ID**: `i-0263e6862a2e32e59`
-- **OS User**: `ec2-user`
-- **Server Repository Directory**: `/home/ec2-user/gixbeesolutions`
+Production is the MilesWeb VPS only. Follow [`.agents/skills/gixbee_deploy/SKILL.md`](skills/gixbee_deploy/SKILL.md).
 
-### Step A: Push local changes to GitHub
-```powershell
-git add .
-git commit -m "feat: description of changes"
-git push origin main
-```
+- **Host**: `103.102.234.152`
+- **SSH user**: `root`
+- **App directory**: `/root/gixbeesolutions`
+- **API**: `http://103.102.234.152:3000`
+- **Admin**: `http://103.102.234.152/`
+- **Deploy script**: `scripts/milesweb_sync_and_deploy.sh`
 
-### Step B: Automated Deployment via AWS EC2 Instance Connect
-Once changes are pushed to `main`, use the AWS CLI with EC2 Instance Connect to temporarily authorize your public key and execute the pull and container rebuild directly in PowerShell:
-
-```powershell
-aws ec2-instance-connect send-ssh-public-key --instance-id i-0263e6862a2e32e59 --instance-os-user ec2-user --ssh-public-key file://C:\Users\gkv00\.ssh\gixbee-ec2.pub ; ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no ec2-user@13.233.60.215 "cd /home/ec2-user/gixbeesolutions && git pull origin main && docker compose up --build -d backend && docker compose ps"
-```
-
-### Manual Deployment on Server Terminal
-If connecting manually over SSH as `ec2-user`, run:
-```bash
-cd /home/ec2-user/gixbeesolutions
-git pull origin main
-docker compose up --build -d backend
-docker compose ps
-docker compose logs -f --tail=50 backend
-```
+Do not deploy to Azure or AWS.
 
 ---
 

@@ -124,26 +124,24 @@ Assign new slugs in **Admin staff** when creating OPERATOR users.
 | `1756300000000-CacheVersions.ts` | Cache domains |
 | `1756400000000-MasterDataAudit.ts` | `master_data_audit` table |
 
-Run via your existing Nest migration process **or** Azure SQL bundle (see below).
+Run via the MilesWeb deploy (see below).
 
-### Azure (production path)
+### MilesWeb (production path)
 
-On the VM as `azureuser`, after uploading a tarball to `/tmp/gixbee-azure.tgz`:
+On the VPS as `root`, after uploading a tarball to `/tmp/gixbee-milesweb.tgz`:
 
 ```bash
-bash /home/azureuser/gixbeesolutions/scripts/azure_sync_and_deploy.sh
+bash /tmp/milesweb_sync_and_deploy.sh
 ```
 
-That script applies `scripts/azure_hiring_migrations.sql`, `scripts/cache_versions.sql`, and `scripts/master_data_audit.sql` into `gixbee_postgres`, then rebuilds **Rust** (`COMPOSE_PROFILES=rust`) plus **admin** and **api_balancer**.
+That script applies `scripts/azure_hiring_migrations.sql`, `scripts/cache_versions.sql`, and `scripts/master_data_audit.sql` into `gixbee_postgres`, then rebuilds **Rust** plus **admin** and **api_balancer**. The app lives at `/root/gixbeesolutions`.
 
-Optional post-deploy (on VM):
+Optional post-deploy (on the VPS):
 
 ```bash
 bash scripts/azure_import_catalogue.sh   # bundled hiring catalogue
 bash scripts/azure_import_locations.sh # if refreshing location master
 ```
-
-Do **not** use the AWS EC2 deploy skill (`gixbee_deploy`) for Azure hosts.
 
 ---
 

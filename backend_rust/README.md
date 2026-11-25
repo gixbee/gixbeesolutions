@@ -26,4 +26,4 @@ Reads `deploy/.env` via Docker Compose (`JWT_SECRET`, `DATABASE_*`, `REDIS_*`, `
 
 ## Schema
 
-Apply SQL in `scripts/` on the server (see `scripts/azure_sync_and_deploy.sh`).
+Apply SQL in `scripts/` on the MilesWeb VPS (see `scripts/milesweb_sync_and_deploy.sh`).

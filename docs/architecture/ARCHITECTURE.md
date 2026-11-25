@@ -17,7 +17,7 @@ Gixbee is an **intent-based** multi-service platform: one user can book services
 
 Shared infrastructure: **PostgreSQL** (via **PgBouncer**), **Redis** (OTP, cache, Bull queues, Socket.IO adapter), **Firebase FCM**, **Razorpay**, **MSG91 SMS**.
 
-Production runs on **AWS EC2** (`13.233.60.215`) behind Docker Compose with **2 backend replicas**, Nginx load balancing, Beszel/Dozzle/pgAdmin for ops.
+Production runs on the **MilesWeb VPS** (`103.102.234.152`) behind Docker Compose with **2 backend replicas**, Nginx load balancing, Beszel/Dozzle/pgAdmin for ops.
 
 ### Backend implementation switch
 

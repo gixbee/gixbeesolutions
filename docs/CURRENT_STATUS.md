@@ -13,7 +13,7 @@
 | App | Flutter + Riverpod + Dio + Socket.IO + MapLibre (Ola) + FCM |
 | API | Rust (Axum) + Postgres + Redis + JWT (`backend_rust/`) |
 | Admin | Angular 19 (`super-admin-web/`) |
-| Infra | Docker Compose · Nginx LB · PgBouncer · AWS EC2 `i-0263e6862a2e32e59` (`13.233.60.215`) · Beszel / Dozzle / pgAdmin |
+| Infra | Docker Compose · Nginx LB · PgBouncer · MilesWeb VPS `103.102.234.152` · Beszel / Dozzle / pgAdmin |
 | Themes | **Gixbee Dark** (violet shell) · **Grab Green** (light) via Profile → Appearance |
 
 Theme tokens live in `lib/theme.dart` (`context.gx.*`). Auth/splash stay dark + brand-orange on purpose. Deploy via [`.agents/skills/gixbee_deploy/SKILL.md`](../.agents/skills/gixbee_deploy/SKILL.md).
@@ -233,7 +233,7 @@ Sourced from Jim's gap audit ([GAPS.md](./architecture/GAPS.md)). Code mitigatio
 | [HOSTING_GUIDE.md](./HOSTING_GUIDE.md) | Hosting setup |
 | [AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md) | AWS deploy notes |
 | [.README.md](../.README.md) | Product overview + setup |
-| [gixbee_deploy skill](../.agents/skills/gixbee_deploy/SKILL.md) | EC2 Instance Connect deploy command |
+| [gixbee_deploy skill](../.agents/skills/gixbee_deploy/SKILL.md) | MilesWeb deploy (`103.102.234.152`) |
 
 April-era backlog / gap / extract dumps were removed from `docs/` (2026-07-18). Use git history if you need them.
 

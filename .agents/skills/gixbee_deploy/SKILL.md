@@ -1,18 +1,18 @@
 ---
 name: gixbee_deploy
-description: Deploy Gixbee to production on Azure VM (Rust backend) or verify container health. Do NOT use AWS EC2 unless explicitly requested.
+description: Deploy Gixbee to production on the MilesWeb VPS (Rust backend) or verify container health. Do not deploy to Azure or AWS.
 ---
 
-# Gixbee Azure Production Deployment
+# Gixbee MilesWeb Production Deployment
 
-**Production host:** Azure VM `20.106.171.188`  
-**SSH user:** `azureuser`  
+**Production host:** MilesWeb VPS `103.102.234.152`  
+**SSH user:** `root`  
 **SSH key:** `C:\Users\gkv00\.ssh\gixbee-ec2`  
-**Remote app path:** `/home/azureuser/gixbeesolutions`  
-**API (public):** `http://20.106.171.188:3000`  
-**Admin (when deployed):** `http://20.106.171.188/`
+**Remote app path:** `/root/gixbeesolutions`  
+**API (public):** `http://103.102.234.152:3000`  
+**Admin:** `http://103.102.234.152/`
 
-Legacy AWS EC2 (`13.233.60.215`) is **deprecated** — do not deploy there by default.
+Do not deploy to Azure or AWS. Those hosts are not production.
 
 ## Step 1: Push to GitHub
 
@@ -26,31 +26,31 @@ From repo root on Windows:
 
 ```powershell
 cd C:\Users\gkv00\Music\gixbee
-tar -czf "$env:TEMP\gixbee-azure.tgz" `
+tar -czf "$env:TEMP\gixbee-milesweb.tgz" `
   --exclude=node_modules --exclude=.git --exclude=tmp `
   --exclude=super-admin-web/node_modules `
   --exclude=backend_rust/target --exclude=.dart_tool --exclude=build `
   --exclude=android --exclude=ios --exclude="*.apk" .
 
 scp -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no `
-  "$env:TEMP\gixbee-azure.tgz" `
-  C:\Users\gkv00\Music\gixbee\scripts\azure_sync_and_deploy.sh `
-  azureuser@20.106.171.188:/tmp/
+  "$env:TEMP\gixbee-milesweb.tgz" `
+  C:\Users\gkv00\Music\gixbee\scripts\milesweb_sync_and_deploy.sh `
+  root@103.102.234.152:/tmp/
 ```
 
-## Step 3: Migrate schema + build + restart (on VM)
+## Step 3: Migrate schema + build + restart (on the VPS)
 
-Runs SQL bundles, builds `backend_rust` + `admin`, starts stack:
+Runs SQL bundles, builds `backend_rust` + `admin`, starts the stack:
 
 ```powershell
-ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no azureuser@20.106.171.188 `
-  "sed -i 's/\r$//' /tmp/azure_sync_and_deploy.sh; nohup bash /tmp/azure_sync_and_deploy.sh > /tmp/deploy.log 2>&1 & echo DEPLOY_STARTED"
+ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no root@103.102.234.152 `
+  "sed -i 's/\r$//' /tmp/milesweb_sync_and_deploy.sh; nohup bash /tmp/milesweb_sync_and_deploy.sh > /tmp/deploy.log 2>&1 & echo DEPLOY_STARTED"
 ```
 
-Rust Docker build can take **15–30+ minutes** on the VM. Monitor:
+Rust Docker build can take **15–30+ minutes** on the VPS. Monitor:
 
 ```powershell
-ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no azureuser@20.106.171.188 "tail -30 /tmp/deploy.log; docker compose ps"
+ssh -i C:\Users\gkv00\.ssh\gixbee-ec2 -o StrictHostKeyChecking=no root@103.102.234.152 "tail -30 /tmp/deploy.log; docker compose ps"
 ```
 
 Success line: `DEPLOY_OK`
@@ -58,15 +58,15 @@ Success line: `DEPLOY_OK`
 ## Step 4: Verify
 
 ```powershell
-Invoke-WebRequest -Uri "http://20.106.171.188:3000/" -UseBasicParsing
+Invoke-WebRequest -Uri "http://103.102.234.152:3000/" -UseBasicParsing
 ```
 
 ## Step 5: Flutter APK (optional)
 
-Use project defines pointing at Azure (see `gixbee_keys.bat` or `--dart-define=API_BASE_URL=http://20.106.171.188:3000`).
+Use project defines pointing at MilesWeb (see `gixbee_keys.bat` or `--dart-define=API_BASE_URL=http://103.102.234.152:3000`).
 
 ## Notes
 
-- Preserves `deploy/.env` and Firebase JSON on deploy (script backs up before replacing tree; legacy `backend/.env` is migrated if present).
-- `docker image prune -f` runs after build — keep it.
-- See `docs/MASTER_DATA_ADMIN.md` for optional catalogue/location imports after deploy.
+- Preserves `deploy/.env`, the repo-root `.env`, and Firebase JSON on deploy (the script backs them up before replacing the tree).
+- `docker image prune -f` runs after build. Keep it.
+- See `docs/MASTER_DATA_ADMIN.md` for optional catalogue and location imports after deploy.

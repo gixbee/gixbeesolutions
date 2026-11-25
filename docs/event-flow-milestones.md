@@ -17,7 +17,7 @@ docker exec -i gixbee_postgres psql -U postgres -d gixbee_db \
   -v ON_ERROR_STOP=1 -f - < scripts/azure_event_quote_milestones.sql
 ```
 
-`scripts/azure_sync_and_deploy.sh` executes this migration after the hall
+`scripts/milesweb_sync_and_deploy.sh` executes this migration after the hall
 migration and before starting the new Rust image. If it fails, the deployment
 stops before the new backend is started. If deploying with another workflow,
 run the migration explicitly before switching any API replicas.

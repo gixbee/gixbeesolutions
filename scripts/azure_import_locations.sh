@@ -11,7 +11,7 @@ if [[ ! -f IN.txt ]]; then
 fi
 NET=$(docker inspect gixbee_postgres --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 docker run --rm --network "$NET" \
-  -v /home/azureuser/gixbeesolutions/scripts/import-hiring-locations.py:/import.py:ro \
+  -v /root/gixbeesolutions/scripts/import-hiring-locations.py:/import.py:ro \
   -v "$GEO":/data:ro \
   python:3.12-slim bash -c \
   'pip install -q psycopg[binary] && python /import.py --dir /data --database-url postgresql://postgres:gixbee123@postgres:5432/gixbee_db'

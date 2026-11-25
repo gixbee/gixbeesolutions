@@ -169,7 +169,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # host networking so relay candidates use the EC2 public IP correctly.
+    # host networking so relay candidates use the MilesWeb public IP correctly.
     network_mode: host
     command:
       - -n
@@ -184,7 +184,7 @@ services:
       - --no-dtls
       - --min-port=49160
       - --max-port=49200
-      - --external-ip=${TURN_EXTERNAL_IP:-13.233.60.215}
+      - --external-ip=${TURN_EXTERNAL_IP:-103.102.234.152}
 
   # ── Rust API (Axum) ──────────────────────────────────────────────────────
   backend_rust:

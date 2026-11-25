@@ -47,7 +47,7 @@ Then admin **Import bundled catalogue** (Rust) on each environment.
 
 ## Migration / import order (you run)
 
-1. Apply TypeORM migration `1756200000000-HiringLanguages.ts` (or `scripts/azure_hiring_migrations.sql` block on Azure).
+1. Apply TypeORM migration `1756200000000-HiringLanguages.ts` (or `scripts/azure_hiring_migrations.sql` on MilesWeb).
 2. Deploy Rust backend with new `hiring-catalogue.json`.
 3. `POST /hiring/catalogue/admin/import` (admin) — upserts sectors/positions/skills/languages; does not delete custom admin rows unless deactivated manually.
 4. Optional: review `backend/data/hiring-catalogue-legacy-map.json` **unresolved** entries before bulk remapping historical `positionId` values.
