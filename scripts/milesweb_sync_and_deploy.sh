@@ -35,6 +35,7 @@ docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_event_delivery_payments.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/event_catalogue_service_types.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/v147_gaps.sql
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/platform_payment_plans.sql
 echo SCHEMA_OK
 
 if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then

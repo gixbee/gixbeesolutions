@@ -4,7 +4,7 @@ use rust_decimal::{Decimal,prelude::ToPrimitive};
 
 pub(super) async fn pending(State(state):State<AppState>,user:AuthUser)->AppResult<Json<Vec<Value>>> {
     let rows=sqlx::query(r#"SELECT "razorpayOrderId",amount,purpose::text AS purpose,meta,"createdAt"
-        FROM payment_orders WHERE "userId"=$1 AND status='CREATED' AND purpose IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE')
+        FROM payment_orders WHERE "userId"=$1 AND status='CREATED' AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')
         ORDER BY "createdAt" DESC LIMIT 100"#).bind(Uuid::parse_str(&user.user_id)?).fetch_all(&state.db).await?;
     Ok(Json(rows.iter().map(|r|json!({"orderId":r.get::<String,_>("razorpayOrderId"),"amount":(r.get::<Decimal,_>("amount")*Decimal::from(100)).to_i64(),
         "currency":"INR","keyId":state.config.razorpay_key_id,"purpose":r.get::<String,_>("purpose"),
@@ -49,7 +49,7 @@ pub(super) async fn verify(State(state):State<AppState>,user:AuthUser,Path(id):P
 
 async fn owned(state:&AppState,user:&AuthUser,id:&str)->AppResult<sqlx::postgres::PgRow> {
     sqlx::query(r#"SELECT id,amount,status::text AS status,purpose::text AS purpose,meta FROM payment_orders
-        WHERE "razorpayOrderId"=$1 AND "userId"=$2 AND purpose IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE')"#)
+        WHERE "razorpayOrderId"=$1 AND "userId"=$2 AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')"#)
         .bind(id).bind(Uuid::parse_str(&user.user_id)?).fetch_optional(&state.db).await?
         .ok_or_else(||AppError::NotFound("Payment order not found on your account".into()))
 }

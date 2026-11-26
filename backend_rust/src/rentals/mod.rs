@@ -431,9 +431,15 @@ async fn create_item(
     let uid = Uuid::parse_str(&user.user_id)?;
     let id = Uuid::new_v4();
     let input = listing::Listing::parse(&body)?;
+    let basic = crate::master_admin::plan_value(&state.db, "rental_basic_limit").await?;
     let mut tx=state.db.begin().await?;
     validate_business(&mut tx,input.business_id,uid).await?;
-    if input.business_id.is_none() {return Err(AppError::BadRequest("Select your verified rental business".into()));}
+    let business = input.business_id.ok_or_else(|| AppError::BadRequest("Select your verified rental business".into()))?;
+    crate::plans::lock_account(&mut tx, uid).await?;
+    let limit = crate::plans::capacity(&mut tx, uid, "RENTAL").await?.unwrap_or(basic);
+    let count: i64 = sqlx::query_scalar(r#"SELECT COUNT(*) FROM rental_items WHERE "businessId"=$1"#)
+        .bind(business).fetch_one(&mut *tx).await?;
+    crate::plans::check_limit(count, limit)?;
     if input.pickup_address.trim().is_empty() {return Err(AppError::BadRequest("Provide the pickup address".into()));}
     let pin = listing::parse_pin(input.pickup_lat, input.pickup_lng)?;
     let (pickup_lat, pickup_lng) = resolve_pickup_pin(&mut tx, input.business_id, pin).await?;

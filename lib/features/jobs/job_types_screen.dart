@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'pending_payments_screen.dart';
+import '../billing/platform_plans_screen.dart';
 import '../../repositories/events_repository.dart' show eventDate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../repositories/matching_repository.dart';
@@ -57,6 +58,9 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
     }
   }
 
+  int get _freeProfiles => _prefs.where((profile) =>
+      profile['isPaid'] != true && profile['requiresCareerPlan'] != true).length;
+
   Future<void> _openForm({Map<String, dynamic>? existing}) async {
     final wasEmpty = _prefs.isEmpty;
     var profile = existing;
@@ -73,7 +77,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                     ...saved,
                     'availableOn': _talent?['availableOn'],
                   },
-            freeSlotsLeft: (2 - _prefs.length).clamp(0, 2),
+            freeSlotsLeft: (2 - _freeProfiles).clamp(0, 2),
           ),
         ),
       );
@@ -245,12 +249,22 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                   ),
                 ),
                 Text(
-                  '${_prefs.where((p) => p['isPaid'] != true).length}/2 free',
+                  '$_freeProfiles/2 free',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: context.gx.ink.withValues(alpha: 0.5),
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Career plans',
+                  icon: const Icon(Icons.workspace_premium_outlined),
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute<void>(
+                      builder: (_) => const PlatformPlansScreen(family: 'CAREER'),
+                    ));
+                    if (mounted) await _load();
+                  },
                 ),
                 IconButton(
                     tooltip: 'Pending payments',
@@ -384,7 +398,11 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                              if (p['isPaid'] == true)
+                                              if (p['requiresCareerPlan'] == true)
+                                            Text(p['careerPlanUntil'] == null
+                                                ? 'Pro expired · renew to resume matching'
+                                                : 'Pro access until ${eventDate(p['careerPlanUntil'])}'),
+                                          if (p['isPaid'] == true)
                                                 Container(
                                                   padding: const EdgeInsets
                                                       .symmetric(

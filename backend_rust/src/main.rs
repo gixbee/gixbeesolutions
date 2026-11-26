@@ -27,6 +27,7 @@ mod middleware;
 mod notifications;
 mod outbox;
 mod payments;
+mod plans;
 mod redis;
 mod redis_admin;
 mod rentals;

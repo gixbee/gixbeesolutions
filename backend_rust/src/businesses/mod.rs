@@ -91,6 +91,17 @@ async fn create(
     let event_services = event_services(body.get("eventServices"))?;
     let phone = phone(body.get("phone"))?;
     let hiring_profile = hiring_profile(body.get("hiringProfile"), biz_type)?;
+    let mut tx = state.db.begin().await?;
+    if biz_type == "SERVICE" {
+        let basic = crate::master_admin::plan_value(&state.db, "service_basic_limit").await?;
+        crate::plans::lock_account(&mut tx, uid).await?;
+        let limit = crate::plans::capacity(&mut tx, uid, "SERVICE").await?.unwrap_or(basic);
+        let count: i64 = sqlx::query_scalar(
+            r#"SELECT COUNT(*) FROM businesses WHERE "ownerId"=$1 AND type::text='SERVICE'
+               AND status::text <> 'REJECTED'"#,
+        ).bind(uid).fetch_one(&mut *tx).await?;
+        crate::plans::check_limit(count, limit)?;
+    }
     sqlx::query(
         r#"INSERT INTO businesses (id, "ownerId", name, type, location, status,
            "serviceType", "cityId", description, "documentUrl",phone,"eventServices","hiringProfile")
@@ -113,8 +124,9 @@ async fn create(
     .bind(phone)
     .bind(json!(if biz_type=="SERVICE" {event_services} else {vec![]}))
     .bind(hiring_profile)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     get_one(State(state), user, Path(id.to_string())).await
 }
 
@@ -1223,6 +1235,16 @@ async fn create_shop_offer(
         ),
         None => None,
     };
+    let uid = Uuid::parse_str(&user.user_id)?;
+    let basic = crate::master_admin::plan_value(&state.db, "shop_basic_limit").await?;
+    let mut tx = state.db.begin().await?;
+    crate::plans::lock_account(&mut tx, uid).await?;
+    let limit = crate::plans::capacity(&mut tx, uid, "SHOP").await?.unwrap_or(basic);
+    let count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM shop_offers WHERE "businessId"=$1
+           AND "isActive" AND ("endsAt" IS NULL OR "endsAt">NOW())"#,
+    ).bind(bid).fetch_one(&mut *tx).await?;
+    crate::plans::check_limit(count, limit)?;
     let offer_id = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO shop_offers (id, "businessId", kind, title, code, discount, category, "endsAt")
@@ -1236,8 +1258,9 @@ async fn create_shop_offer(
     .bind(body.discount.as_deref().map(str::trim).filter(|s| !s.is_empty()))
     .bind(category)
     .bind(ends_at)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(Json(json!({ "id": offer_id.to_string() })))
 }
 

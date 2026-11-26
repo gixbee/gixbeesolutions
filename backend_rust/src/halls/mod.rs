@@ -1399,7 +1399,10 @@ async fn discover_halls(
              AND h."listingActive" = true
              AND h."packageSaved" = true
              AND ($1::uuid IS NULL OR b."cityId" = $1)
-           ORDER BY b.name, h."hallNumber"
+           ORDER BY COALESCE((SELECT MAX(CASE g.tier WHEN 'PRO' THEN 2 ELSE 1 END)
+                    FROM platform_plan_grants g WHERE g.user_id=b."ownerId"
+                      AND g.family='SERVICE' AND g.valid_until>NOW()),0) DESC,
+                    b.name, h."hallNumber"
            LIMIT 100"#,
     )
     .bind(q.city_id)

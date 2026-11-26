@@ -108,6 +108,168 @@ struct SettingDef {
 
 const PRICING_SETTINGS: &[SettingDef] = &[
     SettingDef {
+        key: "seeker_pro_month",
+        label: "Jobseeker Pro monthly price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 299,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "seeker_pro_quarter",
+        label: "Jobseeker Pro quarterly price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 597,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "seeker_pro_month_days",
+        label: "Monthly plan validity",
+        unit: "days",
+        min: 1,
+        max: 365,
+        fallback: 30,
+        description: "Validity for new purchases or trials.",
+    },
+    SettingDef {
+        key: "seeker_pro_quarter_days",
+        label: "Quarterly plan validity",
+        unit: "days",
+        min: 1,
+        max: 365,
+        fallback: 90,
+        description: "Validity for new purchases or trials.",
+    },
+    SettingDef {
+        key: "seeker_trial_days",
+        label: "Jobseeker Pro trial",
+        unit: "days",
+        min: 0,
+        max: 30,
+        fallback: 7,
+        description: "Validity for new purchases or trials.",
+    },
+    SettingDef {
+        key: "service_standard",
+        label: "Service Standard price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 999,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "service_pro",
+        label: "Service Pro price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 2499,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "rental_standard",
+        label: "Rental Standard price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 699,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "shop_standard",
+        label: "Shop Standard price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 499,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "hiring_standard",
+        label: "Hiring Standard price",
+        unit: "INR",
+        min: 0,
+        max: 100000,
+        fallback: 799,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "business_plan_days",
+        label: "Business plan validity",
+        unit: "days",
+        min: 1,
+        max: 365,
+        fallback: 30,
+        description: "Validity for new purchases or trials.",
+    },
+    SettingDef {
+        key: "service_basic_limit",
+        label: "Service Basic listing limit",
+        unit: "listings",
+        min: 1,
+        max: 1000,
+        fallback: 1,
+        description: "Maximum service listings that can be registered.",
+    },
+    SettingDef {
+        key: "service_standard_limit",
+        label: "Service Standard listing limit",
+        unit: "listings",
+        min: 1,
+        max: 1000,
+        fallback: 3,
+        description: "Maximum service listings that can be registered.",
+    },
+    SettingDef {
+        key: "rental_basic_limit",
+        label: "Rental Basic item limit",
+        unit: "items",
+        min: 1,
+        max: 1000,
+        fallback: 5,
+        description: "Maximum rental items that can be registered.",
+    },
+    SettingDef {
+        key: "shop_basic_limit",
+        label: "Shop Basic active offer limit",
+        unit: "offers",
+        min: 1,
+        max: 1000,
+        fallback: 3,
+        description: "Maximum offers that can be active.",
+    },
+    SettingDef {
+        key: "hiring_basic_limit",
+        label: "Hiring Basic active request limit",
+        unit: "requests",
+        min: 1,
+        max: 1000,
+        fallback: 3,
+        description: "Maximum hiring requests that can be active.",
+    },
+    SettingDef {
+        key: "extra_profile_fee",
+        label: "Additional career profile price",
+        unit: "INR",
+        min: 1,
+        max: 100000,
+        fallback: 50,
+        description: "Price for new orders. Zero hides a plan where allowed.",
+    },
+    SettingDef {
+        key: "extra_profile_days",
+        label: "Additional career profile validity",
+        unit: "days",
+        min: 1,
+        max: 365,
+        fallback: 30,
+        description: "Validity for new purchases or trials.",
+    },
+    SettingDef {
         key: "job_credit_per_accept",
         label: "Job credit per accept",
         unit: "credits",
@@ -183,6 +345,21 @@ const OPERATIONAL_SETTINGS: &[SettingDef] = &[
         description: "Completed jobs included per go-live period payment. 0 disables the plan.",
     },
 ];
+
+pub(crate) async fn plan_value(db: &sqlx::PgPool, key: &str) -> AppResult<i32> {
+    let def = PRICING_SETTINGS.iter().find(|def| def.key == key)
+        .ok_or_else(|| AppError::Internal("Unknown plan setting".into()))?;
+    let value: Option<String> = sqlx::query_scalar(
+        r#"SELECT value FROM master_entries WHERE type::text = 'CONFIGURATION'
+           AND label = $1 AND "isActive" = true ORDER BY id LIMIT 1"#,
+    )
+    .bind(key)
+    .fetch_optional(db)
+    .await?;
+    Ok(value.and_then(|v| v.parse::<i64>().ok())
+        .filter(|v| (def.min..=def.max).contains(v))
+        .unwrap_or(def.fallback) as i32)
+}
 
 async fn load_config_row(state: &AppState, key: &str) -> AppResult<Option<(Uuid, String, String, bool)>> {
     let row = sqlx::query(

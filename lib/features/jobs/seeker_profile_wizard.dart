@@ -13,6 +13,7 @@ import '../business/hiring_language_picker.dart';
 import '../business/hiring_sector_grid.dart';
 import 'hiring_master_picker.dart';
 import 'pending_payments_screen.dart';
+import '../billing/platform_plans_screen.dart';
 
 bool jobProfileNeedsWizard(Map<String, dynamic> profile) {
   final lat = profile['lat'];
@@ -329,27 +330,35 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         final result = await repo.createPreference(draft);
         if (!mounted) return;
         if (result['needsPayment'] == true) {
-          final confirmed = await showDialog<bool>(
+          final action = await showDialog<String>(
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Add a paid profile?'),
               content: Text(
-                  'This profile costs ₹${result['fee'] ?? 50} for 30 days of matching.'),
+                  'This profile costs ₹${result['fee'] ?? 50} for ${result['durationDays'] ?? 30} days of matching.'),
               actions: [
                 TextButton(
-                    onPressed: () => Navigator.pop(context, false),
+                    onPressed: () => Navigator.pop(context),
                     child: const Text('Back')),
                 TextButton(
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () => Navigator.pop(context, 'plans'),
+                    child: const Text('View Pro plans')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, 'extra'),
                     child: const Text('Continue to payment')),
               ],
             ),
           );
           if (!mounted) return;
-          if (confirmed == true) {
+          if (action == 'extra') {
             await _openPayment(draft);
           } else {
             setState(() => _saving = false);
+            if (action == 'plans') {
+              await Navigator.push(context, MaterialPageRoute<void>(
+                builder: (_) => const PlatformPlansScreen(family: 'CAREER'),
+              ));
+            }
           }
           return;
         }
@@ -392,7 +401,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
       'amount': order['amount'],
       'currency': order['currency'] ?? 'INR',
       'name': AppConfig.appName,
-      'description': 'Job profile matching · 30 days',
+      'description': 'Job profile matching',
       'timeout': AppConfig.paymentTimeoutSeconds,
       'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''},
     });
@@ -785,7 +794,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
         if (_resumeName != null) Text('Resume: $_resumeName'),
         if (!_editing && widget.freeSlotsLeft == 0)
           const Text(
-              'This additional profile costs ₹50 for 30 days of matching.'),
+              'Additional profiles need an active Pro plan or a one-time payment.'),
         TextButton(
             onPressed: () => setState(() => _step = 0),
             child: const Text('Edit profile details')),
@@ -878,7 +887,7 @@ class _SeekerProfileWizardState extends ConsumerState<SeekerProfileWizard> {
                           TextButton(
                               onPressed: _renew,
                               child: const Text(
-                                  'Renew matching access · ₹50 / 30 days')),
+                                  'Renew matching access')),
                         ...switch (_step) {
                           0 => _typeAndSector(),
                           1 => _positionStep(),

@@ -66,7 +66,10 @@ async fn discover(
              AND EXISTS (SELECT 1 FROM jsonb_array_elements(c.catalogue->'items') item
                          WHERE item->'active' IS DISTINCT FROM 'false'::jsonb
                             AND ($1 <> 'DECORATION' OR item->'addon' IS DISTINCT FROM 'true'::jsonb))
-           ORDER BY b.name,b.id LIMIT 100"#,
+           ORDER BY COALESCE((SELECT MAX(CASE g.tier WHEN 'PRO' THEN 2 ELSE 1 END)
+                    FROM platform_plan_grants g WHERE g.user_id=b."ownerId"
+                      AND g.family='SERVICE' AND g.valid_until>NOW()),0) DESC,
+                    b.name,b.id LIMIT 100"#,
     )
     .bind(query.service_type)
     .bind(query.city_id)

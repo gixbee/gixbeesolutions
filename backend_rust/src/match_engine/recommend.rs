@@ -413,8 +413,13 @@ async fn load_seeker(state: &AppState, user_id: Uuid) -> AppResult<Seeker> {
     .await?;
     let pref = sqlx::query(
         r#"SELECT "jobType", skills, "employmentType"::text AS "employmentType", "experienceYears", "expectedSalary"
-           FROM job_preferences WHERE "userId" = $1 AND "isActive" = true
-           ORDER BY "createdAt" DESC LIMIT 1"#,
+           FROM job_preferences p WHERE p."userId" = $1 AND p."isActive" = true
+             AND (NOT p."isPaid" OR p."paidUntil" IS NULL OR p."paidUntil" > NOW())
+             AND (NOT p."requiresCareerPlan" OR EXISTS (
+                 SELECT 1 FROM platform_plan_grants g WHERE g.user_id=p."userId"
+                     AND g.family='CAREER' AND g.valid_until>NOW()
+             ))
+           ORDER BY p."createdAt" DESC LIMIT 1"#,
     )
     .bind(user_id)
     .fetch_optional(&state.db)

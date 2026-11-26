@@ -294,7 +294,10 @@ async fn create_extra_job_type_order(
             .bind(profile).bind(uid).bind(job_type).fetch_one(&state.db).await?;
         if !renew {return Err(AppError::BadRequest("Select your paid career profile to renew".into()));}
     }
+    let fee = crate::master_admin::plan_value(&state.db, "extra_profile_fee").await?;
+    let days = crate::master_admin::plan_value(&state.db, "extra_profile_days").await?;
     let meta = json!({
+        "durationDays": days,
         "renewPreferenceId":body.renewPreferenceId,
         "seekerDetails":body.seekerDetails,
         "jobType": job_type,
@@ -323,7 +326,7 @@ async fn create_extra_job_type_order(
         crate::matching::validate_seeker_checkout(&state, &meta, uid).await?;
         crate::matching::validate_profile_catalogue(&state, &meta).await?;
     }
-    create_razorpay_order(&state, &user.user_id, PURPOSE_EXTRA_JOB_TYPE, 50, Some(meta)).await
+    create_razorpay_order(&state, &user.user_id, PURPOSE_EXTRA_JOB_TYPE, fee, Some(meta)).await
 }
 
 pub(crate) async fn create_razorpay_order(
@@ -343,6 +346,7 @@ pub(crate) async fn create_razorpay_order(
     let key_secret = state.config.razorpay_key_secret.as_deref().unwrap_or("");
     let receipt_prefix = match purpose {
         "JOB_CREDITS" => "pack",
+        crate::plans::PURPOSE => "pln",
         PURPOSE_PERIOD_FEE => "fee",
         PURPOSE_LATE_CANCEL => "lcc",
         PURPOSE_HIRING_MATCH => "hmf",
@@ -354,12 +358,16 @@ pub(crate) async fn create_razorpay_order(
     let receipt = format!("{}_{}", receipt_prefix, Uuid::new_v4().simple());
 
     let uid = Uuid::parse_str(user_id)?;
+    let hiring_basic = if purpose == PURPOSE_HIRING_MATCH {
+        Some(crate::master_admin::plan_value(&state.db, "hiring_basic_limit").await?)
+    } else { None };
     let mut tx = state.db.begin().await?;
-    if [PURPOSE_HIRING_MATCH,PURPOSE_EXTRA_JOB_TYPE].contains(&purpose) {
+    if [PURPOSE_HIRING_MATCH,PURPOSE_EXTRA_JOB_TYPE,crate::plans::PURPOSE].contains(&purpose) {
         sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE").bind(uid).fetch_one(&mut *tx).await?;
         let existing=sqlx::query(r#"SELECT "razorpayOrderId",amount,meta FROM payment_orders WHERE "userId"=$1
-            AND purpose::text=$2 AND status='CREATED' AND (meta-'fee'-'creditApplied')=($3::jsonb-'fee'-'creditApplied')
-            ORDER BY "createdAt" DESC LIMIT 1"#).bind(uid).bind(purpose).bind(&meta).fetch_optional(&mut *tx).await?;
+            AND purpose::text=$2 AND status='CREATED' AND (meta-'fee'-'creditApplied'-'durationDays')=($3::jsonb-'fee'-'creditApplied'-'durationDays')
+            AND ($2 <> 'PLATFORM_PLAN' OR amount=$4)
+            ORDER BY "createdAt" DESC LIMIT 1"#).bind(uid).bind(purpose).bind(&meta).bind(rupees).fetch_optional(&mut *tx).await?;
         if let Some(existing)=existing {
             let due=existing.get::<rust_decimal::Decimal,_>("amount");let saved:Value=existing.get("meta");
             return Ok(Json(json!({"orderId":existing.get::<String,_>("razorpayOrderId"),
@@ -368,7 +376,10 @@ pub(crate) async fn create_razorpay_order(
                 "currency":"INR","keyId":key_id,"resumed":true})));
         }
     }
-    if purpose == PURPOSE_HIRING_MATCH {
+    if let Some(basic) = hiring_basic {
+        let business = meta.as_ref().and_then(|m|m["businessId"].as_str())
+            .ok_or_else(|| AppError::BadRequest("Hiring business is required".into()))?;
+        crate::plans::check_hiring_limit(&mut tx, uid, Uuid::parse_str(business)?, basic).await?;
         let balance: rust_decimal::Decimal = sqlx::query_scalar(r#"SELECT "hiringCreditBalance" FROM users WHERE id=$1 FOR UPDATE"#)
             .bind(uid).fetch_one(&mut *tx).await?;
         let reserved = crate::matching::reserved_hiring_credit(&mut *tx, uid, None).await?;
@@ -561,7 +572,7 @@ async fn webhook(
     // database effects commit, so a crash is retryable and reserved credit is
     // never briefly exposed to another request while fulfillment is in flight.
     let hiring_order = sqlx::query(r#"SELECT id,"userId",amount,purpose::text AS purpose,meta,status::text AS status
-        FROM payment_orders WHERE "razorpayOrderId"=$1 AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE')"#)
+        FROM payment_orders WHERE "razorpayOrderId"=$1 AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')"#)
         .bind(order_id).fetch_optional(&state.db).await?;
     if let Some(order) = hiring_order {
         if order.get::<String,_>("status") == "CREDITED" { return Ok(Json(json!({"ok":true,"duplicate":true}))); }
@@ -581,7 +592,7 @@ async fn webhook(
             .bind(order.get::<Uuid,_>("id")).bind(payment_id).execute(&state.db).await?;
         return Ok(Json(json!({"ok":true})));
     }
-    if matches!(payment.and_then(|p|p.pointer("/notes/purpose")).and_then(Value::as_str),Some("HIRING_MATCH_FEE"|"EXTRA_JOB_TYPE_FEE")) {
+    if matches!(payment.and_then(|p|p.pointer("/notes/purpose")).and_then(Value::as_str),Some("HIRING_MATCH_FEE"|"EXTRA_JOB_TYPE_FEE"|"PLATFORM_PLAN")) {
         return Err(AppError::ServiceUnavailable("Payment order not persisted yet".into()));
     }
 
@@ -767,6 +778,9 @@ async fn fulfil_order(
     razorpay_payment_id: Option<&str>,
 ) -> AppResult<()> {
     match purpose {
+        crate::plans::PURPOSE => {
+            crate::plans::fulfil(state, user_id, payment_order_id, meta.unwrap_or(&Value::Null)).await?;
+        }
         PURPOSE_PERIOD_FEE => {
             mark_period_fee_paid(state, user_id).await?;
             info!(

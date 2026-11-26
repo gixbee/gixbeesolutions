@@ -89,7 +89,7 @@ pub const JOB_PREFERENCE_COLS: &str = r#"
     id, "userId", "jobType", skills, "preferredLocation", "expectedSalary", "salaryNegotiable",
     "expectedSalaryPeriod",
     "employmentType"::text AS "employmentType", "experienceYears", "noticePeriod"::text AS "noticePeriod",
-    "isActive", "matchingPaused", "isPaid", "paidUntil", "createdAt", "updatedAt",
+    "isActive", "matchingPaused", "isPaid", "paidUntil", "requiresCareerPlan", "createdAt", "updatedAt",
     "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId",
     "addressText", "locationMatchStatus", "languageIds", "seekerDetails"
 "#;

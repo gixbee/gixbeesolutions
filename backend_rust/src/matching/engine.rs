@@ -349,8 +349,14 @@ pub(super) async fn find_matching_preferences(
             'IMMEDIATE')
             WHEN 'IMMEDIATE' THEN 0 WHEN 'DAYS_7' THEN 1 ELSE 2 END AS avail_rank,
           COALESCE(ranked.priority, 1) AS location_rank,
+          COALESCE(career.active, false) AS career_priority,
           p."createdAt" AS pref_created
         FROM job_preferences p
+        LEFT JOIN LATERAL (
+            SELECT true AS active FROM platform_plan_grants g
+            WHERE g.user_id=p."userId" AND g.family='CAREER' AND g.valid_until>NOW()
+            LIMIT 1
+        ) career ON true
         LEFT JOIN talent_profiles t ON t."userId" = p."userId"
         LEFT JOIN worker_profiles w ON w."userId" = p."userId"
         LEFT JOIN LATERAL (
@@ -374,6 +380,7 @@ pub(super) async fn find_matching_preferences(
                  ))
         ) ranked ON true
         WHERE p."isActive" = true
+          AND (NOT p."requiresCareerPlan" OR career.active = true)
           AND COALESCE(p."matchingPaused", false) = false
           AND p."experienceYears" >= $1 AND NOT (p."userId" = ANY($2))
           AND COALESCE(p."expectedSalaryPeriod", 'MONTHLY') = $3
@@ -485,7 +492,7 @@ pub(super) async fn find_matching_preferences(
           pref_created ASC,
           p.id ASC
         ) best
-        ORDER BY location_rank ASC, skill_score DESC, lang_score DESC, avail_rank ASC, pref_created ASC, id ASC
+        ORDER BY career_priority DESC, location_rank ASC, skill_score DESC, lang_score DESC, avail_rank ASC, pref_created ASC, id ASC
         LIMIT $15"#,
     )
     .bind(query.experience_min.max(0))

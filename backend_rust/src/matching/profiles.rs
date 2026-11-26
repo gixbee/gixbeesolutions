@@ -244,6 +244,12 @@ pub(super) async fn create(
     }
     let input = Preference::parse(body)?;
     let uid = Uuid::parse_str(user_id)?;
+    let fee = crate::master_admin::plan_value(&state.db, "extra_profile_fee").await?;
+    let days = if payment_id.is_some() {
+        body["durationDays"].as_i64().filter(|d| (1..=365).contains(d)).unwrap_or(30) as i32
+    } else {
+        crate::master_admin::plan_value(&state.db, "extra_profile_days").await?
+    };
     let mut tx = state.db.begin().await?;
     // All profile creation, including captured-payment fulfillment, serializes
     // through the owner so concurrent requests cannot consume the free slots twice.
@@ -271,8 +277,8 @@ pub(super) async fn create(
         if paid {
             let id=found.get::<Uuid,_>("id");
             if !found.get::<bool,_>("isPaid") {return Err(AppError::Conflict("This profile already has a free entitlement. Contact support about the paid order".into()));}
-            sqlx::query(r#"UPDATE job_preferences SET "paidUntil"=GREATEST(COALESCE("paidUntil",NOW()),NOW())+INTERVAL '30 days',"updatedAt"=NOW() WHERE id=$1"#)
-                .bind(id).execute(&mut *tx).await?;
+            sqlx::query(r#"UPDATE job_preferences SET "paidUntil"=GREATEST(COALESCE("paidUntil",NOW()),NOW())+make_interval(days => $2),"updatedAt"=NOW() WHERE id=$1"#)
+                .bind(id).bind(days).execute(&mut *tx).await?;
             if let Some(payment_id)=payment_id {record_receipt(&mut tx,payment_id,id).await?;}
             tx.commit().await?;
             return Ok(json!({"id":id,"renewed":true}));
@@ -281,8 +287,12 @@ pub(super) async fn create(
             "You already have a profile for this job type".into(),
         ));
     }
-    if !paid && existing.len() >= 2 {
-        return Ok(json!({"needsPayment": true, "fee": 50}));
+    let free_count = existing.iter().filter(|row| {
+        !row.get::<bool, _>("isPaid") && !row.get::<bool, _>("requiresCareerPlan")
+    }).count();
+    let requires_plan = !paid && free_count >= 2;
+    if requires_plan && crate::plans::capacity(&mut tx, uid, "CAREER").await?.is_none() {
+        return Ok(json!({"needsPayment": true, "fee": fee, "durationDays": days}));
     }
     if payment_id.is_none() {
         validate_locations(&mut tx, &input, None).await?;
@@ -292,10 +302,10 @@ pub(super) async fn create(
     let id = Uuid::new_v4();
     sqlx::query(r#"INSERT INTO job_preferences (id, "userId", "jobType", skills, "preferredLocation",
         "expectedSalary", "salaryNegotiable", "employmentType", "experienceYears", "noticePeriod", "expectedSalaryPeriod", "isActive", "isPaid", "paidUntil",
-        "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId", "addressText", "locationMatchStatus", "languageIds", "seekerDetails")
+        "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "locationId", "addressText", "locationMatchStatus", "languageIds", "seekerDetails", "requiresCareerPlan")
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::job_preferences_employmenttype_enum,$9,$10::job_preferences_noticeperiod_enum,$11,
-        true,$12,CASE WHEN $12 THEN NOW() + INTERVAL '30 days' ELSE NULL END,
-        $13,$14,$15,$16,$17,$18::text,$19,CASE WHEN $18::text IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END,$20,$21)"#)
+        true,$12,CASE WHEN $12 THEN NOW() + make_interval(days => $22) ELSE NULL END,
+        $13,$14,$15,$16,$17,$18::text,$19,CASE WHEN $18::text IS NULL THEN 'UNRESOLVED' ELSE 'MAPPED' END,$20,$21,$23)"#)
         .bind(id).bind(uid).bind(&input.job_type).bind(input.skills.join(","))
         .bind(&input.preferred_location).bind(input.salary()).bind(input.salary_negotiable)
         .bind(&input.employment_type).bind(input.experience_years).bind(&input.notice_period)
@@ -303,7 +313,7 @@ pub(super) async fn create(
         .bind(&input.sector_id).bind(&input.position_id).bind(input.specialization_ids.join(","))
         .bind(input.skill_ids.join(",")).bind(&input.qualification_id).bind(&input.location_id)
         .bind(&input.address_text).bind(input.language_ids.join(","))
-        .bind(details)
+        .bind(details).bind(days).bind(requires_plan)
         .execute(&mut *tx).await?;
     if existing.is_empty() {
         sync_primary_profile(&mut tx, uid, &input).await?;

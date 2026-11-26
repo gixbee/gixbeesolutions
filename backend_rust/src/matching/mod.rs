@@ -60,7 +60,17 @@ async fn list_preferences(
         .bind(uid)
         .fetch_all(&state.db)
         .await?;
-    Ok(Json(rows.iter().map(pref_json).collect()))
+    let expiry: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar(
+        "SELECT MAX(valid_until) FROM platform_plan_grants WHERE user_id=$1
+            AND family='CAREER' AND valid_until>NOW()",
+    ).bind(uid).fetch_one(&state.db).await?;
+    Ok(Json(rows.iter().map(|row| {
+        let mut profile = pref_json(row);
+        if profile["requiresCareerPlan"].as_bool() == Some(true) {
+            profile["careerPlanUntil"] = json!(expiry);
+        }
+        profile
+    }).collect()))
 }
 
 async fn create_preference(
@@ -100,12 +110,13 @@ async fn catalog() -> Json<Value> {
     }))
 }
 
-async fn pricing() -> Json<Value> {
-    Json(json!({
+async fn pricing(State(state): State<AppState>) -> AppResult<Json<Value>> {
+    Ok(Json(json!({
         "tiers": [{"maxVacancies":1,"fee":49},{"maxVacancies":5,"fee":99},{"maxVacancies":10,"fee":199},{"maxVacancies":25,"fee":399}],
         "guaranteeHours": 24,
-        "extraJobTypeFee": 50,
-    }))
+        "extraJobTypeFee": crate::master_admin::plan_value(&state.db, "extra_profile_fee").await?,
+        "extraJobTypeDays": crate::master_admin::plan_value(&state.db, "extra_profile_days").await?,
+    })))
 }
 
 async fn credit(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
@@ -708,6 +719,7 @@ fn pref_json(row: &sqlx::postgres::PgRow) -> Value {
         "seekerDetails": row.get::<Option<Value>, _>("seekerDetails"),
         "isActive": row.get::<bool, _>("isActive"),
         "matchingPaused": row.try_get::<bool, _>("matchingPaused").unwrap_or(false),
+        "requiresCareerPlan": row.get::<bool, _>("requiresCareerPlan"),
         "isPaid": row.get::<bool, _>("isPaid"),
         "paidUntil": row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("paidUntil").ok().flatten(),
         "createdAt": crate::common::pg::date_json(row, "createdAt"),
@@ -831,7 +843,7 @@ pub async fn quote_match_fee(
 pub async fn preference_count(state: &AppState, user_id: &str) -> AppResult<i64> {
     let uid = Uuid::parse_str(user_id)?;
     let count: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)::bigint FROM job_preferences WHERE "userId" = $1 AND "isActive" = true"#,
+        r#"SELECT COUNT(*)::bigint FROM job_preferences WHERE "userId" = $1 AND "isActive" = true AND NOT "isPaid" AND NOT "requiresCareerPlan""#,
     )
     .bind(uid)
     .fetch_one(&state.db)
@@ -1373,6 +1385,7 @@ async fn start_request(
     let fee_dec = rust_decimal::Decimal::from(fee);
     let credit_dec = rust_decimal::Decimal::from(credit_applied);
 
+    let basic = crate::master_admin::plan_value(&state.db, "hiring_basic_limit").await?;
     let mut tx = state.db.begin().await?;
     let balance: rust_decimal::Decimal =
         sqlx::query_scalar(r#"SELECT "hiringCreditBalance" FROM users WHERE id = $1 FOR UPDATE"#)
@@ -1391,6 +1404,9 @@ async fn start_request(
         }
     }
     let business=resolve_business(state,employer_id,meta).await?;
+    if payment_order_id.is_none() {
+        crate::plans::check_hiring_limit(&mut tx, employer, business, basic).await?;
+    }
     let other_reserved = reserved_hiring_credit(&mut *tx, employer, payment_order_id).await?;
     if fee != fee_for_vacancies(vacancies)?
         || credit_applied < 0

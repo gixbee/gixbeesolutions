@@ -54,6 +54,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/messages", messages::routes())
         .nest("/notifications", notifications::routes())
         .nest("/payments", payments::routes())
+        .nest("/plans", crate::plans::routes())
         .nest("/redis/admin", redis_admin::routes())
         .nest("/rentals", rentals::routes())
         .nest("/support", support::routes())

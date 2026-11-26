@@ -36,8 +36,8 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
     final meta = order['meta'] as Map? ?? {};
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
       title: const Text('Resume saved payment?'), content: SingleChildScrollView(child: Text(
-        '${meta['jobType'] ?? ''}\nPay ${eventMoney((num.tryParse('${order['amount']}') ?? 0) / 100)}\n\n'
-        '${order['purpose'] == 'HIRING_MATCH_FEE' ? '${meta['vacancies']} vacancies · ${meta['location'] ?? ''}\nMonthly salary: ${eventMoney(meta['salaryMax'])}\nHiring credit reserved: ${eventMoney(meta['creditApplied'])}' : 'Career profile: 30 days of matching access'}\n\n'
+        '${meta['jobType'] ?? meta['planName'] ?? ''}\nPay ${eventMoney((num.tryParse('${order['amount']}') ?? 0) / 100)}\n\n'
+        '${order['purpose'] == 'HIRING_MATCH_FEE' ? '${meta['vacancies']} vacancies · ${meta['location'] ?? ''}\nMonthly salary: ${eventMoney(meta['salaryMax'])}\nHiring credit reserved: ${eventMoney(meta['creditApplied'])}' : order['purpose'] == 'PLATFORM_PLAN' ? '${meta['days']} days of plan access' : 'Career profile: ${meta['durationDays'] ?? 30} days of matching access'}\n\n'
         'This uses the saved order and its original details. If you have already paid, check confirmation first.')),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Go back')),
         TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Resume'))],
@@ -59,7 +59,7 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
         })
         ..on(Razorpay.EVENT_EXTERNAL_WALLET, (_) { if (mounted) setState(() => _busy = false); });
       _razorpay!.open({'key': order['keyId'], 'order_id': order['orderId'], 'amount': order['amount'],
-        'currency': 'INR', 'name': 'Gixbee', 'description': '${meta['jobType'] ?? 'Saved payment'}',
+        'currency': 'INR', 'name': 'Gixbee', 'description': '${meta['jobType'] ?? meta['planName'] ?? 'Saved payment'}',
         'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''}});
     } catch (e) {
       if (mounted) { setState(() => _busy = false); showGxSnack(context, eventError(e)); }
@@ -91,17 +91,17 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
         const SizedBox(height: 16),
         if (_orders!.isEmpty) const Text('No pending payments.'),
         for (final order in _orders!) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${order['meta']?['jobType'] ?? 'Saved purchase'}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          Text(order['purpose'] == 'HIRING_MATCH_FEE' ? 'Hiring match fee' : 'Career profile access'),
+          Text('${order['meta']?['jobType'] ?? order['meta']?['planName'] ?? 'Saved purchase'}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(order['purpose'] == 'HIRING_MATCH_FEE' ? 'Hiring match fee' : order['purpose'] == 'PLATFORM_PLAN' ? 'Plan purchase' : 'Career profile access'),
           Text(eventMoney((num.tryParse('${order['amount']}') ?? 0) / 100)),
           Text(eventDate(order['createdAt'])), const SizedBox(height: 12),
           GxButton(label: 'Resume payment', onTap: _busy ? null : () => _resume(order)),
           TextButton(onPressed: _busy ? null : () async {
             try {
               final status = await ref.read(matchingRepositoryProvider).paymentStatus('${order['orderId']}');
-              if (mounted) showGxSnack(context, status == 'CREDITED' ? 'Payment confirmed. Your purchase is ready.' : 'Awaiting payment confirmation.');
+              if (context.mounted) showGxSnack(context, status == 'CREDITED' ? 'Payment confirmed. Your purchase is ready.' : 'Awaiting payment confirmation.');
               await _load();
-            } catch (e) { if (mounted) showGxSnack(context, eventError(e)); }
+            } catch (e) { if (context.mounted) showGxSnack(context, eventError(e)); }
           }, child: const Text('Check confirmation')),
         ]))),
       ])),

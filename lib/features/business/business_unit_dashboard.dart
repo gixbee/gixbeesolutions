@@ -14,6 +14,7 @@ import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_text_field.dart';
 import '../../theme.dart';
 import '../jobs/post_job_screen.dart';
+import '../billing/platform_plans_screen.dart';
 import '../rentals/owner_rentals_screen.dart';
 import '../events/event_plans_screen.dart';
 import '../events/event_service_catalogue_screen.dart';
@@ -241,6 +242,15 @@ class _BusinessCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
+            if (business.status == 'VERIFIED')
+              _BizAction(
+                icon: Icons.workspace_premium_outlined,
+                label: 'Plans & billing',
+                primary: false,
+                onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                  builder: (_) => PlatformPlansScreen(family: business.type),
+                )),
+              ),
             if (business.type == 'SERVICE')
               for (final service in const ['PHOTOGRAPHY', 'CATERING', 'DECORATION'])
                 if (business.serviceType == service || business.eventServices.contains(service)) ...[
