@@ -211,7 +211,9 @@ services:
       REDIS_PORT: 6379
       CACHE_REDIS_URL: redis://cache_redis:6379
       REDIS_ALLOW_MEMORY_FALLBACK: "false"
-      NODE_ENV: ${NODE_ENV:-production}
+      # Prefer deploy/.env; fall back to development so MilesWeb can boot
+      # until production secrets (JWT, admin, MSG91, webhook) are rotated.
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
       FIREBASE_KEY_PATH: /app/firebase-service-account.json
       UPLOADS_DIR: /app/uploads

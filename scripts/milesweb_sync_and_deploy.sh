@@ -1,6 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-export NODE_ENV=production
 ROOT=/root/gixbeesolutions
 ARCHIVE=/tmp/gixbee-milesweb.tgz
 BACKUP_ENV=/tmp/gixbee_backend.env.bak
