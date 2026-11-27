@@ -16,22 +16,9 @@ pub async fn run_scheduler(state:AppState) {
 }
 
 async fn poll(state:&AppState)->Result<(),String> {
-    // Reconstruct missing work from committed booking state on every poll.
-    // No process timer or post-commit enqueue is required for correctness.
-    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
-        SELECT b.id,'TIMEOUT',s.n,(b."createdAt" AT TIME ZONE 'UTC')+s.n*INTERVAL '90 seconds'
-        FROM bookings b CROSS JOIN (VALUES (1),(2)) s(n) WHERE b.status='REQUESTED' AND b.type='INSTANT'
-        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
-    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
-        SELECT id,'REMINDER',1,("acceptedAt" AT TIME ZONE 'UTC')+INTERVAL '7 minutes'
-        FROM bookings WHERE status='ACCEPTED' AND "acceptedAt" IS NOT NULL
-        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
-    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
-        SELECT b.id,'GPS',b."gpsStrikes"+1,CASE WHEN b."gpsStrikes"=0 THEN (b."acceptedAt" AT TIME ZONE 'UTC')+INTERVAL '10 minutes'
-          ELSE COALESCE((SELECT d."processedAt" FROM booking_deadlines d WHERE d."bookingId"=b.id AND d.kind='GPS'
-            AND d.sequence=b."gpsStrikes"),NOW())+INTERVAL '3 minutes' END
-        FROM bookings b WHERE b.status='ACCEPTED' AND b."acceptedAt" IS NOT NULL AND b."workerNoProgressAt" IS NULL AND b."gpsStrikes"<3
-        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
+    if let Err(error) = maintain_deadlines(state).await {
+        warn!(%error, "Booking deadline maintenance failed");
+    }
     for _ in 0..25 {
         let job = sqlx::query(
             r#"WITH candidate AS (
@@ -76,6 +63,52 @@ async fn poll(state:&AppState)->Result<(),String> {
         .execute(&state.db).await.map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+async fn maintain_deadlines(state: &AppState) -> Result<(), sqlx::Error> {
+    let mut tx = state.db.begin().await?;
+    let claimed = sqlx::query(
+        r#"UPDATE booking_maintenance SET "nextRunAt"=NOW()+INTERVAL '5 minutes'
+           WHERE id=true AND "nextRunAt"<=NOW()"#,
+    ).execute(&mut *tx).await?;
+    if claimed.rows_affected() == 0 {
+        return Ok(());
+    }
+    // Repair missing jobs from old releases. New state transitions enqueue them directly.
+    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
+        SELECT b.id,'TIMEOUT',s.n,b."createdAt"+s.n*INTERVAL '90 seconds'
+        FROM bookings b CROSS JOIN (VALUES (1),(2)) s(n) WHERE b.status='REQUESTED' AND b.type='INSTANT'
+        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&mut *tx).await?;
+    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
+        SELECT id,'REMINDER',1,("acceptedAt" AT TIME ZONE 'UTC')+INTERVAL '7 minutes'
+        FROM bookings WHERE status='ACCEPTED' AND "acceptedAt" IS NOT NULL
+        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&mut *tx).await?;
+    sqlx::query(r#"INSERT INTO booking_deadlines ("bookingId",kind,sequence,"dueAt")
+        SELECT b.id,'GPS',b."gpsStrikes"+1,CASE WHEN b."gpsStrikes"=0 THEN (b."acceptedAt" AT TIME ZONE 'UTC')+INTERVAL '10 minutes'
+          ELSE COALESCE((SELECT d."processedAt" FROM booking_deadlines d WHERE d."bookingId"=b.id AND d.kind='GPS'
+            AND d.sequence=b."gpsStrikes"),NOW())+INTERVAL '3 minutes' END
+        FROM bookings b WHERE b.status='ACCEPTED' AND b."acceptedAt" IS NOT NULL AND b."workerNoProgressAt" IS NULL AND b."gpsStrikes"<3
+        ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&mut *tx).await?;
+    sqlx::query(r#"WITH expired AS (
+        SELECT booking_id,worker_id FROM booking_offer_recipients WHERE expires_at<NOW()-INTERVAL '30 days'
+        ORDER BY expires_at LIMIT 1000 FOR UPDATE SKIP LOCKED
+    ) DELETE FROM booking_offer_recipients o USING expired x
+       WHERE o.booking_id=x.booking_id AND o.worker_id=x.worker_id"#)
+        .execute(&mut *tx).await?;
+    sqlx::query(r#"WITH finished AS (
+        SELECT d.id FROM booking_deadlines d JOIN bookings b ON b.id=d."bookingId"
+        WHERE d."processedAt"<NOW()-INTERVAL '30 days' AND b.status IN ('COMPLETED','CANCELLED','REJECTED')
+        ORDER BY d."processedAt" LIMIT 1000 FOR UPDATE OF d SKIP LOCKED
+    ) DELETE FROM booking_deadlines d USING finished f WHERE d.id=f.id"#)
+        .execute(&mut *tx).await?;
+    sqlx::query(r#"WITH finished AS (
+        SELECT id FROM outbox_events WHERE status='processed' AND "processedAt"<NOW()-INTERVAL '30 days'
+          AND type IN ('booking.broadcast_created','booking.accepted','booking.cancelled',
+            'booking.completed','booking.payment_confirmed','booking.gps_progress','marketplace.notify')
+        ORDER BY "processedAt" LIMIT 1000 FOR UPDATE SKIP LOCKED
+    ) DELETE FROM outbox_events e USING finished f WHERE e.id=f.id"#)
+        .execute(&mut *tx).await?;
+    tx.commit().await
 }
 
 async fn handle_seven_minute_reminder(state: &AppState, booking_id: &str) -> Result<(), String> {

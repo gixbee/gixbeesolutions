@@ -72,10 +72,16 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
     assert_production_secrets(&config)?;
+    if std::env::args().any(|arg| arg == "--check-config") {
+        anyhow::ensure!(config.is_production, "Expected production configuration");
+        return Ok(());
+    }
 
     let db = connect_db(&config.database_url).await?;
-    if let Err(e) = cache::versions::ensure_table(&db).await {
-        tracing::warn!("cache_versions table ensure failed (run migration): {e}");
+    if !config.is_production {
+        if let Err(e) = cache::versions::ensure_table(&db).await {
+            tracing::warn!("cache_versions table ensure failed (run migration): {e}");
+        }
     }
     let cache_url = std::env::var("CACHE_REDIS_URL").ok();
     let (redis, cache_redis) = tokio::try_join!(

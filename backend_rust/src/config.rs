@@ -134,6 +134,11 @@ pub fn assert_production_secrets(config: &Config) -> Result<()> {
     }
 
     let mut problems = Vec::new();
+    if !config.database_url.parse::<sqlx::postgres::PgConnectOptions>()
+        .is_ok_and(|options| options.get_username() == "gixbee_app")
+    {
+        problems.push("Production DATABASE_URL must authenticate as gixbee_app");
+    }
     let weak_jwt = ["super-secret-key-for-gixbee", "secret", "changeme", ""];
     if weak_jwt.contains(&config.jwt_secret.as_str()) || config.jwt_secret.len() < 32 {
         problems.push("JWT_SECRET is missing, default, or shorter than 32 chars");

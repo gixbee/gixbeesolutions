@@ -1,7 +1,17 @@
 services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${GIXBEE_DB_ADMIN_PASSWORD:?Set the production PostgreSQL admin secret}
+  pgbouncer:
+    environment:
+      DB_USER: gixbee_app
+      DB_PASSWORD: ${GIXBEE_APP_DB_PASSWORD:?Set the runtime PostgreSQL secret}
+      POSTGRESQL_USERNAME: gixbee_app
+      POSTGRESQL_PASSWORD: ${GIXBEE_APP_DB_PASSWORD:?Set the runtime PostgreSQL secret}
   backend_rust:
     environment:
       NODE_ENV: production
+      DATABASE_URL: ${GIXBEE_APP_DATABASE_URL:?Set the production runtime PostgreSQL URL}
   api_balancer:
     depends_on:
       admin:

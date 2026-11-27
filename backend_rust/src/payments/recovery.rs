@@ -13,6 +13,9 @@ pub(crate) async fn run_reconciliation(state: AppState) {
         if let Err(error) = reconcile_recent_orders(&state).await {
             tracing::warn!(%error, "Could not claim payment reconciliation work");
         }
+        if let Err(error) = expire_hiring_checkouts(&state).await {
+            tracing::warn!(%error, "Could not claim expired hiring checkouts");
+        }
         if let Err(error) = reconcile_pending_refunds(&state).await {
             tracing::warn!(%error, "Could not claim refund reconciliation work");
         }
@@ -68,7 +71,7 @@ async fn reconcile_recent_orders(state: &AppState) -> AppResult<()> {
     Ok(())
 }
 
-async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<bool> {
+async fn fetch_order_payments(state: &AppState, order_id: &str) -> AppResult<Vec<Value>> {
     let response = state.http
         .get(format!("https://api.razorpay.com/v1/orders/{order_id}/payments"))
         .basic_auth(state.config.razorpay_key_id.as_deref().unwrap_or(""), state.config.razorpay_key_secret.as_deref())
@@ -78,13 +81,107 @@ async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<bool> {
         return Err(AppError::ServiceUnavailable(format!("Razorpay reconciliation returned {}", response.status())));
     }
     let body: Value = response.json().await.map_err(|_| AppError::ServiceUnavailable("Invalid Razorpay reconciliation response".into()))?;
-    let payments = body["items"].as_array().ok_or_else(|| AppError::ServiceUnavailable("Missing Razorpay payment list".into()))?;
+    body["items"].as_array().cloned()
+        .ok_or_else(|| AppError::ServiceUnavailable("Missing Razorpay payment list".into()))
+}
+
+async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<bool> {
+    let payments = fetch_order_payments(state, order_id).await?;
     if let Some(payment) = payments.iter().find(|p| p["status"].as_str() == Some("captured")
         && p["amount_refunded"].as_i64() == Some(0)) {
         queue_captured_order(state, order_id, payment).await?;
         return Ok(true);
     }
     Ok(false)
+}
+
+async fn expire_hiring_checkouts(state: &AppState) -> AppResult<()> {
+    use futures::{stream, StreamExt};
+    let candidates = sqlx::query(
+        r#"WITH candidate AS (
+               SELECT p.id FROM payment_orders p
+               WHERE p.status='CREATED' AND p.purpose='HIRING_MATCH_FEE'
+                 AND p."creditReleasedAt" IS NULL AND p."createdAt"<=NOW()-INTERVAL '24 hours'
+                 AND (p."reconcileAfter" IS NULL OR p."reconcileAfter"<=NOW())
+                 AND NOT EXISTS(SELECT 1 FROM outbox_events e WHERE e.id=p.id AND e.type='payment.captured')
+               ORDER BY p."createdAt",p.id LIMIT 10 FOR UPDATE SKIP LOCKED
+           )
+           UPDATE payment_orders p SET "reconcileAfter"=NOW()+INTERVAL '1 hour'
+           FROM candidate c WHERE p.id=c.id
+           RETURNING p.id,p."userId",p."razorpayOrderId",p.amount"#,
+    ).fetch_all(&state.db).await?;
+    stream::iter(candidates).for_each_concurrent(4, |row| async move {
+        let id: Uuid = row.get("id");
+        if let Err(error) = release_unpaid_checkout(state, id, row.get("userId"),
+            row.get("razorpayOrderId"), row.get("amount")).await {
+            tracing::warn!(%id, %error, "Expired hiring checkout reconciliation failed");
+        }
+    }).await;
+    Ok(())
+}
+
+async fn release_unpaid_checkout(
+    state: &AppState,
+    intent: Uuid,
+    employer: Uuid,
+    attached_order: Option<String>,
+    amount: Decimal,
+) -> AppResult<()> {
+    let mut provider_order = None;
+    let order_id = if let Some(ref id) = attached_order {
+        Some(id.clone())
+    } else {
+        let receipt = format!("{}_{}", razorpay_receipt_prefix(PURPOSE_HIRING_MATCH), intent.simple());
+        let result: Value = state.http.get("https://api.razorpay.com/v1/orders")
+            .basic_auth(state.config.razorpay_key_id.as_deref().unwrap_or(""),state.config.razorpay_key_secret.as_deref())
+            .query(&[("receipt",receipt.as_str())])
+            .timeout(std::time::Duration::from_secs(8))
+            .send().await.and_then(reqwest::Response::error_for_status)
+            .map_err(|_| AppError::ServiceUnavailable("Could not verify the hiring checkout".into()))?
+            .json().await.map_err(|_| AppError::ServiceUnavailable("Invalid provider order list".into()))?;
+        let items = result["items"].as_array()
+            .ok_or_else(|| AppError::ServiceUnavailable("Missing provider order list".into()))?;
+        provider_order = items.iter().find(|order| order["receipt"].as_str()==Some(receipt.as_str())).cloned();
+        if let Some(order) = provider_order.as_ref() {
+            if order["currency"].as_str()!=Some("INR")
+                || order["amount"].as_i64().map(Decimal::from)!=Some(amount*Decimal::from(100)) {
+                return Err(AppError::Conflict("Provider checkout amount mismatch".into()));
+            }
+            Some(order["id"].as_str().ok_or_else(|| AppError::ServiceUnavailable(
+                "Missing provider order reference".into()))?.to_owned())
+        } else {
+            None
+        }
+    };
+    if let Some(id) = order_id.as_deref() {
+        let payments = fetch_order_payments(state, id).await?;
+        if let Some(payment) = payments.iter().find(|payment|
+            payment["status"].as_str()==Some("captured") && payment["amount_refunded"].as_i64()==Some(0)
+        ) {
+            if attached_order.is_none() {
+                attach_captured_order(state, id, provider_order.as_ref(), payment).await?;
+            }
+            return queue_captured_order(state, id, payment).await;
+        }
+        if payments.iter().any(|payment| !matches!(payment["status"].as_str(), Some("failed" | "refunded"))) {
+            return Ok(());
+        }
+    }
+
+    // Use the same user lock as hiring fulfillment and new credit reservations.
+    let mut tx = state.db.begin().await?;
+    sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE")
+        .bind(employer).fetch_one(&mut *tx).await?;
+    // Compare the attachment against the snapshot we reconciled. A concurrent
+    // attach or verified capture leaves the reservation available for fulfillment.
+    sqlx::query(r#"UPDATE payment_orders p SET "creditReleasedAt"=NOW(),"updatedAt"=NOW()
+        WHERE id=$1 AND "userId"=$2 AND status='CREATED' AND "creditReleasedAt" IS NULL
+          AND "razorpayOrderId" IS NOT DISTINCT FROM $3::text
+          AND NOT EXISTS(SELECT 1 FROM hiring_requests h WHERE h."paymentOrderId"=p.id)
+          AND NOT EXISTS(SELECT 1 FROM outbox_events e WHERE e.id=p.id AND e.type='payment.captured')"#,
+    ).bind(intent).bind(employer).bind(attached_order).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 fn require_recovery_admin(user: &AuthUser) -> AppResult<()> {
@@ -101,7 +198,7 @@ pub(super) async fn admin_recovery(
 ) -> AppResult<Json<Value>> {
     require_recovery_admin(&user)?;
     let rows = sqlx::query(
-        r#"SELECT p.id,p."razorpayOrderId",p.purpose::text AS purpose,p."createdAt",
+        r#"SELECT p.id,p."razorpayOrderId",p.purpose::text AS purpose,p."createdAt",p."creditReleasedAt",
                   e.status AS "deliveryStatus",e."lastError",e.attempts
            FROM payment_orders p LEFT JOIN outbox_events e ON e.id=p.id AND e.type='payment.captured'
            WHERE p.status='CREATED' AND p.purpose::text=ANY($1)
@@ -112,6 +209,7 @@ pub(super) async fn admin_recovery(
         "razorpayOrderId":r.get::<Option<String>,_>("razorpayOrderId"),
         "purpose":r.get::<String,_>("purpose"),
         "createdAt":crate::common::pg::date_json(r,"createdAt"),
+        "creditReleasedAt":crate::common::pg::date_json(r,"creditReleasedAt"),
         "deliveryStatus":r.get::<Option<String>,_>("deliveryStatus"),
         "lastError":r.get::<Option<String>,_>("lastError"),
         "attempts":r.get::<Option<i32>,_>("attempts"),
@@ -160,6 +258,7 @@ pub(super) async fn admin_retry(
 pub(super) async fn pending(State(state):State<AppState>,user:AuthUser)->AppResult<Json<Vec<Value>>> {
     let rows=sqlx::query(r#"SELECT "razorpayOrderId",amount,purpose::text AS purpose,meta,"createdAt"
         FROM payment_orders WHERE "userId"=$1 AND status='CREATED' AND "razorpayOrderId" IS NOT NULL
+          AND "creditReleasedAt" IS NULL
           AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')
         ORDER BY "createdAt" DESC LIMIT 100"#).bind(Uuid::parse_str(&user.user_id)?).fetch_all(&state.db).await?;
     Ok(Json(rows.iter().map(|r|json!({"orderId":r.get::<String,_>("razorpayOrderId"),"amount":(r.get::<Decimal,_>("amount")*Decimal::from(100)).to_i64(),
@@ -169,7 +268,13 @@ pub(super) async fn pending(State(state):State<AppState>,user:AuthUser)->AppResu
 
 pub(super) async fn status(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>)->AppResult<Json<Value>> {
     let r=owned(&state,&user,&id).await?;
-    Ok(Json(json!({"orderId":id,"status":r.get::<String,_>("status")})))
+    let status: String = r.get("status");
+    let status = if status=="CREATED" && r.get::<bool,_>("creditReleased") {
+        "EXPIRED"
+    } else {
+        &status
+    };
+    Ok(Json(json!({"orderId":id,"status":status})))
 }
 
 #[derive(Deserialize)]
@@ -206,7 +311,8 @@ pub(super) async fn verify(State(state):State<AppState>,user:AuthUser,Path(id):P
 }
 
 async fn owned(state:&AppState,user:&AuthUser,id:&str)->AppResult<sqlx::postgres::PgRow> {
-    sqlx::query(r#"SELECT id,amount,status::text AS status,purpose::text AS purpose,meta FROM payment_orders
+    sqlx::query(r#"SELECT id,amount,status::text AS status,purpose::text AS purpose,meta,
+            "creditReleasedAt" IS NOT NULL AS "creditReleased" FROM payment_orders
         WHERE "razorpayOrderId"=$1 AND "userId"=$2 AND purpose::text IN (
             'HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN',
             'PERIOD_FEE','LATE_CANCEL_COMPENSATION','RENTAL_ADVANCE','RENTAL_SETTLEMENT'

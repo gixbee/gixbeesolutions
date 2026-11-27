@@ -433,7 +433,8 @@ pub(crate) async fn create_razorpay_order(
     if [PURPOSE_HIRING_MATCH, PURPOSE_EXTRA_JOB_TYPE, crate::plans::PURPOSE].contains(&purpose) {
         let existing = sqlx::query(
             r#"SELECT id, "razorpayOrderId", amount, meta FROM payment_orders WHERE "userId"=$1
-            AND purpose::text=$2 AND status='CREATED' AND (meta-'fee'-'creditApplied'-'durationDays')=($3::jsonb-'fee'-'creditApplied'-'durationDays')
+            AND purpose::text=$2 AND status='CREATED' AND "creditReleasedAt" IS NULL
+            AND (meta-'fee'-'creditApplied'-'durationDays')=($3::jsonb-'fee'-'creditApplied'-'durationDays')
             AND ($2 <> 'PLATFORM_PLAN' OR amount=$4)
             ORDER BY "createdAt" DESC LIMIT 1"#,
         )
@@ -926,9 +927,26 @@ pub(crate) async fn fulfil_captured_order(state: &AppState, order_id: &str, paym
             }
             let meta: Option<Value> = row.get("meta");
             let id: Uuid = row.get("id");
-            fulfil_order(state, order_id, &row.get::<Uuid,_>("userId").to_string(),
+            let user_id: Uuid = row.get("userId");
+            let fulfilment = fulfil_order(state, order_id, &user_id.to_string(),
                 rust_decimal::prelude::ToPrimitive::to_i32(&amount).unwrap_or(0),
-                &purpose, meta.as_ref(), id, Some(payment_id)).await?;
+                &purpose, meta.as_ref(), id, Some(payment_id)).await;
+            if matches!(&fulfilment, Err(AppError::Conflict(message)) if message == "HIRING_CHECKOUT_EXPIRED") {
+                let mut tx = state.db.begin().await?;
+                let changed = sqlx::query(r#"UPDATE payment_orders SET status='REFUND_REQUIRED',
+                    "razorpayPaymentId"=$2,"updatedAt"=NOW()
+                    WHERE id=$1 AND status='CREATED' AND "creditReleasedAt" IS NOT NULL"#)
+                    .bind(id).bind(payment_id).execute(&mut *tx).await?;
+                if changed.rows_affected() > 0 {
+                    enqueue_refund_required(&mut tx, id, order_id, payment).await?;
+                    crate::outbox::notify(&mut tx, id, user_id, "Hiring checkout refund queued",
+                        "Your payment arrived after checkout expired. A refund has been queued.",
+                        json!({"type":"hiring_checkout_refund","paymentOrderId":id})).await?;
+                }
+                tx.commit().await?;
+                return Ok(());
+            }
+            fulfilment?;
             sqlx::query(r#"UPDATE payment_orders SET status='CREDITED',"razorpayPaymentId"=$2,"updatedAt"=NOW()
                 WHERE id=$1 AND status='CREATED'"#)
                 .bind(id).bind(payment_id).execute(&state.db).await?;
@@ -1089,7 +1107,7 @@ pub(crate) async fn process_refund_required(state: &AppState, payload: &Value) -
     let pid = Uuid::parse_str(payload["paymentOrderId"].as_str()
         .ok_or_else(|| AppError::BadRequest("Missing paymentOrderId".into()))?)?;
     let row = sqlx::query(
-        r#"SELECT status::text AS status, amount, "razorpayPaymentId", "razorpayRefundId", meta
+        r#"SELECT status::text AS status, purpose::text AS purpose, amount, "razorpayPaymentId", "razorpayRefundId", meta
            FROM payment_orders WHERE id=$1"#,
     ).bind(pid).fetch_optional(&state.db).await?
         .ok_or_else(|| AppError::NotFound("Payment order not found".into()))?;
@@ -1104,16 +1122,23 @@ pub(crate) async fn process_refund_required(state: &AppState, payload: &Value) -
     ).filter(|amount| *amount > 0)
         .ok_or_else(|| AppError::BadRequest("Invalid refund amount".into()))?;
     let meta = row.get::<Option<Value>, _>("meta");
-    let reservation_id = meta.as_ref().and_then(|m| m["reservationId"].as_str())
-        .and_then(|id| Uuid::parse_str(id).ok())
-        .ok_or_else(|| AppError::BadRequest("Missing rental reservation for refund".into()))?;
+    let reservation_id = match row.get::<String,_>("purpose").as_str() {
+        PURPOSE_HIRING_MATCH => None,
+        PURPOSE_RENTAL_ADVANCE => Some(meta.as_ref().and_then(|m| m["reservationId"].as_str())
+            .and_then(|id| Uuid::parse_str(id).ok())
+            .ok_or_else(|| AppError::BadRequest("Missing rental reservation for refund".into()))?),
+        _ => return Err(AppError::Conflict("Automatic refund unavailable for this purpose".into())),
+    };
     let url = format!("https://api.razorpay.com/v1/payments/{payment_id}");
     let request = if let Some(id) = refund_id.as_deref() {
         state.http.get(format!("{url}/refunds/{id}"))
     } else {
+        let key = match reservation_id {
+            Some(id) => format!("gixbee-rental-{id}-{payment_id}"),
+            None => format!("gixbee-hiring-expired-{pid}"),
+        };
         state.http.post(format!("{url}/refund"))
-            // Preserve the key used by earlier attempts for this rental.
-            .header("X-Refund-Idempotency", format!("gixbee-rental-{reservation_id}-{payment_id}"))
+            .header("X-Refund-Idempotency", key)
             .json(&json!({"amount": amount, "speed": "normal"}))
     };
     if !razorpay_configured(state) {
@@ -1158,7 +1183,7 @@ pub(crate) async fn process_refund_required(state: &AppState, payload: &Value) -
              AND ("razorpayRefundId" IS NULL OR "razorpayRefundId"=$3)
              AND ($2<>'REFUND_PENDING' OR "razorpayRefundId" IS NULL OR status='REFUND_PENDING')"#,
     ).bind(pid).bind(status).bind(id).bind(failure).execute(&mut *tx).await?;
-    if updated.rows_affected() > 0 {
+    if let Some(reservation_id) = reservation_id.filter(|_| updated.rows_affected() > 0) {
         sqlx::query(
             r#"UPDATE rental_reservations SET "priceBreakdown"=jsonb_set(
                     COALESCE("priceBreakdown", '{}'::jsonb), '{refundStatus}', to_jsonb($3::text), true),

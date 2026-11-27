@@ -901,6 +901,7 @@ where
 {
     sqlx::query_scalar(r#"SELECT COALESCE(SUM(COALESCE((p.meta->>'creditApplied')::numeric,0)),0)
         FROM payment_orders p WHERE p."userId"=$1 AND p.purpose::text='HIRING_MATCH_FEE' AND p.status::text='CREATED'
+        AND p."creditReleasedAt" IS NULL
         AND ($2::uuid IS NULL OR p.id<>$2)
         AND NOT EXISTS(SELECT 1 FROM hiring_requests hr WHERE hr."paymentOrderId"=p.id)"#)
         .bind(user_id).bind(except).fetch_one(executor).await
@@ -1423,6 +1424,14 @@ async fn start_request(
         .await?
         {
             return Ok(existing);
+        }
+    }
+    if let Some(payment_id) = payment_order_id {
+        let credit_released: bool = sqlx::query_scalar(
+            r#"SELECT "creditReleasedAt" IS NOT NULL FROM payment_orders WHERE id=$1"#,
+        ).bind(payment_id).fetch_one(&mut *tx).await?;
+        if credit_released {
+            return Err(AppError::Conflict("HIRING_CHECKOUT_EXPIRED".into()));
         }
     }
     let business=resolve_business(state,employer_id,meta).await?;
