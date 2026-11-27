@@ -19,9 +19,6 @@ import 'package:google_fonts/google_fonts.dart';
 ///   • shell CTAs / nav selected  → context.gx.accent / accentGradient
 ///     (violet in Gixbee Dark, Grab green in light — NOT brand orange)
 ///
-/// Auth + splash intentionally stay dark + brand-orange (`brandGradient`) for
-/// wordmark identity — they do not follow Appearance / Grab Green.
-///
 /// `ink` is near-black in the Grab light theme, so every existing
 /// `Colors.white.withValues(alpha: x)` becomes a correctly-toned grey simply
 /// by swapping the base colour.
@@ -139,6 +136,22 @@ extension GxColorsX on BuildContext {
   /// True when the Grab light theme is active — for the rare case a widget
   /// needs a structurally different look (e.g. a glow that only reads on dark).
   bool get gxIsLight => Theme.of(this).brightness == Brightness.light;
+
+  Color get gxMutedInk =>
+      gxIsLight ? const Color(0xFF4B5550) : const Color(0xFFAEB5C4);
+  Color get gxAccentInk =>
+      gxIsLight ? GixbeeTheme.greenAction : GixbeeTheme.violetInk;
+  Color get gxSuccessInk =>
+      gxIsLight ? GixbeeTheme.greenAction : const Color(0xFF65DBA9);
+  Color get gxInfoInk =>
+      gxIsLight ? const Color(0xFF164FAD) : const Color(0xFFA4C8FF);
+  Color get gxWarningInk =>
+      gxIsLight ? const Color(0xFF8F4600) : const Color(0xFFFFBF78);
+  Color get gxSuccessSurface =>
+      Color.alphaBlend(gxSuccessInk.withValues(alpha: 0.10), gx.card);
+  List<Color> get gxActionGradient => gxIsLight
+      ? GixbeeTheme.greenActionGradient
+      : const [GixbeeTheme.accentPurple, Color(0xFF7444CD)];
 }
 
 class GixbeeTheme {
@@ -154,6 +167,7 @@ class GixbeeTheme {
   // ── Mockup v106 violet shell (Gixbee Dark) — prefer context.gx.accent ──
   static const Color accentPurple = Color(0xFF6C3FDB); // --pu
   static const Color accentViolet = Color(0xFF8B5CF6); // --pu2
+  static const Color violetInk = Color(0xFFC3AEFF);
   static const List<Color> purpleGradient = [accentPurple, accentViolet];
 
   // Shared dark surfaces from the mockup tokens (prefer context.gx.*).
@@ -183,6 +197,11 @@ class GixbeeTheme {
   // ── Grab-style light palette (Profile → Appearance → "Grab Green") ──────
   static const Color grabGreen = Color(0xFF00B14F);
   static const Color grabGreenDark = Color(0xFF009944);
+  static const Color greenAction = Color(0xFF006F3B);
+  static const List<Color> greenActionGradient = [
+    greenAction,
+    Color(0xFF005B35),
+  ];
   static const List<Color> grabGradient = [grabGreen, grabGreenDark];
   static const Color grabScaffold = Color(0xFFF7F7F7);
   static const Color grabText = Color(0xFF1C1C1C);
@@ -195,8 +214,8 @@ class GixbeeTheme {
       seedColor: grabGreen,
       brightness: Brightness.light,
     ).copyWith(
-      primary: grabGreen,
-      secondary: grabGreenDark,
+      primary: greenAction,
+      secondary: greenAction,
       onPrimary: Colors.white,
       surface: Colors.white,
       onSurface: grabText,
@@ -214,19 +233,19 @@ class GixbeeTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: grabGreen,
+          backgroundColor: greenAction,
           foregroundColor: Colors.white,
         ),
       ),
       floatingActionButtonTheme: base.floatingActionButtonTheme.copyWith(
-        backgroundColor: grabGreen,
+        backgroundColor: greenAction,
         foregroundColor: Colors.white,
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((s) =>
             s.contains(WidgetState.selected) ? Colors.white : null),
         trackColor: WidgetStateProperty.resolveWith((s) =>
-            s.contains(WidgetState.selected) ? grabGreen : null),
+            s.contains(WidgetState.selected) ? greenAction : null),
       ),
     );
   }
@@ -252,6 +271,7 @@ class GixbeeTheme {
   static ThemeData _buildTheme(ColorScheme colorScheme) {
     final isLight = colorScheme.brightness == Brightness.light;
     final gx = isLight ? GxColors.light : GxColors.dark;
+    final accentInk = isLight ? greenAction : violetInk;
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
@@ -326,11 +346,16 @@ class GixbeeTheme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: colorScheme.primary,
+          foregroundColor: accentInk,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: accentInk,
         ),
       ),
 
@@ -381,7 +406,7 @@ class GixbeeTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return TextStyle(
-                color: gx.accent, fontWeight: FontWeight.w600, fontSize: 12);
+                color: accentInk, fontWeight: FontWeight.w600, fontSize: 12);
           }
           return TextStyle(
               color: colorScheme.onSurfaceVariant,
@@ -390,7 +415,7 @@ class GixbeeTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: gx.accent, size: 24);
+            return IconThemeData(color: accentInk, size: 24);
           }
           return IconThemeData(color: colorScheme.onSurfaceVariant, size: 24);
         }),

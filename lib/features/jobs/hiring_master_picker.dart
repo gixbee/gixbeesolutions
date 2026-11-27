@@ -324,7 +324,7 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_loading) const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
-        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+        if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         if (!_loading && _showNoMatches && _error == null)
           const Padding(padding: EdgeInsets.only(top: 8), child: Text('No locations match')),
         if (_hasMore)
@@ -345,7 +345,7 @@ class _HiringLocationSearchState extends ConsumerState<HiringLocationSearch> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: context.gx.accent,
+                      color: context.gxAccentInk,
                     ),
                   )
                 : null,
@@ -541,7 +541,7 @@ class _HiringPositionSearchState extends ConsumerState<HiringPositionSearch> {
           onChanged: _search,
         ),
         if (_loading) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
-        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+        if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         const SizedBox(height: 8),
         for (final item in visible)
           Padding(
@@ -577,13 +577,12 @@ class _PositionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedFill = Color(0xFFF0FDF4);
     final gx = context.gx;
-    final border = selected ? GixbeeTheme.accentGreen : gx.border;
-    final titleColor = selected ? GixbeeTheme.accentGreenDark : gx.ink;
+    final border = selected ? context.gxSuccessInk : gx.border;
+    final titleColor = selected ? context.gxSuccessInk : gx.ink;
 
     return Material(
-      color: selected ? selectedFill : Colors.white,
+      color: selected ? context.gxSuccessSurface : gx.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -617,7 +616,7 @@ class _PositionTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12.5,
                           height: 1.35,
-                          color: gx.ink.withValues(alpha: 0.55),
+                          color: context.gxMutedInk,
                         ),
                       ),
                     ],
@@ -629,7 +628,7 @@ class _PositionTile extends StatelessWidget {
                   width: 26,
                   height: 26,
                   decoration: const BoxDecoration(
-                    color: GixbeeTheme.accentGreen,
+                    color: GixbeeTheme.greenAction,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.check, size: 16, color: Colors.white),

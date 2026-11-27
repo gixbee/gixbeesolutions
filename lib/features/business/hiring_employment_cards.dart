@@ -113,10 +113,9 @@ class _EmploymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedFill = Color(0xFFF0FDF4);
-    final border = selected ? GixbeeTheme.accentGreen : context.gx.border;
+    final border = selected ? context.gxSuccessInk : context.gx.border;
     return Material(
-      color: selected ? selectedFill : Colors.white,
+      color: selected ? context.gxSuccessSurface : context.gx.card,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -138,7 +137,7 @@ class _EmploymentCard extends StatelessWidget {
                     width: 22,
                     height: 22,
                     decoration: const BoxDecoration(
-                      color: GixbeeTheme.accentGreen,
+                      color: GixbeeTheme.greenAction,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.check, size: 14, color: Colors.white),
@@ -152,11 +151,11 @@ class _EmploymentCard extends StatelessWidget {
                     height: 44,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: GixbeeTheme.accentGreen.withValues(alpha: 0.12),
+                        color: context.gxSuccessInk.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
-                        child: Icon(icon, color: GixbeeTheme.accentGreen, size: 22),
+                        child: Icon(icon, color: context.gxSuccessInk, size: 22),
                       ),
                     ),
                   ),
@@ -170,7 +169,7 @@ class _EmploymentCard extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                       height: 1.2,
-                      color: selected ? GixbeeTheme.accentGreenDark : context.gx.ink,
+                      color: selected ? context.gxSuccessInk : context.gx.ink,
                     ),
                   ),
                   if (description != null) ...[
@@ -183,7 +182,7 @@ class _EmploymentCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10.5,
                         height: 1.25,
-                        color: context.gx.ink.withValues(alpha: 0.5),
+                        color: context.gxMutedInk,
                       ),
                     ),
                   ],

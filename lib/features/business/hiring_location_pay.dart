@@ -156,10 +156,9 @@ class _WorkModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedFill = Color(0xFFF0FDF4);
-    final border = selected ? GixbeeTheme.accentGreen : context.gx.border;
+    final border = selected ? context.gxSuccessInk : context.gx.border;
     return Material(
-      color: selected ? selectedFill : Colors.white,
+      color: selected ? context.gxSuccessSurface : context.gx.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -182,7 +181,7 @@ class _WorkModeCard extends StatelessWidget {
                     width: 18,
                     height: 18,
                     decoration: const BoxDecoration(
-                      color: GixbeeTheme.accentGreen,
+                      color: GixbeeTheme.greenAction,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.check, size: 11, color: Colors.white),
@@ -212,7 +211,7 @@ class _WorkModeCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 11.5,
-                      color: selected ? GixbeeTheme.accentGreenDark : context.gx.ink,
+                      color: selected ? context.gxSuccessInk : context.gx.ink,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -224,7 +223,7 @@ class _WorkModeCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 9.5,
                       height: 1.15,
-                      color: context.gx.ink.withValues(alpha: 0.5),
+                      color: context.gxMutedInk,
                     ),
                   ),
                 ],
@@ -327,7 +326,7 @@ class _PeriodChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = _periodIcons[code] ?? Icons.payments_outlined;
     return Material(
-      color: selected ? GixbeeTheme.accentGreen : Colors.white,
+      color: selected ? GixbeeTheme.greenAction : context.gx.card,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         onTap: onTap,
@@ -337,7 +336,7 @@ class _PeriodChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: selected ? GixbeeTheme.accentGreen : context.gx.border,
+              color: selected ? context.gxSuccessInk : context.gx.border,
             ),
           ),
           child: Row(
@@ -346,7 +345,7 @@ class _PeriodChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: selected ? Colors.white : context.gx.ink.withValues(alpha: 0.55),
+                color: selected ? Colors.white : context.gxMutedInk,
               ),
               const SizedBox(width: 6),
               Text(
@@ -385,14 +384,13 @@ class HiringMatchEstimateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedFill = Color(0xFFEFF8F3);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: selectedFill,
+        color: context.gxSuccessSurface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GixbeeTheme.accentGreen.withValues(alpha: 0.25)),
+        border: Border.all(color: context.gxSuccessInk.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -406,7 +404,7 @@ class HiringMatchEstimateCard extends StatelessWidget {
                     height: 22,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Icon(Icons.people_alt_outlined, color: GixbeeTheme.accentBlue.withValues(alpha: 0.85)),
+                : Icon(Icons.people_alt_outlined, color: context.gxInfoInk),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -430,17 +428,17 @@ class HiringMatchEstimateCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
-                      color: context.gx.ink.withValues(alpha: 0.65),
+                      color: context.gxMutedInk,
                     ),
                   )
                 else ...[
                   Text(
                     '$estimated',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
                       height: 1,
-                      color: GixbeeTheme.accentGreenDark,
+                      color: context.gxSuccessInk,
                     ),
                   ),
                   const SizedBox(height: 4),

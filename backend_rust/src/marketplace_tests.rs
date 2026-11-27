@@ -348,6 +348,46 @@ async fn rental_price_and_competing_confirmations() {
 
 #[tokio::test]
 #[ignore = "Requires the isolated PostgreSQL contract schema"]
+async fn hiring_deadline_returns_full_fee_once_when_nobody_is_interested() {
+    let (state, app) = fixture().await;
+    let (employer, token) = user(&state).await;
+    let (candidate, _) = user(&state).await;
+    let no_response = Uuid::new_v4();
+    let has_response = Uuid::new_v4();
+    let closed_early = Uuid::new_v4();
+
+    for (id, deadline_offset) in [(no_response, -1), (has_response, -1), (closed_early, 1)] {
+        sqlx::query(r#"INSERT INTO hiring_requests (id,"employerId","jobType","feeAmount","creditApplied","deadlineAt")
+            VALUES ($1,$2,'Electrician',99,30,NOW()+make_interval(hours => $3))"#)
+            .bind(id)
+            .bind(employer)
+            .bind(deadline_offset)
+            .execute(&state.db)
+            .await
+            .unwrap();
+    }
+    sqlx::query(r#"INSERT INTO hiring_interests ("requestId","candidateId",response)
+        VALUES ($1,$2,'INTERESTED')"#)
+        .bind(has_response)
+        .bind(candidate)
+        .execute(&state.db)
+        .await
+        .unwrap();
+
+    for (id, expected_coins) in [(no_response, 99.0), (has_response, 0.0), (closed_early, 0.0)] {
+        let path = format!("/hiring/match/requests/{id}/close");
+        let (status, detail) = api(&app, &token, "POST", &path, Value::Null).await;
+        assert_eq!(status, 200, "{detail}");
+        assert_eq!(detail["hiringCoinsReturned"].as_f64(), Some(expected_coins));
+        assert_eq!(api(&app, &token, "POST", &path, Value::Null).await.0, 400);
+    }
+    let (status, balance) = api(&app, &token, "GET", "/hiring/match/credit", Value::Null).await;
+    assert_eq!(status, 200, "{balance}");
+    assert_eq!(balance["availableHiringCoins"], 99);
+}
+
+#[tokio::test]
+#[ignore = "Requires the isolated PostgreSQL contract schema"]
 async fn profiles_and_hiring_require_ownership_and_funding() {
     let (state, app) = fixture().await;
     let (owner_id, owner) = user(&state).await;

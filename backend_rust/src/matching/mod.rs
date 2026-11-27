@@ -127,7 +127,11 @@ async fn credit(State(state): State<AppState>, user: AuthUser) -> AppResult<Json
     .bind(uid)
     .fetch_one(&state.db)
     .await?;
-    Ok(Json(json!({ "balance": balance })))
+    let reserved = reserved_hiring_credit(&state.db, uid, None).await?;
+    Ok(Json(json!({
+        "balance": balance,
+        "availableHiringCoins": (balance - reserved).to_i32().unwrap_or(0).max(0),
+    })))
 }
 
 #[derive(Deserialize)]
@@ -632,16 +636,26 @@ async fn close_request(
 ) -> AppResult<Json<Value>> {
     let rid = Uuid::parse_str(&id)?;
     let uid = Uuid::parse_str(&user.user_id)?;
-    let updated = sqlx::query(
-        r#"UPDATE hiring_requests SET status='CLOSED'::hiring_requests_status_enum, "updatedAt"=NOW()
-           WHERE id=$1 AND "employerId"=$2 AND status::text IN ('COLLECTING','DELIVERED')
-           RETURNING id"#,
-    )
-    .bind(rid)
-    .bind(uid)
-    .fetch_optional(&state.db)
-    .await?;
-    if updated.is_none() {
+    let close = r#"UPDATE hiring_requests SET status='CLOSED'::hiring_requests_status_enum, "updatedAt"=NOW()
+        WHERE id=$1 AND "employerId"=$2
+          AND (status='DELIVERED' OR (status='COLLECTING' AND "deadlineAt">NOW()))"#;
+    let mut updated = sqlx::query(close).bind(rid).bind(uid).execute(&state.db).await?;
+    if updated.rows_affected() == 0 {
+        let reached_deadline: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM hiring_requests
+               WHERE id=$1 AND "employerId"=$2 AND status IN ('COLLECTING','DELIVERED')
+                 AND "deadlineAt"<=NOW())"#,
+        )
+        .bind(rid)
+        .bind(uid)
+        .fetch_one(&state.db)
+        .await?;
+        if reached_deadline {
+            engine::finalize_request(&state, &id).await?;
+            updated = sqlx::query(close).bind(rid).bind(uid).execute(&state.db).await?;
+        }
+    }
+    if updated.rows_affected() == 0 {
         return Err(AppError::BadRequest(
             "This job cannot be closed in its current status".into(),
         ));
@@ -758,6 +772,7 @@ fn request_json(row: &sqlx::postgres::PgRow) -> Value {
         "workMode": row.try_get::<String, _>("workMode").unwrap_or_else(|_| "ONSITE".into()),
         "targetInterested": row.get::<i32, _>("targetInterested"),
         "creditApplied": row.get::<rust_decimal::Decimal, _>("creditApplied").to_f64(),
+        "hiringCoinsReturned": row.get::<rust_decimal::Decimal, _>("noResponseCredit").to_f64(),
         "createdAt": crate::common::pg::date_json(row, "createdAt"),
     })
 }

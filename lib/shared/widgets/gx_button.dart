@@ -6,7 +6,7 @@ import 'gx_pressable.dart';
 ///
 /// Stops every screen from hand-rolling a [GxPressable] + gradient/outline
 /// `Container` pill. Two variants:
-///   • filled  → a [gradient] fill (default = theme shell [GxColors.accentGradient])
+///   • filled  → a [gradient] fill (default = theme action gradient)
 ///   • outline → transparent with an [accent]-tinted border + [accent] label
 ///
 /// Per-screen quad colours are supported via [gradient] (filled) and [accent]
@@ -24,11 +24,11 @@ class GxButton extends StatelessWidget {
   /// true = gradient/solid fill, false = outline.
   final bool filled;
 
-  /// Gradient for the filled variant. Null → [GxColors.accentGradient].
+  /// Gradient for the filled variant. Null uses the theme action gradient.
   final List<Color>? gradient;
 
   /// Accent colour for the outline variant (border + foreground).
-  /// Null → [GxColors.accent].
+  /// Null uses the theme's accent foreground.
   final Color? accent;
 
   final bool loading;
@@ -55,8 +55,8 @@ class GxButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool enabled = onTap != null && !loading;
-    final List<Color> fill = gradient ?? context.gx.accentGradient;
-    final Color acc = accent ?? context.gx.accent;
+    final List<Color> fill = gradient ?? context.gxActionGradient;
+    final Color acc = accent ?? context.gxAccentInk;
 
     // Filled fg sits on the gradient/solid fill — stays white in both themes.
     final Color fg = filled ? context.gx.onAccent : acc;

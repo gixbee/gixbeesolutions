@@ -72,7 +72,7 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.35,
-                  color: context.gx.ink.withValues(alpha: 0.55),
+                  color: context.gxMutedInk,
                 ),
               ),
             ),
@@ -84,14 +84,14 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                       child: _requests.isEmpty
                           ? ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              children: const [
-                                SizedBox(height: 100),
+                              children: [
+                                const SizedBox(height: 100),
                                 GxEmptyState(
                                   icon: Icons.work_outline,
                                   title: 'No hiring requests',
                                   message:
                                       'Start Hire Employee to run a 24 h Smart Match against Find a Job Job Types.',
-                                  accent: GixbeeTheme.accentBlue,
+                                  accent: context.gxInfoInk,
                                 ),
                               ],
                             )
@@ -103,6 +103,7 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                                 final r = _requests[i];
                                 final status = '${r['status'] ?? ''}';
                                 final interested = r['interestedCount'] ?? 0;
+                                final returned = (r['hiringCoinsReturned'] as num?) ?? 0;
                           final deadline = DateTime.tryParse(
                               r['deadlineAt']?.toString() ?? '');
                           return Padding(
@@ -142,13 +143,15 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                                             ),
                                           ),
                                           Text(
-                                            status.replaceAll('_', ' '),
+                                            returned > 0
+                                                ? 'COINS RETURNED'
+                                                : status.replaceAll('_', ' '),
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w800,
                                               color: status == 'DELIVERED'
-                                                  ? GixbeeTheme.accentGreen
-                                                  : GixbeeTheme.accentBlue,
+                                                  ? context.gxSuccessInk
+                                                  : context.gxInfoInk,
                                             ),
                                           ),
                                         ],
@@ -157,6 +160,8 @@ class _HiringRequestsScreenState extends ConsumerState<HiringRequestsScreen> {
                                       Text(
                                         [
                                           '$interested interested',
+                                          if (returned > 0)
+                                            '${NumberFormat('0.##').format(returned)} Hiring Coins returned',
                                           'target ${r['targetInterested'] ?? ''}',
                                           if (deadline != null)
                                             'until ${DateFormat.MMMd().add_jm().format(deadline.toLocal())}',
@@ -246,6 +251,7 @@ class _HiringRequestDetailScreenState
     final d = _detail;
     final status = d?['status']?.toString() ?? '';
     final candidates = (d?['candidates'] as List?) ?? [];
+    final returned = (d?['hiringCoinsReturned'] as num?) ?? 0;
 
     return Scaffold(
       backgroundColor: context.gx.bg,
@@ -269,9 +275,24 @@ class _HiringRequestDetailScreenState
                       ].join(' · '),
                       style: TextStyle(
                         fontSize: 13,
-                        color: context.gx.ink.withValues(alpha: 0.55),
+                        color: context.gxMutedInk,
                       ),
                     ),
+                    if (returned > 0) ...[
+                      const SizedBox(height: 14),
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.toll_outlined),
+                          title: Text(
+                            '${NumberFormat('0.##').format(returned)} Hiring Coins credited',
+                          ),
+                          subtitle: const Text(
+                            'No candidates expressed interest by the matching deadline. '
+                            'Use these coins toward your next Hire Employee fee.',
+                          ),
+                        ),
+                      ),
+                    ],
                     if (status == 'COLLECTING' ||
                         status == 'DELIVERED' ||
                         status == 'GUARANTEE_FAILED' ||
@@ -281,7 +302,7 @@ class _HiringRequestDetailScreenState
                       GxButton(
                         label: 'Close this job',
                         filled: false,
-                        accent: GixbeeTheme.brandRed,
+                        accent: Theme.of(context).colorScheme.error,
                         onTap: () async {
                           try {
                             await ref
@@ -317,7 +338,7 @@ class _HiringRequestDetailScreenState
                               ? 'Matching nearby profiles… check back soon.'
                               : 'No recommended candidates on this job.',
                           style: TextStyle(
-                            color: context.gx.ink.withValues(alpha: 0.5),
+                            color: context.gxMutedInk,
                           ),
                         ),
                       )
@@ -421,10 +442,10 @@ class _CandidateCard extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: decision == 'HIRED'
-                          ? GixbeeTheme.accentGreen
+                          ? context.gxSuccessInk
                           : decision == 'SHORTLISTED' || canChat
-                              ? GixbeeTheme.accentBlue
-                              : context.gx.ink.withValues(alpha: 0.45),
+                              ? context.gxInfoInk
+                              : context.gxMutedInk,
                     ),
                   ),
                 ],
@@ -447,7 +468,7 @@ class _CandidateCard extends StatelessWidget {
                 ].join(' · '),
                 style: TextStyle(
                   fontSize: 12,
-                  color: context.gx.ink.withValues(alpha: 0.55),
+                  color: context.gxMutedInk,
                 ),
               ),
               if (candidate['bio'] case final String bio when bio.isNotEmpty) ...[
@@ -460,7 +481,7 @@ class _CandidateCard extends StatelessWidget {
                   (candidate['skills'] as List).join(', '),
                   style: TextStyle(
                     fontSize: 12,
-                    color: context.gx.ink.withValues(alpha: 0.5),
+                    color: context.gxMutedInk,
                   ),
                 ),
               ],
@@ -470,7 +491,7 @@ class _CandidateCard extends StatelessWidget {
                   'Why they match: ${reasons.join(' · ')}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: context.gx.ink.withValues(alpha: 0.55),
+                    color: context.gxMutedInk,
                   ),
                 ),
               ],
@@ -483,15 +504,15 @@ class _CandidateCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                   color: phone != null && phone.isNotEmpty
-                      ? GixbeeTheme.accentBlue
-                      : context.gx.ink.withValues(alpha: 0.45),
+                      ? context.gxInfoInk
+                      : context.gxMutedInk,
                 ),
               ),
               if (response == 'PENDING' && !jobClosed) ...[
                 const SizedBox(height: 12),
                 GxButton(
                   label: invited ? 'Invite sent' : 'Invite to Chat',
-                  accent: GixbeeTheme.brandOrange,
+                  accent: context.gxWarningInk,
                   onTap: invited
                       ? null
                       : () {
@@ -509,7 +530,7 @@ class _CandidateCard extends StatelessWidget {
                         child: GxButton(
                           label: 'Reject',
                           filled: false,
-                          accent: GixbeeTheme.accentBlue,
+                          accent: context.gxInfoInk,
                           onTap: () => onDecision(interestId, 'REJECTED'),
                         ),
                       ),
@@ -519,7 +540,7 @@ class _CandidateCard extends StatelessWidget {
                           label: decision == 'SHORTLISTED'
                               ? 'Shortlisted'
                               : 'Shortlist',
-                          accent: GixbeeTheme.accentBlue,
+                          accent: context.gxInfoInk,
                           onTap: decision == 'SHORTLISTED'
                               ? null
                               : () => onDecision(interestId, 'SHORTLISTED'),
@@ -532,7 +553,7 @@ class _CandidateCard extends StatelessWidget {
                 GxButton(
                   label: 'Open chat',
                   filled: false,
-                  accent: GixbeeTheme.accentGreen,
+                  accent: context.gxSuccessInk,
                   onTap: candidateId.isEmpty
                       ? null
                       : () => Navigator.push(
@@ -553,7 +574,7 @@ class _CandidateCard extends StatelessWidget {
                         ? 'Contact requested'
                         : 'Request contact',
                     filled: false,
-                    accent: GixbeeTheme.accentBlue,
+                    accent: context.gxInfoInk,
                     onTap: candidate['contactRequested'] == true
                         ? null
                         : () => onRequestContact(interestId),
@@ -564,7 +585,7 @@ class _CandidateCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 GxButton(
                   label: 'Interview, offer & joining',
-                  accent: GixbeeTheme.accentGreen,
+                  accent: context.gxSuccessInk,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme.dart';
 
-/// Green selected / white unselected chip used across Hire Employee steps.
+/// Green selected / themed unselected chip used across Hire Employee steps.
 class HiringWizardChip extends StatelessWidget {
   const HiringWizardChip({
     super.key,
@@ -18,7 +18,7 @@ class HiringWizardChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? GixbeeTheme.accentGreen : Colors.white,
+      color: selected ? GixbeeTheme.greenAction : context.gx.card,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -28,7 +28,7 @@ class HiringWizardChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: selected ? GixbeeTheme.accentGreen : context.gx.border,
+              color: selected ? GixbeeTheme.greenAction : context.gx.border,
             ),
           ),
           child: Row(
@@ -71,8 +71,8 @@ class HiringAddButton extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 42),
-        foregroundColor: GixbeeTheme.accentGreen,
-        side: const BorderSide(color: GixbeeTheme.accentGreen),
+        foregroundColor: context.gxSuccessInk,
+        side: BorderSide(color: context.gxSuccessInk),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Row(

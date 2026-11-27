@@ -37,7 +37,7 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
     final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
       title: const Text('Resume saved payment?'), content: SingleChildScrollView(child: Text(
         '${meta['jobType'] ?? meta['planName'] ?? ''}\nPay ${eventMoney((num.tryParse('${order['amount']}') ?? 0) / 100)}\n\n'
-        '${order['purpose'] == 'HIRING_MATCH_FEE' ? '${meta['vacancies']} vacancies · ${meta['location'] ?? ''}\nMonthly salary: ${eventMoney(meta['salaryMax'])}\nHiring credit reserved: ${eventMoney(meta['creditApplied'])}' : order['purpose'] == 'PLATFORM_PLAN' ? '${meta['days']} days of plan access' : 'Career profile: ${meta['durationDays'] ?? 30} days of matching access'}\n\n'
+        '${order['purpose'] == 'HIRING_MATCH_FEE' ? '${meta['vacancies']} vacancies · ${meta['location'] ?? ''}\nMonthly salary: ${eventMoney(meta['salaryMax'])}\nHiring Coins reserved: ${num.tryParse('${meta['creditApplied']}')?.toInt() ?? 0}' : order['purpose'] == 'PLATFORM_PLAN' ? '${meta['days']} days of plan access' : 'Career profile: ${meta['durationDays'] ?? 30} days of matching access'}\n\n'
         'This uses the saved order and its original details. If you have already paid, check confirmation first.')),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Go back')),
         TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Resume'))],
@@ -87,7 +87,7 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
       : Column(mainAxisSize: MainAxisSize.min, children: [Text(_error!), TextButton(onPressed: _load, child: const Text('Try again'))]))
       : RefreshIndicator(onRefresh: _load, child: ListView(physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(20), children: [
         if (_error != null) Text(_error!),
-        const Text('Resume an unfinished checkout or check a payment awaiting confirmation. Hiring credit stays reserved against its saved order.'),
+        const Text('Resume an unfinished checkout or check a payment awaiting confirmation. Hiring Coins stay reserved against its saved order.'),
         const SizedBox(height: 16),
         if (_orders!.isEmpty) const Text('No pending payments.'),
         for (final order in _orders!) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

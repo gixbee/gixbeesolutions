@@ -110,7 +110,8 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       final c =
           await ref.read(matchingRepositoryProvider).hiringCreditBalance();
       if (!mounted) return;
-      setState(() => _creditBalance = (c['balance'] as num?)?.round() ?? 0);
+      final available = c['availableHiringCoins'] ?? c['balance'];
+      setState(() => _creditBalance = num.tryParse('$available')?.toInt() ?? 0);
     } catch (_) {}
   }
 
@@ -408,7 +409,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         (_fee != null) ? (_fee! - creditApplied).clamp(0, _fee!) : null;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.gx.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -475,7 +476,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: context.gx.ink.withValues(alpha: 0.5),
+              color: context.gxMutedInk,
             ),
           ),
         ],
@@ -518,7 +519,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
-              color: context.gx.ink.withValues(alpha: 0.45),
+              color: context.gxMutedInk,
             ),
           ),
         ],
@@ -558,7 +559,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
           style: TextStyle(
             fontSize: 13,
             height: 1.5,
-            color: context.gx.ink.withValues(alpha: 0.55),
+            color: context.gxMutedInk,
           ),
         ),
         const SizedBox(height: 18),
@@ -604,7 +605,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             if (sectors.isEmpty)
               Text(
                 'No sectors yet. Import the hiring catalogue from admin.',
-                style: TextStyle(color: context.gx.ink.withValues(alpha: 0.55)),
+                style: TextStyle(color: context.gxMutedInk),
               )
             else
               HiringSectorGrid(
@@ -698,7 +699,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
-            color: context.gx.ink.withValues(alpha: 0.45),
+            color: context.gxMutedInk,
           ),
         ),
         const SizedBox(height: 10),
@@ -720,7 +721,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
-            color: context.gx.ink.withValues(alpha: 0.45),
+            color: context.gxMutedInk,
           ),
         ),
         const SizedBox(height: 10),
@@ -842,7 +843,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: _qualificationId == null
-                        ? context.gx.ink.withValues(alpha: 0.45)
+                        ? context.gxMutedInk
                         : context.gx.ink,
                   ),
                 ),
@@ -1151,7 +1152,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.gx.card,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: context.gx.border),
               ),
@@ -1160,7 +1161,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.location_on_outlined, color: context.gx.accent, size: 22),
+                      Icon(Icons.location_on_outlined, color: context.gxAccentInk, size: 22),
                       const SizedBox(width: 8),
                       Text(
                         'Job location',
@@ -1194,7 +1195,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
                         'Choose a location from search results',
-                        style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.5)),
+                        style: TextStyle(fontSize: 12, color: context.gxMutedInk),
                       ),
                     ),
                   const SizedBox(height: 16),
@@ -1307,11 +1308,11 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               ),
               subtitle: Text(
                 'Widens matcher overlap for candidates below your minimum',
-                style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.5)),
+                style: TextStyle(fontSize: 12, color: context.gxMutedInk),
               ),
               value: _salaryNegotiable,
               activeThumbColor: context.gx.onAccent,
-              activeTrackColor: context.gx.accent,
+              activeTrackColor: Theme.of(context).colorScheme.primary,
               onChanged: (v) {
                 setState(() => _salaryNegotiable = v);
                 _scheduleEstimate();
@@ -1349,10 +1350,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             if (_creditBalance > 0) ...[
               const SizedBox(height: 4),
               Text(
-                'Hiring credit available: ₹$_creditBalance',
-                style: const TextStyle(
+                'Hiring Coins available: $_creditBalance',
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: GixbeeTheme.accentGreen,
+                  color: context.gxSuccessInk,
                 ),
               ),
             ],
@@ -1360,9 +1361,9 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
               const SizedBox(height: 8),
               Text(
                 creditApplied > 0
-                    ? 'Match fee ₹$_fee · credit −₹$creditApplied · pay ₹$due'
+                    ? 'Match fee ₹$_fee · $creditApplied coins applied · pay ₹$due'
                     : 'Match fee: ₹$_fee (based on vacancies)',
-                style: TextStyle(fontSize: 12, color: context.gx.ink.withValues(alpha: 0.55)),
+                style: TextStyle(fontSize: 12, color: context.gxMutedInk),
               ),
             ],
           ],
@@ -1401,8 +1402,8 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
             const SizedBox(height: 8),
             Text(
               creditApplied > 0
-                  ? 'Fee ₹$_fee · credit −₹$creditApplied · pay ₹$due'
-                  : 'Match fee: ₹$_fee. Fee follows vacancies, not a per-candidate package.',
+                  ? 'Fee ₹$_fee · $creditApplied coins applied · pay ₹$due'
+                  : 'Match fee: ₹$_fee (based on vacancies)',
               style: TextStyle(
                 fontSize: 13,
                 color: context.gx.ink.withValues(alpha: 0.6),
@@ -1527,7 +1528,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: context.gx.accent,
+                          color: context.gxAccentInk,
                         ),
                       ),
                     ),
@@ -1537,7 +1538,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: context.gx.ink.withValues(alpha: 0.4),
+                        color: context.gxMutedInk,
                       ),
                     ),
                   ],
@@ -1558,7 +1559,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                       Icon(
                         Icons.location_on_outlined,
                         size: 16,
-                        color: context.gx.ink.withValues(alpha: 0.5),
+                        color: context.gxMutedInk,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -1566,7 +1567,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                           location,
                           style: TextStyle(
                             fontSize: 13,
-                            color: context.gx.ink.withValues(alpha: 0.65),
+                            color: context.gxMutedInk,
                           ),
                         ),
                       ),
@@ -1576,10 +1577,10 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                 const SizedBox(height: 12),
                 Text(
                   salaryLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: GixbeeTheme.accentGreen,
+                    color: context.gxSuccessInk,
                   ),
                 ),
                 if (_salaryNegotiable)
@@ -1588,7 +1589,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: context.gx.ink.withValues(alpha: 0.55),
+                      color: context.gxMutedInk,
                     ),
                   ),
                 const SizedBox(height: 10),
@@ -1619,11 +1620,13 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          'Pay for Smart Matching — only interested candidates reach you.',
+          'If zero candidates express interest within 24 hours, the full fee '
+          'returns as Gixbee Hiring Coins. Each coin covers ₹1 of a future '
+          'Hire Employee fee. Coins cannot be withdrawn or transferred.',
           style: TextStyle(
             fontSize: 13,
             height: 1.35,
-            color: context.gx.ink.withValues(alpha: 0.55),
+            color: context.gxMutedInk,
           ),
         ),
         const SizedBox(height: 16),
@@ -1640,7 +1643,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
         children: [
           Expanded(
             flex: 2,
-            child: Text(label, style: TextStyle(fontSize: 13, color: context.gx.ink.withValues(alpha: 0.55))),
+            child: Text(label, style: TextStyle(fontSize: 13, color: context.gxMutedInk)),
           ),
           Expanded(
             flex: 3,
@@ -1677,7 +1680,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
       if (_submitting) {
         label = 'Starting…';
       } else if (due == 0) {
-        label = 'Start matching (use credit)';
+        label = 'Start matching (use coins)';
       } else {
         label = 'Pay & start matching';
       }
@@ -1714,7 +1717,7 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.4,
-                  color: context.gx.ink.withValues(alpha: 0.55),
+                  color: context.gxMutedInk,
                 ),
               ),
             ),

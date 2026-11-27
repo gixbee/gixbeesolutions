@@ -7,6 +7,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::Row;
+use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 
 use crate::common::money::NEW_USER_WALLET_BONUS;
@@ -23,6 +24,7 @@ pub fn routes() -> Router<AppState> {
         .route("/confirm-otp", post(confirm_otp))
         .route("/refresh", post(refresh_token))
         .route("/profile", get(get_profile))
+        .route("/profile/setup", post(complete_profile_setup))
         .route("/push-token", patch(update_push_token))
         .route("/fcm-token", patch(update_fcm_token))
         .route("/admin-login", post(admin_login))
@@ -142,8 +144,8 @@ async fn verify_otp(
         let id = Uuid::new_v4();
         sqlx::query(
             r#"
-            INSERT INTO users (id, "phoneNumber", name, role, "walletBalance", "isVerified", "hasWorkerProfile", "isAvailableForWork")
-            VALUES ($1, $2, '', 'CUSTOMER', $3, true, false, true)
+            INSERT INTO users (id, "phoneNumber", name, role, "walletBalance", "isVerified", "hasWorkerProfile", "isAvailableForWork", "profileSetupPending")
+            VALUES ($1, $2, '', 'CUSTOMER', $3, true, false, true, true)
             "#,
         )
         .bind(id)
@@ -282,6 +284,7 @@ struct ProfileResponse {
     email: Option<String>,
     avatar: Option<String>,
     role: String,
+    profileSetupRequired: bool,
     hasWorkerProfile: bool,
     isAvailableForWork: bool,
     instantHelpBlocked: bool,
@@ -295,6 +298,8 @@ async fn get_profile(State(state): State<AppState>, user: AuthUser) -> AppResult
     let row = sqlx::query(
         r#"
         SELECT u.id, u."phoneNumber", u.name,
+               (u."profileSetupPending" OR (u."identityDetailsConfirmedAt" IS NULL
+                AND btrim(COALESCE(u.name, '')) = '')) AS "profileSetupRequired",
                COALESCE(NULLIF(u."profileImageUrl", ''), tp."photoUrl") AS "profileImageUrl",
                u.role::text AS role, u."hasWorkerProfile",
                u."isAvailableForWork", u."instantHelpBlocked", u."lateCancelStrikeCount",
@@ -316,6 +321,7 @@ async fn get_profile(State(state): State<AppState>, user: AuthUser) -> AppResult
         email: None,
         avatar: row.get("profileImageUrl"),
         role: row.get("role"),
+        profileSetupRequired: row.get("profileSetupRequired"),
         hasWorkerProfile: row.get("hasWorkerProfile"),
         isAvailableForWork: row.get("isAvailableForWork"),
         instantHelpBlocked: row.get("instantHelpBlocked"),
@@ -325,6 +331,69 @@ async fn get_profile(State(state): State<AppState>, user: AuthUser) -> AppResult
             .get::<Option<rust_decimal::Decimal>, _>("unblockCompensationDistanceKm")
             .map(|d| d.to_string().parse().unwrap_or(0.0)),
     }))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProfileSetupBody {
+    name: String,
+    date_of_birth: chrono::NaiveDate,
+    gender: String,
+    profile_image_url: String,
+    confirmed_matches_document: bool,
+}
+
+async fn complete_profile_setup(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(body): Json<ProfileSetupBody>,
+) -> AppResult<Json<ProfileResponse>> {
+    let uid = Uuid::parse_str(&user.user_id)?;
+    let name = body.name.trim();
+    if name.is_empty() || name.chars().count() > 150 || name.chars().any(char::is_control) {
+        return Err(AppError::BadRequest("Enter the full name on your document".into()));
+    }
+    let today = (chrono::Utc::now() + chrono::Duration::minutes(330)).date_naive();
+    if body.date_of_birth > today || body.date_of_birth < chrono::NaiveDate::from_ymd_opt(1900, 1, 1).unwrap() {
+        return Err(AppError::BadRequest("Enter a valid date of birth".into()));
+    }
+    if !matches!(body.gender.as_str(), "FEMALE" | "MALE" | "TRANSGENDER" | "OTHER") {
+        return Err(AppError::BadRequest("Select the gender shown on your document".into()));
+    }
+    if !body.confirmed_matches_document {
+        return Err(AppError::BadRequest("Confirm your details match your document".into()));
+    }
+    // Accept a JPEG from the shared upload service. Parse and reconstruct the
+    // filename before reading it so arbitrary URLs and file paths cannot be stored.
+    let invalid_photo = || AppError::BadRequest("Upload a profile photo".into());
+    let photo_id = body.profile_image_url.strip_prefix("/uploads/")
+        .and_then(|url| url.strip_suffix(".jpg"))
+        .and_then(|id| Uuid::parse_str(id).ok())
+        .ok_or_else(invalid_photo)?;
+    let filename = format!("{photo_id}.jpg");
+    let photo_url = format!("/uploads/{filename}");
+    let path = std::path::Path::new(&state.config.uploads_dir).join(filename);
+    let mut photo = tokio::fs::File::open(path).await.map_err(|_| invalid_photo())?;
+    let mut signature = [0u8; 3];
+    photo.read_exact(&mut signature).await.map_err(|_| invalid_photo())?;
+    if signature != [0xff, 0xd8, 0xff] {
+        return Err(invalid_photo());
+    }
+    sqlx::query(
+        r#"UPDATE users SET name=$2, "legalName"=$2, "dateOfBirth"=$3, gender=$4,
+                  "profileImageUrl"=$5,
+                  "identityDetailsConfirmedAt"=NOW(), "profileSetupPending"=false, "updatedAt"=NOW()
+           WHERE id=$1 AND ("profileSetupPending" OR ("identityDetailsConfirmedAt" IS NULL
+                 AND btrim(COALESCE(name, ''))=''))"#,
+    )
+    .bind(uid)
+    .bind(name)
+    .bind(body.date_of_birth)
+    .bind(body.gender)
+    .bind(photo_url)
+    .execute(&state.db)
+    .await?;
+    get_profile(State(state), user).await
 }
 
 #[derive(Deserialize)]

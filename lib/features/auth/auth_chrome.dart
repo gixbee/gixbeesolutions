@@ -130,7 +130,7 @@ class AuthPrimaryButton extends StatelessWidget {
       height: 54,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: kAuthGreenGradient),
+          gradient: const LinearGradient(colors: GixbeeTheme.greenActionGradient),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(

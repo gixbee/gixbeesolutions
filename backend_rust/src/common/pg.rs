@@ -97,7 +97,7 @@ pub const JOB_PREFERENCE_COLS: &str = r#"
 pub const HIRING_REQUEST_COLS: &str = r#"
     id, "employerId", "businessId", "jobType", skills, location, description, "salaryOffered", "salaryMin", "salaryMax",
     "salaryNegotiable", "employmentType"::text AS "employmentType", "experienceMinYears", vacancies,
-    "targetInterested", "feeAmount", "creditApplied", status::text AS status, "deadlineAt", "createdAt", "updatedAt",
+    "targetInterested", "feeAmount", "creditApplied", "noResponseCredit", status::text AS status, "deadlineAt", "createdAt", "updatedAt",
     "sectorId", "positionId", "specializationIds", "skillIds", "qualificationId", "qualificationRequired",
     "salaryPeriod", "locationId", "addressText", "locationMatchStatus", "workMode", "languageIds"
 "#;

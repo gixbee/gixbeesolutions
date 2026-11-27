@@ -4,18 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/config/app_config.dart';
-import '../../main_wrapper.dart';
 import '../../shared/utils/api_error_message.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import 'auth_chrome.dart';
-import 'registration_screen.dart';
+import 'signed_in_gate.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/notification_service.dart';
-import '../../shared/models/user.dart';
 
 /// OTP verification — grab-green auth look (theme-aware via AuthPalette):
 /// branded digit boxes with green fill state, green resend link, green
-/// Verify CTA. Logic (verify → FCM → profile route) unchanged.
+/// Verify CTA. After verification, the signed-in gate handles profile setup.
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
   final String? initialOtp;
@@ -87,22 +85,11 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       await _registerFcmToken();
 
       ref.invalidate(currentUserProvider);
-      User? user;
-      try {
-        user = await ref.read(currentUserProvider.future);
-      } catch (_) {
-        user = await ref.read(authRepositoryProvider).getProfile();
-      }
-      final isNewUser = user == null || (user.name?.isEmpty ?? true);
-
       if (!mounted) return;
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) =>
-              isNewUser ? const RegistrationScreen() : const MainWrapper(),
-        ),
+        MaterialPageRoute(builder: (_) => const SignedInGate()),
         (route) => false,
       );
     } catch (e) {

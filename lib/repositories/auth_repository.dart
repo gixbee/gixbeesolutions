@@ -12,7 +12,6 @@ import '../services/auth_token_service.dart';
 import '../services/socket_service.dart';
 import '../shared/models/user.dart';
 import '../features/worker/worker_instant_eligibility.dart';
-import 'worker_repository.dart';
 
 /// OTP / refresh / admin-login are public. A leftover Bearer token must not
 /// trigger silent refresh or a stack reset back to Welcome.
@@ -327,6 +326,21 @@ class AuthRepository {
       debugPrint('[AUTH] getProfile failed: $e');
       rethrow;
     }
+  }
+
+  Future<void> completeProfileSetup({
+    required String name,
+    required String dateOfBirth,
+    required String gender,
+    required String profileImageUrl,
+  }) async {
+    await _dio.post('/auth/profile/setup', data: {
+      'name': name,
+      'dateOfBirth': dateOfBirth,
+      'gender': gender,
+      'profileImageUrl': profileImageUrl,
+      'confirmedMatchesDocument': true,
+    });
   }
 
   // ── FCM Token ──────────────────────────────────────────────────

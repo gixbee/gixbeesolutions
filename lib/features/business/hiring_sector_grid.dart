@@ -119,9 +119,8 @@ class HiringSectorGrid extends StatelessWidget {
               tint = gx.accent;
             }
             final icon = hiringSectorIcon(s);
-            const selectedFill = Color(0xFFF0FDF4);
             return Material(
-              color: selected ? selectedFill : Colors.white,
+              color: selected ? context.gxSuccessSurface : gx.card,
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -130,7 +129,7 @@ class HiringSectorGrid extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: selected ? GixbeeTheme.accentGreen : gx.border,
+                      color: selected ? context.gxSuccessInk : gx.border,
                       width: selected ? 2 : 1,
                     ),
                   ),
@@ -146,7 +145,7 @@ class HiringSectorGrid extends StatelessWidget {
                             width: 20,
                             height: 20,
                             decoration: const BoxDecoration(
-                              color: GixbeeTheme.accentGreen,
+                              color: GixbeeTheme.greenAction,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.check, size: 12, color: Colors.white),
@@ -171,7 +170,7 @@ class HiringSectorGrid extends StatelessWidget {
                                   fontWeight: FontWeight.w800,
                                   height: 1.15,
                                   color: selected
-                                      ? GixbeeTheme.accentGreenDark
+                                      ? context.gxSuccessInk
                                       : gx.ink,
                                 ),
                               ),

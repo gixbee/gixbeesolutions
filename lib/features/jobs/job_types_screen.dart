@@ -464,7 +464,7 @@ class _JobTypesScreenState extends ConsumerState<JobTypesScreen> {
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700,
-                                              color: GixbeeTheme.accentGreen,
+                                              color: context.gxSuccessInk,
                                             ),
                                           ),
                                           const SizedBox(height: 6),

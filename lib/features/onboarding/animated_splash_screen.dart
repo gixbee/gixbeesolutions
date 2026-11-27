@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../main_wrapper.dart';
 import '../../repositories/auth_repository.dart';
 import '../auth/auth_chrome.dart';
+import '../auth/signed_in_gate.dart';
 import 'welcome_screen.dart';
 
 /// Branded splash — the gixbee HIVE.
@@ -16,8 +16,8 @@ import 'welcome_screen.dart';
 /// worker finds work here." Pure CustomPainter (no Lottie, no image assets),
 /// theme-aware via AuthPalette, ~60fps cheap.
 ///
-/// Routing unchanged: ≈1.4s minimum show, auth resolves in parallel, then
-/// fade to MainWrapper (authed) or WelcomeScreen (guest).
+/// Routing: ≈1.4s minimum show, auth resolves in parallel, then
+/// fade to the signed-in gate or WelcomeScreen.
 class AnimatedSplashScreen extends ConsumerStatefulWidget {
   const AnimatedSplashScreen({super.key});
 
@@ -95,7 +95,7 @@ class _AnimatedSplashScreenState extends ConsumerState<AnimatedSplashScreen>
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (_, __, ___) =>
-            authenticated ? const MainWrapper() : const WelcomeScreen(),
+            authenticated ? const SignedInGate() : const WelcomeScreen(),
         transitionsBuilder: (_, animation, __, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,

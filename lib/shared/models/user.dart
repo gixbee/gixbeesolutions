@@ -3,6 +3,7 @@ class User {
   final String phone;
   final String? email;
   final String? name;
+  final bool profileSetupRequired;
   final String? avatar;
   final bool isAvailableForWork;
   final String? role;
@@ -19,6 +20,7 @@ class User {
     required this.phone,
     this.email,
     this.name,
+    this.profileSetupRequired = false,
     this.avatar,
     this.isAvailableForWork = true,
     this.role,
@@ -35,12 +37,15 @@ class User {
       phone: json['phone'] as String,
       email: json['email'] as String?,
       name: json['name'] as String?,
+      profileSetupRequired: json['profileSetupRequired'] as bool? ??
+          ((json['name'] as String?)?.trim().isEmpty ?? true),
       avatar: (json['profileImageUrl'] ?? json['avatar']) as String?,
       isAvailableForWork: json['isAvailableForWork'] as bool? ?? true,
       role: json['role'] as String?,
       hasWorkerProfile: json['hasWorkerProfile'] as bool? ?? false,
       instantHelpBlocked: json['instantHelpBlocked'] as bool? ?? false,
-      lateCancelStrikeCount: (json['lateCancelStrikeCount'] as num?)?.toInt() ?? 0,
+      lateCancelStrikeCount:
+          (json['lateCancelStrikeCount'] as num?)?.toInt() ?? 0,
       unblockCompensationAmountInr:
           (json['unblockCompensationAmountInr'] as num?)?.toDouble(),
       unblockCompensationDistanceKm:
@@ -54,6 +59,7 @@ class User {
       'phone': phone,
       'email': email,
       'name': name,
+      'profileSetupRequired': profileSetupRequired,
       'profileImageUrl': avatar,
       'isAvailableForWork': isAvailableForWork,
       'role': role,

@@ -245,7 +245,7 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
     VoidCallback? onRemove,
   }) {
     final gx = context.gx;
-    final bg = selected ? GixbeeTheme.accentGreen : Colors.white;
+    final bg = selected ? GixbeeTheme.greenAction : gx.card;
     final fg = selected ? gx.onAccent : gx.ink;
     return Material(
       color: bg,
@@ -259,7 +259,7 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: selected ? GixbeeTheme.accentGreen : gx.border,
+              color: selected ? GixbeeTheme.greenAction : gx.border,
             ),
           ),
           child: Row(
@@ -310,7 +310,7 @@ class _HiringLanguageSectionState extends State<HiringLanguageSection> {
         const SizedBox(height: 4),
         Text(
           'Candidates who speak these languages rank higher in matching.',
-          style: TextStyle(fontSize: 12, color: gx.ink.withValues(alpha: 0.55)),
+          style: TextStyle(fontSize: 12, color: context.gxMutedInk),
         ),
         const SizedBox(height: 10),
         Wrap(

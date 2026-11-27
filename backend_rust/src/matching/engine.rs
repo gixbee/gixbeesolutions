@@ -214,7 +214,7 @@ pub async fn maybe_deliver_on_response(state: &AppState, request_id: Uuid) -> Ap
 async fn finish_request(state: &AppState, request_id: Uuid, at_deadline: bool) -> AppResult<()> {
     let mut tx = state.db.begin().await?;
     let row = sqlx::query(
-        r#"SELECT "employerId","jobType",status::text AS status,vacancies,"targetInterested",
+        r#"SELECT "employerId","jobType",status::text AS status,"feeAmount","targetInterested",
         "deadlineAt"<=NOW() AS expired FROM hiring_requests WHERE id=$1 FOR UPDATE"#,
     )
     .bind(request_id)
@@ -239,27 +239,63 @@ async fn finish_request(state: &AppState, request_id: Uuid, at_deadline: bool) -
     if !expired && count < i64::from(row.get::<i32, _>("targetInterested")) {
         return Ok(());
     }
+    // The request row is locked until the balance, request and notification
+    // commit together. Another scheduler run will see DELIVERED and exit.
+    let employer_id: Uuid = row.get("employerId");
+    let coins = if expired && count == 0 {
+        row.get::<rust_decimal::Decimal, _>("feeAmount")
+    } else {
+        rust_decimal::Decimal::ZERO
+    };
+    if coins > rust_decimal::Decimal::ZERO {
+        sqlx::query(
+            r#"UPDATE users SET "hiringCreditBalance" = "hiringCreditBalance" + $2
+               WHERE id=$1"#,
+        )
+        .bind(employer_id)
+        .bind(coins)
+        .execute(&mut *tx)
+        .await?;
+    }
     sqlx::query(
         r#"UPDATE hiring_requests SET status='DELIVERED'::hiring_requests_status_enum,
-        "deliveredAt"=NOW(),"updatedAt"=NOW() WHERE id=$1"#,
+        "noResponseCredit"=$2,"deliveredAt"=NOW(),"updatedAt"=NOW() WHERE id=$1"#,
     )
     .bind(request_id)
+    .bind(coins)
     .execute(&mut *tx)
     .await?;
-    let title = "Your candidate shortlist is ready";
-    let body = format!(
-        "{} interested candidate{} for {} — review and shortlist in the app.",
-        count,
-        if count == 1 { "" } else { "s" },
-        row.get::<String, _>("jobType")
-    );
+    let job_type = row.get::<String, _>("jobType");
+    let (title, body) = if coins > rust_decimal::Decimal::ZERO {
+        (
+            "Hiring Coins credited",
+            format!(
+                "No candidates expressed interest in {job_type}. {} Hiring Coins are available for your next request.",
+                coins.normalize()
+            ),
+        )
+    } else {
+        (
+            "Your candidate shortlist is ready",
+            format!(
+                "{} interested candidate{} for {} — review and shortlist in the app.",
+                count,
+                if count == 1 { "" } else { "s" },
+                job_type
+            ),
+        )
+    };
     crate::outbox::notify(
         &mut tx,
         request_id,
-        row.get("employerId"),
+        employer_id,
         title,
         &body,
-        serde_json::json!({"type":"hiring_delivered","requestId":request_id}),
+        serde_json::json!({
+            "type":"hiring_delivered",
+            "requestId":request_id,
+            "hiringCoinsReturned":coins.to_f64()
+        }),
     )
     .await?;
     tx.commit().await?;
