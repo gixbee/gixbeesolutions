@@ -70,6 +70,7 @@ docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/booking_offer_recipients.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/outbox_leases.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/arch_fixes_v1.sql
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/booking_delivery_guards.sql
 echo SCHEMA_OK
 
 if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then
@@ -77,7 +78,39 @@ if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then
 fi
 
 "${compose[@]}" build backend_rust admin
-"${compose[@]}" up -d --scale backend_rust=2 backend_rust admin api_balancer
-docker image prune -f
+"${compose[@]}" up -d --wait --wait-timeout 180 --scale backend_rust=2 backend_rust admin api_balancer
+
+if [[ "$use_tls" -eq 1 ]]; then
+  api_host=$("${compose[@]}" exec -T api_balancer printenv GIXBEE_API_HOST)
+  admin_host=$("${compose[@]}" exec -T api_balancer printenv GIXBEE_ADMIN_HOST)
+  check_https() {
+    local host="$1" path="$2" status attempt
+    for attempt in 1 2 3 4 5; do
+      if status=$(curl --silent --show-error --max-time 10 \
+        --resolve "$host:443:127.0.0.1" --output /dev/null --write-out '%{http_code}' "https://$host$path") &&
+        [[ "$status" == 200 ]]; then
+        return 0
+      fi
+      if [[ "$attempt" != 5 ]]; then sleep 2; fi
+    done
+    echo "HTTPS check failed for $host$path (HTTP $status)" >&2
+    return 1
+  }
+  check_https "$api_host" /readyz
+  check_https "$admin_host" /
+  check_https "$api_host" '/socket.io/?EIO=4&transport=polling'
+else
+  for attempt in 1 2 3 4 5; do
+    if curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
+      http://127.0.0.1:3000/readyz | grep -q '^200$'; then
+      break
+    fi
+    if [[ "$attempt" == 5 ]]; then
+      echo "HTTP /readyz check failed on :3000" >&2
+      exit 1
+    fi
+    sleep 2
+  done
+fi
 "${compose[@]}" ps
 echo DEPLOY_OK

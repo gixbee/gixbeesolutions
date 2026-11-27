@@ -11,6 +11,7 @@ use crate::state::AppState;
 
 mod fcm;
 pub use fcm::FcmService;
+pub(crate) use fcm::PushOutcome;
 
 pub fn routes() -> Router<AppState> {
     Router::new()

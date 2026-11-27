@@ -967,6 +967,18 @@ async fn accept(
         return Err(AppError::BadRequest("You are not assigned to this booking.".into()));
     }
 
+    let already_assigned: bool = sqlx::query_scalar(
+        r#"SELECT EXISTS (SELECT 1 FROM bookings
+           WHERE "operatorId"=$1 AND status IN ('ACCEPTED','ARRIVED','ACTIVE') AND id<>$2)"#,
+    )
+    .bind(worker_id)
+    .bind(bid)
+    .fetch_one(&mut *tx)
+    .await?;
+    if already_assigned {
+        return Err(AppError::Conflict("Finish your current job before accepting another.".into()));
+    }
+
     let remaining = consume_credit(&state, &mut tx, worker_id, bid).await?;
     let force_offline = remaining == 0;
 

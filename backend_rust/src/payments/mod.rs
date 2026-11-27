@@ -40,6 +40,24 @@ const PURPOSE_HIRING_MATCH: &str = "HIRING_MATCH_FEE";
 const PURPOSE_EXTRA_JOB_TYPE: &str = "EXTRA_JOB_TYPE_FEE";
 pub(crate) const PURPOSE_RENTAL_ADVANCE: &str = "RENTAL_ADVANCE";
 pub(crate) const PURPOSE_RENTAL_SETTLEMENT: &str = "RENTAL_SETTLEMENT";
+const RECOVERABLE_PAYMENT_PURPOSES: &[&str] = &[
+    PURPOSE_PERIOD_FEE, PURPOSE_LATE_CANCEL, PURPOSE_RENTAL_ADVANCE, PURPOSE_RENTAL_SETTLEMENT,
+    PURPOSE_HIRING_MATCH, PURPOSE_EXTRA_JOB_TYPE, crate::plans::PURPOSE, "JOB_CREDITS",
+];
+
+fn razorpay_receipt_prefix(purpose: &str) -> &str {
+    match purpose {
+        "JOB_CREDITS" => "pack",
+        crate::plans::PURPOSE => "pln",
+        PURPOSE_PERIOD_FEE => "fee",
+        PURPOSE_LATE_CANCEL => "lcc",
+        PURPOSE_HIRING_MATCH => "hmf",
+        PURPOSE_EXTRA_JOB_TYPE => "ejt",
+        PURPOSE_RENTAL_ADVANCE => "rad",
+        PURPOSE_RENTAL_SETTLEMENT => "rst",
+        _ => "rcg",
+    }
+}
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -53,6 +71,8 @@ pub fn routes() -> Router<AppState> {
         .route("/orders/{id}", get(recovery::status))
         .route("/orders/{id}/verify", post(recovery::verify))
         .route("/admin/refund-failures", get(admin_refund_failures))
+        .route("/admin/recovery", get(recovery::admin_recovery))
+        .route("/admin/recovery/{id}/retry", post(recovery::admin_retry))
         .route("/webhook", post(webhook))
 }
 
@@ -387,17 +407,7 @@ pub(crate) async fn create_razorpay_order(
 
     let key_id = state.config.razorpay_key_id.as_deref().unwrap_or("");
     let key_secret = state.config.razorpay_key_secret.as_deref().unwrap_or("");
-    let receipt_prefix = match purpose {
-        "JOB_CREDITS" => "pack",
-        crate::plans::PURPOSE => "pln",
-        PURPOSE_PERIOD_FEE => "fee",
-        PURPOSE_LATE_CANCEL => "lcc",
-        PURPOSE_HIRING_MATCH => "hmf",
-        PURPOSE_EXTRA_JOB_TYPE => "ejt",
-        PURPOSE_RENTAL_ADVANCE => "rad",
-        PURPOSE_RENTAL_SETTLEMENT => "rst",
-        _ => "rcg",
-    };
+    let receipt_prefix = razorpay_receipt_prefix(purpose);
 
     let uid = Uuid::parse_str(user_id)?;
     let hiring_basic = if purpose == PURPOSE_HIRING_MATCH {
@@ -806,124 +816,128 @@ async fn webhook(
                 .pointer("/payload/order/entity/id")
                 .and_then(|v| v.as_str())
         });
-    let payment_id = payment
-        .and_then(|p| p.get("id"))
-        .and_then(|v| v.as_str());
-
     let order_id = match order_id {
         Some(id) => id,
-        None => return Ok(Json(json!({ "ok": true, "ignored": "no order id" }))),
+        None => return Ok(Json(json!({"ok":true,"ignored":"no order id"}))),
     };
-
-    if let Some(payment) = payment {
-        if crate::billing::purchases::fulfil(&state, payment, None)
-            .await?
-            .is_some()
-        {
-            return Ok(Json(json!({ "ok": true })));
-        }
-        // Razorpay can fire payment.captured before our INSERT commits.
-        // 503 asks them to retry instead of treating a missing pack row as a duplicate.
-        if payment
-            .pointer("/notes/purpose")
-            .and_then(|v| v.as_str())
-            == Some("JOB_CREDITS")
-        {
-            return Err(AppError::ServiceUnavailable(
-                "credit pack order not persisted yet".into(),
-            ));
-        }
-    }
-
-    // Hiring fulfillment is independently idempotent. Keep CREATED until its
-    // database effects commit, so a crash is retryable and reserved credit is
-    // never briefly exposed to another request while fulfillment is in flight.
-    let hiring_order = sqlx::query(r#"SELECT id,"userId",amount,purpose::text AS purpose,meta,status::text AS status
-        FROM payment_orders WHERE "razorpayOrderId"=$1 AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')"#)
-        .bind(order_id).fetch_optional(&state.db).await?;
-    if let Some(order) = hiring_order {
-        if order.get::<String,_>("status") == "CREDITED" { return Ok(Json(json!({"ok":true,"duplicate":true}))); }
-        if order.get::<String,_>("status") != "CREATED" { return Err(AppError::Conflict("Payment order is not payable".into())); }
-        let payment = payment.ok_or_else(||AppError::ServiceUnavailable("Captured payment details are required".into()))?;
-        let amount = order.get::<rust_decimal::Decimal,_>("amount");
-        if payment.get("status").and_then(Value::as_str) != Some("captured")
-            || payment.get("currency").and_then(Value::as_str) != Some("INR")
-            || payment.get("amount").and_then(Value::as_i64).map(rust_decimal::Decimal::from) != Some(amount * rust_decimal::Decimal::from(100)) {
-            return Err(AppError::BadRequest("Captured payment does not match the order".into()));
-        }
-        let purpose = order.get::<String,_>("purpose");
-        let meta = order.get::<Option<Value>,_>("meta");
-        fulfil_order(&state,order_id,&order.get::<Uuid,_>("userId").to_string(),
-            rust_decimal::prelude::ToPrimitive::to_i32(&amount).unwrap_or(0),&purpose,meta.as_ref(),order.get("id"),payment_id).await?;
-        sqlx::query(r#"UPDATE payment_orders SET status='CREDITED',"razorpayPaymentId"=$2 WHERE id=$1 AND status='CREATED'"#)
-            .bind(order.get::<Uuid,_>("id")).bind(payment_id).execute(&state.db).await?;
-        return Ok(Json(json!({"ok":true})));
-    }
-    if matches!(payment.and_then(|p|p.pointer("/notes/purpose")).and_then(Value::as_str),Some("HIRING_MATCH_FEE"|"EXTRA_JOB_TYPE_FEE"|"PLATFORM_PLAN")) {
-        return Err(AppError::ServiceUnavailable("Payment order not persisted yet".into()));
-    }
-
     let payment = payment.ok_or_else(|| AppError::ServiceUnavailable("Captured payment details are required".into()))?;
 
-    // If the webhook wins the race before attach, bind by durable intent id from notes.
-    if sqlx::query_scalar::<_, bool>(
+    let attached: bool = sqlx::query_scalar(
         r#"SELECT EXISTS(SELECT 1 FROM payment_orders WHERE "razorpayOrderId"=$1)"#,
-    )
-    .bind(order_id)
-    .fetch_one(&state.db)
-    .await?
-        == false
-    {
-        if let Some(intent) = payment
-            .pointer("/notes/gixbeePaymentOrderId")
-            .and_then(Value::as_str)
-            .and_then(|s| Uuid::parse_str(s).ok())
-        {
-            let attached = sqlx::query(
-                r#"UPDATE payment_orders
-                   SET "razorpayOrderId"=$2, "updatedAt"=NOW()
-                   WHERE id=$1 AND status='CREATED'
-                     AND ("razorpayOrderId" IS NULL OR "razorpayOrderId"=$2)"#,
-            )
-            .bind(intent)
-            .bind(order_id)
-            .execute(&state.db)
-            .await?;
-            if attached.rows_affected() == 0 {
-                return Err(AppError::ServiceUnavailable(
-                    "Payment order not persisted yet".into(),
-                ));
-            }
-        } else {
-            return Err(AppError::ServiceUnavailable(
-                "Payment order not persisted yet".into(),
-            ));
-        }
+    ).bind(order_id).fetch_one(&state.db).await?;
+    if !attached {
+        attach_captured_order(&state, order_id, event.pointer("/payload/order/entity"), payment).await?;
     }
+    queue_captured_order(&state, order_id, payment).await?;
+    Ok(Json(json!({"ok":true})))
+}
 
-    let amount: rust_decimal::Decimal = sqlx::query_scalar(
-        r#"SELECT amount FROM payment_orders WHERE "razorpayOrderId"=$1"#,
-    )
-    .bind(order_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::ServiceUnavailable("Payment order not persisted yet".into()))?;
+async fn attach_captured_order(
+    state: &AppState,
+    order_id: &str,
+    order: Option<&Value>,
+    payment: &Value,
+) -> AppResult<()> {
+    let fetched;
+    let order = match order {
+        Some(order) if order["id"].as_str() == Some(order_id) && order["receipt"].is_string() => order,
+        _ => {
+            if !order_id.strip_prefix("order_").is_some_and(|id|
+                !id.is_empty() && id.bytes().all(|byte| byte.is_ascii_alphanumeric())
+            ) {
+                return Err(AppError::BadRequest("Invalid Razorpay order reference".into()));
+            }
+            fetched = state.http.get(format!("https://api.razorpay.com/v1/orders/{order_id}"))
+                .basic_auth(state.config.razorpay_key_id.as_deref().unwrap_or(""), state.config.razorpay_key_secret.as_deref())
+                .timeout(std::time::Duration::from_secs(8))
+                .send().await.and_then(|r| r.error_for_status())
+                .map_err(|_| AppError::ServiceUnavailable("Could not look up the provider order".into()))?
+                .json::<Value>().await
+                .map_err(|_| AppError::ServiceUnavailable("Invalid provider order response".into()))?;
+            &fetched
+        }
+    };
+    let intent = order.pointer("/notes/gixbeePaymentOrderId").and_then(Value::as_str)
+        .and_then(|id| Uuid::parse_str(id).ok())
+        .ok_or_else(|| AppError::ServiceUnavailable("Checkout intent not found".into()))?;
+    let row = sqlx::query(
+        r#"SELECT amount,purpose::text AS purpose FROM payment_orders WHERE id=$1"#,
+    ).bind(intent).fetch_optional(&state.db).await?
+        .ok_or_else(|| AppError::ServiceUnavailable("Checkout intent not found".into()))?;
+    let amount: rust_decimal::Decimal = row.get("amount");
+    let purpose = row.get::<String,_>("purpose");
+    let receipt = format!("{}_{}", razorpay_receipt_prefix(&purpose), intent.simple());
+    if order["id"].as_str() != Some(order_id) || order["receipt"].as_str() != Some(receipt.as_str())
+        || order["currency"].as_str() != Some("INR")
+        || order["amount"].as_i64().map(rust_decimal::Decimal::from)
+            != Some(amount * rust_decimal::Decimal::from(100)) {
+        return Err(AppError::Conflict("Provider order does not match checkout intent".into()));
+    }
     captured_payment_id(payment, order_id, amount)?;
-    // Keep the signed capture durable while rental or fee fulfillment is retried.
-    sqlx::query(
-        r#"INSERT INTO outbox_events (id, type, "aggregateId", payload)
-           SELECT id, 'payment.captured', id, $2
-           FROM payment_orders WHERE "razorpayOrderId"=$1 AND status IN ('CREATED','REFUND_REQUIRED')
-           ON CONFLICT (id) DO NOTHING"#,
-    )
-    .bind(order_id)
-    .bind(json!({"orderId": order_id, "payment": {
-        "id": payment["id"], "order_id": payment["order_id"], "status": payment["status"],
-        "amount": payment["amount"], "currency": payment["currency"],
-    }}))
-    .execute(&state.db)
-    .await?;
-    Ok(Json(json!({ "ok": true })))
+    sqlx::query(r#"UPDATE payment_orders SET "razorpayOrderId"=$2,"updatedAt"=NOW()
+        WHERE id=$1 AND status='CREATED' AND "razorpayOrderId" IS NULL"#)
+        .bind(intent).bind(order_id).execute(&state.db).await?;
+    Ok(())
+}
+
+async fn queue_captured_order(state: &AppState, order_id: &str, payment: &Value) -> AppResult<()> {
+    let row = sqlx::query(
+        r#"SELECT id, amount, purpose::text AS purpose, status::text AS status
+           FROM payment_orders WHERE "razorpayOrderId"=$1"#,
+    ).bind(order_id).fetch_optional(&state.db).await?
+        .ok_or_else(|| AppError::ServiceUnavailable("Payment order not persisted yet".into()))?;
+    let purpose = row.get::<String, _>("purpose");
+    if !RECOVERABLE_PAYMENT_PURPOSES.contains(&purpose.as_str()) {
+        return Err(AppError::Conflict("Payment purpose requires reconciliation".into()));
+    }
+    captured_payment_id(payment, order_id, row.get("amount"))?;
+    if row.get::<String, _>("status") == "CREATED" {
+        let id: Uuid = row.get("id");
+        sqlx::query(
+            r#"INSERT INTO outbox_events (id,type,"aggregateId",payload)
+               VALUES ($1,'payment.captured',$1,$2) ON CONFLICT (id) DO NOTHING"#,
+        ).bind(id).bind(json!({"orderId":order_id, "payment":{
+            "id":payment["id"], "order_id":payment["order_id"], "status":payment["status"],
+            "amount":payment["amount"], "currency":payment["currency"],
+        }})).execute(&state.db).await?;
+    }
+    Ok(())
+}
+
+pub(crate) async fn fulfil_captured_order(state: &AppState, order_id: &str, payment: &Value) -> AppResult<()> {
+    let row = sqlx::query(
+        r#"SELECT id,"userId",amount,purpose::text AS purpose,meta,status::text AS status
+           FROM payment_orders WHERE "razorpayOrderId"=$1"#,
+    ).bind(order_id).fetch_optional(&state.db).await?
+        .ok_or_else(|| AppError::ServiceUnavailable("Payment order not persisted yet".into()))?;
+    let amount: rust_decimal::Decimal = row.get("amount");
+    let payment_id = captured_payment_id(payment, order_id, amount)?;
+    let purpose = row.get::<String, _>("purpose");
+    match purpose.as_str() {
+        "JOB_CREDITS" => {
+            crate::billing::purchases::fulfil(state, payment, None).await?
+                .ok_or_else(|| AppError::NotFound("Credit pack order not found".into()))?;
+        }
+        PURPOSE_HIRING_MATCH | PURPOSE_EXTRA_JOB_TYPE | crate::plans::PURPOSE => {
+            let status = row.get::<String, _>("status");
+            if status == "CREDITED" { return Ok(()); }
+            if status != "CREATED" {
+                return Err(AppError::Conflict("Payment order is not payable".into()));
+            }
+            let meta: Option<Value> = row.get("meta");
+            let id: Uuid = row.get("id");
+            fulfil_order(state, order_id, &row.get::<Uuid,_>("userId").to_string(),
+                rust_decimal::prelude::ToPrimitive::to_i32(&amount).unwrap_or(0),
+                &purpose, meta.as_ref(), id, Some(payment_id)).await?;
+            sqlx::query(r#"UPDATE payment_orders SET status='CREDITED',"razorpayPaymentId"=$2,"updatedAt"=NOW()
+                WHERE id=$1 AND status='CREATED'"#)
+                .bind(id).bind(payment_id).execute(&state.db).await?;
+        }
+        PURPOSE_PERIOD_FEE | PURPOSE_LATE_CANCEL | PURPOSE_RENTAL_ADVANCE | PURPOSE_RENTAL_SETTLEMENT =>
+            apply_legacy_payment(state, order_id, payment).await?,
+        _ => return Err(AppError::Conflict("Payment purpose requires reconciliation".into())),
+    }
+    Ok(())
 }
 
 fn captured_payment_id<'a>(

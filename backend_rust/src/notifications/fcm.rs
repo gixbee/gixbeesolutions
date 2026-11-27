@@ -14,6 +14,14 @@ use crate::state::AppState;
 
 const FCM_SCOPE: &str = "https://www.googleapis.com/auth/firebase.messaging";
 
+pub(crate) enum PushOutcome {
+    Accepted,
+    InvalidToken,
+    Rejected,
+    RetryAfter(u32),
+    Expired,
+}
+
 #[derive(Clone)]
 struct FcmCredentials {
     project_id: String,
@@ -147,15 +155,29 @@ impl FcmService {
         body: &str,
         data: Option<&[(&str, &str)]>,
     ) -> bool {
+        matches!(
+            self.send_tracked_push(fcm_token, title, body, data, None).await,
+            PushOutcome::Accepted
+        )
+    }
+
+    pub(crate) async fn send_tracked_push(
+        &self,
+        fcm_token: &str,
+        title: &str,
+        body: &str,
+        data: Option<&[(&str, &str)]>,
+        expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> PushOutcome {
         let creds = match &self.credentials {
             Some(c) => c,
-            None => return false,
+            None => return PushOutcome::Rejected,
         };
         let access = match self.access_token(creds).await {
             Ok(t) => t,
             Err(e) => {
                 error!("[FCM] token fetch failed: {e}");
-                return false;
+                return PushOutcome::RetryAfter(5);
             }
         };
 
@@ -201,25 +223,52 @@ impl FcmService {
             payload["message"]["android"]["notification"]["tag"] = json!(&id);
             payload["message"]["apns"]["headers"]["apns-collapse-id"] = json!(id);
         }
+        if let Some(expires_at) = expires_at {
+            let remaining = (expires_at - chrono::Utc::now()).num_seconds();
+            if remaining <= 0 {
+                return PushOutcome::Expired;
+            }
+            payload["message"]["android"]["ttl"] = json!(format!("{remaining}s"));
+            payload["message"]["apns"]["headers"]["apns-expiration"] = json!(expires_at.timestamp().to_string());
+        }
 
         let resp = self
             .http
             .post(&url)
             .bearer_auth(access)
             .json(&payload)
+            .timeout(Duration::from_secs(8))
             .send()
             .await;
         match resp {
-            Ok(r) if r.status().is_success() => true,
+            Ok(r) if r.status().is_success() => PushOutcome::Accepted,
             Ok(r) => {
                 let status = r.status();
-                let body = r.text().await.unwrap_or_default();
-                error!("[FCM] send failed: {} {}", status, body);
-                false
+                let retry_after = r.headers().get("retry-after").and_then(|v| v.to_str().ok())
+                    .and_then(|value| value.parse::<u32>().ok().or_else(|| {
+                        chrono::DateTime::parse_from_rfc2822(value).ok().map(|date|
+                            (date.timestamp() - chrono::Utc::now().timestamp()).clamp(0, 86_400) as u32
+                        )
+                    })).unwrap_or(0);
+                let body: Value = r.json().await.unwrap_or(Value::Null);
+                let unregistered = body.pointer("/error/details").and_then(Value::as_array)
+                    .is_some_and(|details| details.iter().any(|detail|
+                        detail["errorCode"].as_str() == Some("UNREGISTERED")
+                    ));
+                error!(%status, "[FCM] send failed");
+                if unregistered {
+                    PushOutcome::InvalidToken
+                } else if status.as_u16() == 429 {
+                    PushOutcome::RetryAfter(retry_after.max(60))
+                } else if status.is_server_error() || status.as_u16() == 408 {
+                    PushOutcome::RetryAfter(retry_after.max(5))
+                } else {
+                    PushOutcome::Rejected
+                }
             }
             Err(e) => {
                 error!("[FCM] HTTP error: {e}");
-                false
+                PushOutcome::RetryAfter(5)
             }
         }
     }
@@ -256,6 +305,7 @@ impl FcmService {
                 ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
                 ("assertion", &jwt),
             ])
+            .timeout(Duration::from_secs(6))
             .send()
             .await
             .map_err(|e| e.to_string())?;

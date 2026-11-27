@@ -45,7 +45,7 @@ async fn reconcile_recent_orders(state: &AppState) -> AppResult<()> {
                SELECT p.id FROM payment_orders p
                WHERE p.status='CREATED'
                  AND p."razorpayOrderId" IS NOT NULL
-                 AND p.purpose::text IN ('PERIOD_FEE','LATE_CANCEL_COMPENSATION','RENTAL_ADVANCE','RENTAL_SETTLEMENT')
+                 AND p.purpose::text = ANY($1)
                  AND p."createdAt">NOW()-INTERVAL '24 hours'
                  AND COALESCE(p."reconcileAfter",p."createdAt"+INTERVAL '2 minutes')<=NOW()
                  AND NOT EXISTS (SELECT 1 FROM outbox_events e WHERE e.id=p.id AND e.type='payment.captured')
@@ -55,6 +55,7 @@ async fn reconcile_recent_orders(state: &AppState) -> AppResult<()> {
            UPDATE payment_orders p SET "reconcileAfter"=NOW()+INTERVAL '1 hour'
            FROM candidate c WHERE p.id=c.id RETURNING p."razorpayOrderId""#,
     )
+    .bind(RECOVERABLE_PAYMENT_PURPOSES)
     .fetch_all(&state.db)
     .await?;
     stream::iter(orders)
@@ -67,7 +68,7 @@ async fn reconcile_recent_orders(state: &AppState) -> AppResult<()> {
     Ok(())
 }
 
-async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<()> {
+async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<bool> {
     let response = state.http
         .get(format!("https://api.razorpay.com/v1/orders/{order_id}/payments"))
         .basic_auth(state.config.razorpay_key_id.as_deref().unwrap_or(""), state.config.razorpay_key_secret.as_deref())
@@ -80,9 +81,80 @@ async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<()> {
     let payments = body["items"].as_array().ok_or_else(|| AppError::ServiceUnavailable("Missing Razorpay payment list".into()))?;
     if let Some(payment) = payments.iter().find(|p| p["status"].as_str() == Some("captured")
         && p["amount_refunded"].as_i64() == Some(0)) {
-        apply_legacy_payment(state, order_id, payment).await?;
+        queue_captured_order(state, order_id, payment).await?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+fn require_recovery_admin(user: &AuthUser) -> AppResult<()> {
+    require_admin(user)?;
+    if user.staff_role.as_deref() != Some("SUPER_ADMIN") {
+        return Err(AppError::Forbidden("Super admin access required".into()));
     }
     Ok(())
+}
+
+pub(super) async fn admin_recovery(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    require_recovery_admin(&user)?;
+    let rows = sqlx::query(
+        r#"SELECT p.id,p."razorpayOrderId",p.purpose::text AS purpose,p."createdAt",
+                  e.status AS "deliveryStatus",e."lastError",e.attempts
+           FROM payment_orders p LEFT JOIN outbox_events e ON e.id=p.id AND e.type='payment.captured'
+           WHERE p.status='CREATED' AND p.purpose::text=ANY($1)
+           ORDER BY (e.status IS NOT DISTINCT FROM 'failed') DESC,p."createdAt" DESC LIMIT 100"#,
+    ).bind(RECOVERABLE_PAYMENT_PURPOSES).fetch_all(&state.db).await?;
+    let items: Vec<Value> = rows.iter().map(|r| json!({
+        "id":r.get::<Uuid,_>("id"),
+        "razorpayOrderId":r.get::<Option<String>,_>("razorpayOrderId"),
+        "purpose":r.get::<String,_>("purpose"),
+        "createdAt":crate::common::pg::date_json(r,"createdAt"),
+        "deliveryStatus":r.get::<Option<String>,_>("deliveryStatus"),
+        "lastError":r.get::<Option<String>,_>("lastError"),
+        "attempts":r.get::<Option<i32>,_>("attempts"),
+    })).collect();
+    Ok(Json(json!({"items":items})))
+}
+
+pub(super) async fn admin_retry(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<Uuid>,
+) -> AppResult<Json<Value>> {
+    require_recovery_admin(&user)?;
+    let row = sqlx::query(
+        r#"SELECT p."razorpayOrderId",p.status::text AS status,e.status AS "deliveryStatus"
+           FROM payment_orders p LEFT JOIN outbox_events e ON e.id=p.id AND e.type='payment.captured'
+           WHERE p.id=$1 AND p.purpose::text=ANY($2)"#,
+    ).bind(id).bind(RECOVERABLE_PAYMENT_PURPOSES).fetch_optional(&state.db).await?
+        .ok_or_else(|| AppError::NotFound("Recoverable payment order not found".into()))?;
+    if row.get::<String,_>("status") != "CREATED" {
+        return Err(AppError::Conflict("Payment no longer needs fulfillment".into()));
+    }
+    match row.get::<Option<String>,_>("deliveryStatus").as_deref() {
+        Some("failed" | "processed") => {
+            sqlx::query(
+                r#"UPDATE outbox_events e SET status='pending',attempts=0,"availableAt"=NOW(),"processedAt"=NULL
+                   FROM payment_orders p WHERE e.id=$1 AND p.id=e.id AND p.status='CREATED'
+                     AND e.type='payment.captured' AND e.status IN ('failed','processed')"#,
+            ).bind(id).execute(&state.db).await?;
+        }
+        Some("pending" | "processing") => {}
+        _ => {
+            if !razorpay_configured(&state) {
+                return Err(AppError::ServiceUnavailable("Payment gateway is unavailable".into()));
+            }
+            let order_id = row.get::<Option<String>,_>("razorpayOrderId")
+                .ok_or_else(|| AppError::Conflict("Provider order is not attached. Resume checkout first.".into()))?;
+            if !reconcile_order(&state, &order_id).await? {
+                return Ok(Json(json!({"status":"no_eligible_capture"})));
+            }
+        }
+    }
+    Ok(Json(json!({"status":"queued"})))
 }
 
 pub(super) async fn pending(State(state):State<AppState>,user:AuthUser)->AppResult<Json<Vec<Value>>> {
@@ -127,17 +199,10 @@ pub(super) async fn verify(State(state):State<AppState>,user:AuthUser,Path(id):P
         || payment["amount"].as_i64().map(Decimal::from)!=Some(amount*Decimal::from(100)) {
         return Err(AppError::Conflict("Payment is not captured for this order and amount yet".into()));
     }
-    let meta:Option<Value>=order.get("meta");let purpose:String=order.get("purpose");let order_id:Uuid=order.get("id");
-    if matches!(purpose.as_str(), PURPOSE_PERIOD_FEE | PURPOSE_LATE_CANCEL | PURPOSE_RENTAL_ADVANCE | PURPOSE_RENTAL_SETTLEMENT) {
-        apply_legacy_payment(&state, &id, &payment).await?;
-        let status: String = sqlx::query_scalar("SELECT status::text FROM payment_orders WHERE id=$1")
-            .bind(order_id).fetch_one(&state.db).await?;
-        return Ok(Json(json!({"status": status})));
-    }
-    fulfil_order(&state,&id,&user.user_id,amount.to_i32().unwrap_or(0),&purpose,meta.as_ref(),order_id,Some(&input.payment_id)).await?;
-    sqlx::query(r#"UPDATE payment_orders SET status='CREDITED',"razorpayPaymentId"=$2,"updatedAt"=NOW() WHERE id=$1 AND status='CREATED'"#)
-        .bind(order_id).bind(&input.payment_id).execute(&state.db).await?;
-    Ok(Json(json!({"status":"CREDITED"})))
+    fulfil_captured_order(&state, &id, &payment).await?;
+    let status: String = sqlx::query_scalar("SELECT status::text FROM payment_orders WHERE id=$1")
+        .bind(order.get::<Uuid,_>("id")).fetch_one(&state.db).await?;
+    Ok(Json(json!({"status":status})))
 }
 
 async fn owned(state:&AppState,user:&AuthUser,id:&str)->AppResult<sqlx::postgres::PgRow> {

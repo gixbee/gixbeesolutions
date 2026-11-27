@@ -12,7 +12,7 @@ pub async fn handle(state: &AppState, event_type: &str, payload: &Value) -> Resu
         "payment.captured" => {
             let order_id = str_field(payload, "orderId")?;
             let payment = payload.get("payment").ok_or("Missing captured payment")?;
-            crate::payments::apply_legacy_payment(state, &order_id, payment)
+            crate::payments::fulfil_captured_order(state, &order_id, payment)
                 .await
                 .map_err(|error| error.to_string())
         }
@@ -61,21 +61,34 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         .filter_map(Value::as_str)
         .filter_map(|id| uuid::Uuid::parse_str(id).ok())
         .collect();
-    let notified_ok: Vec<String> = sqlx::query_scalar(
-        r#"SELECT o.worker_id::text FROM booking_offer_recipients o
+    let booking_uuid = uuid::Uuid::parse_str(&booking_id).map_err(|e| e.to_string())?;
+    sqlx::query(
+        r#"UPDATE booking_offer_recipients SET push_status='EXPIRED',push_retry_at=NULL
+           WHERE booking_id=$1 AND worker_id=ANY($2) AND expires_at<=NOW()
+             AND (push_status IS NULL OR push_status='RETRY')"#,
+    ).bind(booking_uuid).bind(&batch_ids).execute(&state.db).await.map_err(|e|e.to_string())?;
+    let recipients = sqlx::query(
+        r#"SELECT o.worker_id,o.expires_at,u."fcmToken",
+                  COALESCE(o.push_retry_at<=NOW(),true) AS due
+           FROM booking_offer_recipients o
            JOIN bookings b ON b.id=o.booking_id
+           JOIN users u ON u.id=o.worker_id
            WHERE o.booking_id=$1 AND o.worker_id=ANY($2) AND o.dismissed_at IS NULL
-             AND o.expires_at>NOW() AND b.status='REQUESTED' AND b."operatorId" IS NULL"#,
+             AND o.expires_at>NOW() AND b.status='REQUESTED' AND b."operatorId" IS NULL
+             AND (o.push_status IS NULL OR o.push_status='RETRY')"#,
     )
-    .bind(uuid::Uuid::parse_str(&booking_id).map_err(|e| e.to_string())?)
+    .bind(booking_uuid)
     .bind(batch_ids)
     .fetch_all(&state.db)
     .await
     .map_err(|e| e.to_string())?;
 
-    if notified_ok.is_empty() {
+    if recipients.is_empty() {
         return Ok(());
     }
+    use sqlx::Row;
+    let worker_ids: Vec<String> = recipients.iter()
+        .map(|row| row.get::<uuid::Uuid,_>("worker_id").to_string()).collect();
 
     if attempt == 1 {
         cache_and_emit(
@@ -115,7 +128,7 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
 
     let _ = tokio::time::timeout(
         OPTIONAL_REDIS_TIMEOUT,
-        futures::future::join_all(notified_ok.iter().map(|wid| {
+        futures::future::join_all(worker_ids.iter().map(|wid| {
             state.realtime.emit_to_user(wid, "new_booking_request", &socket_payload)
         })),
     )
@@ -175,18 +188,45 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         ("description", description.as_str()),
         ("preferredLanguages", preferred_languages.as_str()),
     ];
-    state
-        .fcm
-        .send_to_users(
-            state,
-            &notified_ok,
-            "New Job Request",
-            &format!("{} needs {} help nearby · ₹{}/hr", customer_name, skill, amount),
-            Some(&fcm_data),
-        )
-        .await;
-
-    Ok(())
+    use crate::notifications::PushOutcome;
+    use futures::{stream, StreamExt, TryStreamExt};
+    let message = format!("{customer_name} needs {skill} help nearby · ₹{amount}/hr");
+    let results: Vec<bool> = stream::iter(recipients.iter().map(|row| {
+        let message = &message;
+        let fcm_data = &fcm_data;
+        async move {
+            if !row.get::<bool,_>("due") {
+                return Ok(true);
+            }
+            let worker_id = row.get::<uuid::Uuid,_>("worker_id");
+            let expires_at = row.get::<chrono::DateTime<chrono::Utc>,_>("expires_at");
+            let token = row.get::<Option<String>,_>("fcmToken");
+            let (status, retry) = match token.as_deref().filter(|token| !token.is_empty()) {
+                Some(token) => match state.fcm.send_tracked_push(
+                    token, "New Job Request", message, Some(fcm_data), Some(expires_at),
+                ).await {
+                    PushOutcome::Accepted => ("ACCEPTED", None),
+                    PushOutcome::InvalidToken => ("INVALID_TOKEN", None),
+                    PushOutcome::Rejected => ("REJECTED", None),
+                    PushOutcome::Expired => ("EXPIRED", None),
+                    PushOutcome::RetryAfter(seconds) => ("RETRY", Some(seconds.min(86_400) as i32)),
+                },
+                None => ("MISSING_TOKEN", None),
+            };
+            sqlx::query(
+                r#"UPDATE booking_offer_recipients SET push_status=$3,push_attempted_at=NOW(),
+                         push_retry_at=NOW()+($4::integer * INTERVAL '1 second')
+                   WHERE booking_id=$1 AND worker_id=$2 AND (push_status IS NULL OR push_status='RETRY')"#,
+            ).bind(booking_uuid).bind(worker_id).bind(status).bind(retry)
+                .execute(&state.db).await.map_err(|error|error.to_string())?;
+            Ok::<bool,String>(retry.is_some())
+        }
+    })).buffer_unordered(8).try_collect().await?;
+    if results.into_iter().any(|retry|retry) {
+        Err("Some active booking offers still need push delivery".into())
+    } else {
+        Ok(())
+    }
 }
 
 async fn on_accepted(state: &AppState, p: &Value) -> Result<(), String> {
