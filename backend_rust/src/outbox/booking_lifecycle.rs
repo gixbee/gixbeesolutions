@@ -189,40 +189,61 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         ("preferredLanguages", preferred_languages.as_str()),
     ];
     use crate::notifications::PushOutcome;
-    use futures::{stream, StreamExt, TryStreamExt};
     let message = format!("{customer_name} needs {skill} help nearby · ₹{amount}/hr");
-    let results: Vec<bool> = stream::iter(recipients.iter().map(|row| {
-        let message = &message;
-        let fcm_data = &fcm_data;
-        async move {
-            if !row.get::<bool,_>("due") {
-                return Ok(true);
-            }
-            let worker_id = row.get::<uuid::Uuid,_>("worker_id");
-            let expires_at = row.get::<chrono::DateTime<chrono::Utc>,_>("expires_at");
-            let token = row.get::<Option<String>,_>("fcmToken");
-            let (status, retry) = match token.as_deref().filter(|token| !token.is_empty()) {
-                Some(token) => match state.fcm.send_tracked_push(
-                    token, "New Job Request", message, Some(fcm_data), Some(expires_at),
-                ).await {
-                    PushOutcome::Accepted => ("ACCEPTED", None),
-                    PushOutcome::InvalidToken => ("INVALID_TOKEN", None),
-                    PushOutcome::Rejected => ("REJECTED", None),
-                    PushOutcome::Expired => ("EXPIRED", None),
-                    PushOutcome::RetryAfter(seconds) => ("RETRY", Some(seconds.min(86_400) as i32)),
-                },
-                None => ("MISSING_TOKEN", None),
-            };
-            sqlx::query(
-                r#"UPDATE booking_offer_recipients SET push_status=$3,push_attempted_at=NOW(),
-                         push_retry_at=NOW()+($4::integer * INTERVAL '1 second')
-                   WHERE booking_id=$1 AND worker_id=$2 AND (push_status IS NULL OR push_status='RETRY')"#,
-            ).bind(booking_uuid).bind(worker_id).bind(status).bind(retry)
-                .execute(&state.db).await.map_err(|error|error.to_string())?;
-            Ok::<bool,String>(retry.is_some())
+    // Owned recipient fields so push work stays `Send` for the outbox poller task.
+    let jobs: Vec<(uuid::Uuid, chrono::DateTime<chrono::Utc>, Option<String>, bool)> = recipients
+        .iter()
+        .map(|row| {
+            (
+                row.get::<uuid::Uuid, _>("worker_id"),
+                row.get::<chrono::DateTime<chrono::Utc>, _>("expires_at"),
+                row.get::<Option<String>, _>("fcmToken"),
+                row.get::<bool, _>("due"),
+            )
+        })
+        .collect();
+    let mut needs_retry = false;
+    for (worker_id, expires_at, token, due) in jobs {
+        if !due {
+            continue;
         }
-    })).buffer_unordered(8).try_collect().await?;
-    if results.into_iter().any(|retry|retry) {
+        let (status, retry) = match token.as_deref().filter(|token| !token.is_empty()) {
+            Some(token) => match state
+                .fcm
+                .send_tracked_push(
+                    token,
+                    "New Job Request",
+                    &message,
+                    Some(&fcm_data),
+                    Some(expires_at),
+                )
+                .await
+            {
+                PushOutcome::Accepted => ("ACCEPTED", None),
+                PushOutcome::InvalidToken => ("INVALID_TOKEN", None),
+                PushOutcome::Rejected => ("REJECTED", None),
+                PushOutcome::Expired => ("EXPIRED", None),
+                PushOutcome::RetryAfter(seconds) => ("RETRY", Some(seconds.min(86_400) as i32)),
+            },
+            None => ("MISSING_TOKEN", None),
+        };
+        sqlx::query(
+            r#"UPDATE booking_offer_recipients SET push_status=$3,push_attempted_at=NOW(),
+                     push_retry_at=NOW()+($4::integer * INTERVAL '1 second')
+               WHERE booking_id=$1 AND worker_id=$2 AND (push_status IS NULL OR push_status='RETRY')"#,
+        )
+        .bind(booking_uuid)
+        .bind(worker_id)
+        .bind(status)
+        .bind(retry)
+        .execute(&state.db)
+        .await
+        .map_err(|error| error.to_string())?;
+        if retry.is_some() {
+            needs_retry = true;
+        }
+    }
+    if needs_retry {
         Err("Some active booking offers still need push delivery".into())
     } else {
         Ok(())
