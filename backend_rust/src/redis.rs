@@ -527,6 +527,76 @@ impl RedisStore {
             .await
     }
 
+    /// Batch status reads — missing keys default to available at the caller.
+    pub async fn mget_worker_statuses(
+        &self,
+        user_ids: &[String],
+    ) -> Result<std::collections::HashMap<String, String>> {
+        let mut out = std::collections::HashMap::new();
+        if user_ids.is_empty() {
+            return Ok(out);
+        }
+        let keys: Vec<String> = user_ids
+            .iter()
+            .map(|id| format!("worker:status:{id}"))
+            .collect();
+        let values = self.mget_strings(&keys).await?;
+        for (id, value) in user_ids.iter().zip(values.into_iter()) {
+            out.insert(
+                id.clone(),
+                value.unwrap_or_else(|| "available".to_string()),
+            );
+        }
+        Ok(out)
+    }
+
+    /// Batch location JSON reads for Instant Help matching.
+    pub async fn mget_worker_locations(
+        &self,
+        user_ids: &[String],
+    ) -> Result<std::collections::HashMap<String, (f64, f64)>> {
+        let mut out = std::collections::HashMap::new();
+        if user_ids.is_empty() {
+            return Ok(out);
+        }
+        let keys: Vec<String> = user_ids
+            .iter()
+            .map(|id| format!("worker:location:{id}"))
+            .collect();
+        let values = self.mget_strings(&keys).await?;
+        for (id, value) in user_ids.iter().zip(values.into_iter()) {
+            let Some(raw) = value else { continue };
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                if let (Some(lat), Some(lng)) = (v.get("lat").and_then(|x| x.as_f64()), v.get("lng").and_then(|x| x.as_f64())) {
+                    if lat.is_finite() && lng.is_finite() {
+                        out.insert(id.clone(), (lat, lng));
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    async fn mget_strings(&self, keys: &[String]) -> Result<Vec<Option<String>>> {
+        self.assert_fallback("mget")?;
+        if keys.is_empty() {
+            return Ok(vec![]);
+        }
+        if let Some(mut c) = self.conn() {
+            let mut cmd = redis::cmd("MGET");
+            for key in keys {
+                cmd.arg(key);
+            }
+            let values: Vec<Option<String>> = cmd.query_async(&mut c).await?;
+            return Ok(values);
+        }
+        let mut out = Vec::with_capacity(keys.len());
+        for key in keys {
+            out.push(self.get(key).await?);
+        }
+        Ok(out)
+    }
+
     pub async fn geo_add(&self, member: &str, lat: f64, lng: f64) -> Result<()> {
         self.assert_fallback("geoAdd")?;
         if let Some(mut c) = self.conn() {

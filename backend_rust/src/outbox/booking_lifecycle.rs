@@ -16,6 +16,9 @@ pub async fn handle(state: &AppState, event_type: &str, payload: &Value) -> Resu
                 .await
                 .map_err(|error| error.to_string())
         }
+        "payment.refund_required" => crate::payments::process_refund_required(state, payload)
+            .await
+            .map_err(|error| error.to_string()),
         "marketplace.notify" => {
             let uid = str_field(payload, "userId")?;
             // An account without a registered device still sees the durable offer/status in the app.
@@ -193,7 +196,7 @@ async fn on_accepted(state: &AppState, p: &Value) -> Result<(), String> {
     let operator_name = p.get("operatorName").and_then(|v| v.as_str());
     let arrival_otp = p.get("arrivalOtp").and_then(|v| v.as_str());
 
-    workers::set_worker_status(state, &worker_id, "busy").await;
+    workers::sync_worker_availability(state, &worker_id).await;
 
     cache_and_emit(
         state,
@@ -371,6 +374,10 @@ async fn on_cancelled(state: &AppState, p: &Value) -> Result<(), String> {
     )
     .await;
 
+    if let Some(op) = operator_id {
+        workers::sync_worker_availability(state, op).await;
+    }
+
     Ok(())
 }
 
@@ -392,7 +399,7 @@ async fn on_completed(state: &AppState, p: &Value) -> Result<(), String> {
     .await;
 
     if let Some(op) = p.get("operatorId").and_then(|v| v.as_str()) {
-        workers::set_worker_status(state, op, "available").await;
+        workers::sync_worker_availability(state, op).await;
     }
     Ok(())
 }

@@ -150,7 +150,7 @@ pub async fn publish_cancelled(
     )
     .await;
     if let Some(op) = operator_id {
-        workers::set_worker_status(state, op, "available").await;
+        workers::sync_worker_availability(state, op).await;
     }
 }
 

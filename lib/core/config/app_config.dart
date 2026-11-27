@@ -31,17 +31,19 @@ class AppConfig {
         host == '10.0.2.2'; // Android emulator → host machine
   }
 
-  /// Fail-closed for release/profile when API/socket URL is still loopback —
-  /// that makes every call fail on a real phone ("Could not send code").
+  /// True when [url] uses cleartext `http:` (not `https:`).
+  static bool isCleartextUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.scheme.isEmpty) return true;
+    return uri.scheme.toLowerCase() == 'http';
+  }
+
+  /// Fail-closed for release/profile when API/socket URL is still loopback
+  /// or cleartext HTTP. Debug `flutter run` keeps local HTTP working.
   ///
   /// Missing Razorpay is NOT a boot killer: it only breaks period-fee /
-  /// top-up checkouts. Throwing here before [runApp] left testers on a
-  /// full black screen with no UI. We warn instead; payment screens surface
-  /// their own errors when the key is still the placeholder.
-  ///
-  /// HTTP to a real host is allowed (current EC2 IP deploy); HTTPS is preferred
-  /// once a domain + TLS terminate in front of the API.
-  /// Debug `flutter run` keeps loopback for local backend work.
+  /// top-up checkouts. We warn instead; payment screens surface their own
+  /// errors when the key is still the placeholder.
   ///
   /// [isRelease] is overridable for unit tests; production callers omit it.
   static void assertReleaseNetworkConfig({bool? isRelease}) {
@@ -52,9 +54,19 @@ class AppConfig {
       throw StateError(
         'Release build refused to start: API_BASE_URL / SOCKET_URL must not '
         'be loopback (got API_BASE_URL=$baseUrl, SOCKET_URL=$socketUrl).\n'
-        'Rebuild with --dart-define=API_BASE_URL=http(s)://… '
-        '--dart-define=SOCKET_URL=http(s)://… '
+        'Rebuild with --dart-define=API_BASE_URL=https://… '
+        '--dart-define=SOCKET_URL=https://… '
         '(see build_apk.bat / gixbee_keys.bat).',
+      );
+    }
+
+    if (isCleartextUrl(baseUrl) || isCleartextUrl(socketUrl)) {
+      throw StateError(
+        'Release build refused to start: API_BASE_URL / SOCKET_URL must use '
+        'HTTPS (got API_BASE_URL=$baseUrl, SOCKET_URL=$socketUrl).\n'
+        'Point DNS at the MilesWeb TLS terminator and rebuild with '
+        '--dart-define=API_BASE_URL=https://api.your-domain… '
+        '--dart-define=SOCKET_URL=https://api.your-domain…',
       );
     }
 

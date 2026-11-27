@@ -593,22 +593,22 @@ struct OtpBody {
 
 async fn arrival_otp(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(id): Path<String>,
     Json(body): Json<OtpBody>,
 ) -> AppResult<Json<Value>> {
-    settlement::verify_arrival_otp(&state, &id, &body.otp)
+    settlement::verify_arrival_otp(&state, &id, &user.user_id, &body.otp)
         .await
         .map(Json)
 }
 
 async fn completion_otp(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(id): Path<String>,
     Json(body): Json<OtpBody>,
 ) -> AppResult<Json<Value>> {
-    settlement::verify_completion_otp(&state, &id, &body.otp)
+    settlement::verify_completion_otp(&state, &id, &user.user_id, &body.otp)
         .await
         .map(Json)
 }
@@ -1098,10 +1098,7 @@ async fn accept(
                 arrival_otp.as_deref(),
             ),
         ),
-        tokio::time::timeout(
-            OPTIONAL_REDIS_TIMEOUT,
-            workers::set_worker_status(&state, &worker_id_str, "busy"),
-        ),
+        workers::sync_worker_availability(&state, &worker_id_str),
     );
 
     if force_offline {
@@ -1266,9 +1263,12 @@ async fn mark_paid(
         ));
     }
 
-    let mut worker_confirmed = row.get::<bool, _>("workerPaidConfirmed");
-    let mut customer_confirmed = row.get::<bool, _>("customerPaidConfirmed");
-    let mut is_paid = row.get::<bool, _>("isPaid");
+    let prev_worker = row.get::<bool, _>("workerPaidConfirmed");
+    let prev_customer = row.get::<bool, _>("customerPaidConfirmed");
+    let prev_paid = row.get::<bool, _>("isPaid");
+    let mut worker_confirmed = prev_worker;
+    let mut customer_confirmed = prev_customer;
+    let mut is_paid = prev_paid;
 
     if is_worker {
         worker_confirmed = true;
@@ -1284,25 +1284,33 @@ async fn mark_paid(
         is_paid = true;
     }
 
-    sqlx::query(
-        r#"UPDATE bookings SET
-            "isPaid" = $1,
-            "workerPaidConfirmed" = $2,
-            "customerPaidConfirmed" = $3,
-            "workerHonestyCheck" = COALESCE($4, "workerHonestyCheck"),
-            "paymentCollectionMethod" = COALESCE($5, "paymentCollectionMethod"),
-            "customerSafetyCheck" = COALESCE($6, "customerSafetyCheck")
-           WHERE id = $7"#,
-    )
-    .bind(is_paid)
-    .bind(worker_confirmed)
-    .bind(customer_confirmed)
-    .bind(if is_worker { body.honestyCheck.as_deref() } else { None })
-    .bind(if is_customer { body.collectionMethod.as_deref() } else { None })
-    .bind(if is_customer { body.safetyCheck.as_deref() } else { None })
-    .bind(bid)
-    .execute(&mut *tx)
-    .await?;
+    let changed = worker_confirmed != prev_worker
+        || customer_confirmed != prev_customer
+        || is_paid != prev_paid
+        || (is_worker && body.honestyCheck.is_some())
+        || (is_customer && (body.collectionMethod.is_some() || body.safetyCheck.is_some()));
+
+    if changed {
+        sqlx::query(
+            r#"UPDATE bookings SET
+                "isPaid" = $1,
+                "workerPaidConfirmed" = $2,
+                "customerPaidConfirmed" = $3,
+                "workerHonestyCheck" = COALESCE($4, "workerHonestyCheck"),
+                "paymentCollectionMethod" = COALESCE($5, "paymentCollectionMethod"),
+                "customerSafetyCheck" = COALESCE($6, "customerSafetyCheck")
+               WHERE id = $7"#,
+        )
+        .bind(is_paid)
+        .bind(worker_confirmed)
+        .bind(customer_confirmed)
+        .bind(if is_worker { body.honestyCheck.as_deref() } else { None })
+        .bind(if is_customer { body.collectionMethod.as_deref() } else { None })
+        .bind(if is_customer { body.safetyCheck.as_deref() } else { None })
+        .bind(bid)
+        .execute(&mut *tx)
+        .await?;
+    }
 
     let operator_name: Option<String> = if let Some(op) = operator_id {
         sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
@@ -1313,24 +1321,28 @@ async fn mark_paid(
         None
     };
 
-    let outbox_payload = json!({
-        "bookingId": id,
-        "customerId": customer_id.to_string(),
-        "operatorId": operator_id.map(|u| u.to_string()),
-        "operatorName": operator_name,
-        "status": "COMPLETED",
-        "isPaid": is_paid,
-        "workerPaidConfirmed": worker_confirmed,
-        "customerPaidConfirmed": customer_confirmed,
-    });
-    sqlx::query(
-        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
-    )
-    .bind("booking.payment_confirmed")
-    .bind(bid)
-    .bind(outbox_payload)
-    .execute(&mut *tx)
-    .await?;
+    // Emit only when payment state advances — avoid duplicate settlement noise.
+    if changed && (is_paid != prev_paid || worker_confirmed != prev_worker || customer_confirmed != prev_customer)
+    {
+        let outbox_payload = json!({
+            "bookingId": id,
+            "customerId": customer_id.to_string(),
+            "operatorId": operator_id.map(|u| u.to_string()),
+            "operatorName": operator_name,
+            "status": "COMPLETED",
+            "isPaid": is_paid,
+            "workerPaidConfirmed": worker_confirmed,
+            "customerPaidConfirmed": customer_confirmed,
+        });
+        sqlx::query(
+            r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
+        )
+        .bind("booking.payment_confirmed")
+        .bind(bid)
+        .bind(outbox_payload)
+        .execute(&mut *tx)
+        .await?;
+    }
 
     tx.commit().await?;
 

@@ -44,11 +44,12 @@ Gixbee is an on-demand service platform consisting of three containerized/native
 When building the release APK, **do NOT rely on `build_apk.bat`** if running in environments subject to terminal encoding or interactive prompt issues. Instead, run the Flutter build command directly with the required `--dart-define` environment flags:
 
 ```powershell
-flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8mbNjXuEC30NmUy52rfi4 --dart-define=API_BASE_URL=http://103.102.234.152:3000 --dart-define=SOCKET_URL=http://103.102.234.152:3000
+flutter build apk --release --dart-define=OLA_MAPS_API_KEY=Vr2MnNlJ6LrLXTrkPOe8mbNjXuEC30NmUy52rfi4 --dart-define=API_BASE_URL=https://api.your-domain --dart-define=SOCKET_URL=https://api.your-domain
 ```
 
 - **Output Location**: `build\app\outputs\flutter-apk\app-release.apk`
-- **Fail-closed**: release/profile builds refuse to start if `API_BASE_URL` / `SOCKET_URL` are still loopback (`127.0.0.1` / `localhost` / `10.0.2.2`). Always pass the dart-defines above (or use `build_apk.bat`, which loads `gixbee_keys.bat`).
+- **Fail-closed**: release/profile builds refuse loopback **and** cleartext `http://` API/socket URLs. Complete [HTTPS_ROLLOUT.md](../docs/architecture/HTTPS_ROLLOUT.md) before shipping. Debug `flutter run` may still use local HTTP.
+- Until TLS is live on MilesWeb, do not ship a release APK against `http://103.102.234.152:3000`.
 - **Dependency Warnings Notice**: When `flutter pub get` or APK builds output `"X packages have newer versions incompatible with dependency constraints"`, **do NOT automatically run `flutter pub upgrade`**. In production, keep dependency version constraints locked in `pubspec.yaml` to ensure build stability unless an upgrade is explicitly requested by the user.
 
 ---

@@ -360,11 +360,38 @@ async fn load_nearby_for_dispatch(
     .fetch_all(&state.db)
     .await?;
 
+    // Bound Redis fan-out: one MGET for status + one MGET for locations.
+    const REDIS_BATCH: usize = 64;
+    let worker_ids: Vec<String> = rows
+        .iter()
+        .map(|r| r.get::<Uuid, _>("userId").to_string())
+        .collect();
+    let mut status_by_id = std::collections::HashMap::new();
+    let mut location_by_id = std::collections::HashMap::new();
+    for chunk in worker_ids.chunks(REDIS_BATCH) {
+        let statuses = state.redis.mget_worker_statuses(chunk).await?;
+        status_by_id.extend(statuses);
+        let locs = state.redis.mget_worker_locations(chunk).await?;
+        location_by_id.extend(locs);
+    }
+    let busy_db = busy_operator_ids(state, &uuids).await?;
+
     let stretch = radius_stretch.max(1.0);
     let mut in_radius = Vec::new();
     for row in &rows {
-        let worker_id = row.get::<Uuid, _>("userId").to_string();
-        let coords = if let Some(loc) = state.redis.get_worker_location(&worker_id).await? {
+        let worker_uuid = row.get::<Uuid, _>("userId");
+        let worker_id = worker_uuid.to_string();
+        if busy_db.contains(&worker_uuid) {
+            continue;
+        }
+        let status = status_by_id
+            .get(&worker_id)
+            .map(String::as_str)
+            .unwrap_or("available");
+        if status == "busy" {
+            continue;
+        }
+        let coords = if let Some(loc) = location_by_id.get(&worker_id).copied() {
             loc
         } else {
             let lat_dec = row
@@ -382,10 +409,6 @@ async fn load_nearby_for_dispatch(
         };
         let distance = haversine_km(lat, lng, coords.0, coords.1);
         if distance > MAX_DISPATCH_RADIUS_KM {
-            continue;
-        }
-        let status = state.redis.get_worker_status(&worker_id).await?;
-        if status == "busy" {
             continue;
         }
         let limit = row
@@ -551,11 +574,19 @@ async fn get_nearby(
         .map(|w| (w.id.clone(), w.distance_km))
         .collect();
 
+    let nearby_ids: Vec<String> = rows
+        .iter()
+        .map(|r| r.get::<Uuid, _>("userId").to_string())
+        .collect();
+    let status_by_id = state.redis.mget_worker_statuses(&nearby_ids).await?;
     let mut result = Vec::new();
     for row in &rows {
         let worker_id = row.get::<Uuid, _>("userId").to_string();
         let distance = distance_by_id.get(&worker_id).copied().unwrap_or(0.0);
-        let status = state.redis.get_worker_status(&worker_id).await?;
+        let status = status_by_id
+            .get(&worker_id)
+            .cloned()
+            .unwrap_or_else(|| "available".into());
         result.push(worker_nearby_json(row, distance, &status));
     }
 
@@ -1312,6 +1343,73 @@ pub async fn set_worker_status(state: &AppState, user_id: &str, status: &str) {
         state.redis.set_worker_status(user_id, status),
     )
     .await;
+}
+
+/// Derive Redis availability from current bookings + live eligibility.
+/// Delayed/repeated outbox events cannot free a busy worker or resurrect an offline one.
+pub async fn sync_worker_availability(state: &AppState, user_id: &str) {
+    let Ok(uid) = Uuid::parse_str(user_id) else {
+        return;
+    };
+    let busy = sqlx::query_scalar::<_, bool>(
+        r#"SELECT EXISTS(
+               SELECT 1 FROM bookings
+               WHERE "operatorId" = $1
+                 AND status::text IN ('ACCEPTED','ARRIVED','ACTIVE')
+           )"#,
+    )
+    .bind(uid)
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(false);
+    if busy {
+        set_worker_status(state, user_id, "busy").await;
+        return;
+    }
+
+    let is_live = sqlx::query_scalar::<_, bool>(
+        r#"SELECT COALESCE(w."isActive", false)
+           FROM worker_profiles w
+           WHERE w."userId" = $1"#,
+    )
+    .bind(uid)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or(false);
+    if !is_live {
+        return;
+    }
+
+    let has_presence = tokio::time::timeout(
+        crate::redis::OPTIONAL_REDIS_TIMEOUT,
+        state.redis.get_worker_location(user_id),
+    )
+    .await
+    .ok()
+    .and_then(Result::ok)
+    .flatten()
+    .is_some();
+    if has_presence {
+        set_worker_status(state, user_id, "available").await;
+    }
+}
+
+/// Operators currently on an Instant Help job — used when Redis status is missing/stale.
+pub async fn busy_operator_ids(state: &AppState, candidates: &[Uuid]) -> AppResult<HashSet<Uuid>> {
+    if candidates.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let rows: Vec<Uuid> = sqlx::query_scalar(
+        r#"SELECT DISTINCT "operatorId" FROM bookings
+           WHERE "operatorId" = ANY($1)
+             AND status::text IN ('ACCEPTED','ARRIVED','ACTIVE')"#,
+    )
+    .bind(candidates)
+    .fetch_all(&state.db)
+    .await?;
+    Ok(rows.into_iter().collect())
 }
 
 async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {

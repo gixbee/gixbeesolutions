@@ -102,57 +102,78 @@ pub async fn cache_and_emit_status(
 pub async fn verify_arrival_otp(
     state: &AppState,
     booking_id: &str,
+    caller_id: &str,
     otp: &str,
 ) -> AppResult<Value> {
     let bid = Uuid::parse_str(booking_id)?;
+    let caller = Uuid::parse_str(caller_id)?;
+    let mut tx = state.db.begin().await?;
     let row = sqlx::query(
         r#"SELECT status::text AS status, "arrivalOtp", "customerId", "operatorId"
-           FROM bookings WHERE id = $1"#,
+           FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
 
-    let expected = row.get::<Option<String>, _>("arrivalOtp");
-    if expected.as_deref() != Some(otp) {
-        return Err(AppError::BadRequest("Invalid arrival OTP".into()));
+    let operator_id = row
+        .try_get::<Option<Uuid>, _>("operatorId")
+        .ok()
+        .flatten();
+    if operator_id != Some(caller) {
+        return Err(AppError::Forbidden(
+            "Only the assigned pro can submit the arrival OTP".into(),
+        ));
     }
 
     let status = row.get::<String, _>("status");
+    if status == "ACTIVE" {
+        // Idempotent replay after a successful activate.
+        tx.commit().await?;
+        return Ok(json!({
+            "message": "Arrival confirmed. Job is now active.",
+            "status": "ACTIVE",
+        }));
+    }
     if status != "ACCEPTED" && status != "ARRIVED" {
         return Err(AppError::BadRequest(
             "Arrival OTP can only be verified after the pro has accepted / arrived.".into(),
         ));
     }
 
-    sqlx::query(
-        r#"UPDATE bookings SET status = 'ACTIVE', "startedAt" = NOW() WHERE id = $1"#,
+    let expected = row.get::<Option<String>, _>("arrivalOtp");
+    if expected.as_deref() != Some(otp) {
+        return Err(AppError::BadRequest("Invalid arrival OTP".into()));
+    }
+
+    let claim = sqlx::query(
+        r#"UPDATE bookings
+           SET status = 'ACTIVE', "startedAt" = COALESCE("startedAt", NOW())
+           WHERE id = $1 AND status::text IN ('ACCEPTED','ARRIVED')"#,
     )
     .bind(bid)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
+    if claim.rows_affected() == 0 {
+        tx.rollback().await?;
+        return Err(AppError::Conflict(
+            "This booking changed. Refresh and try again.".into(),
+        ));
+    }
 
     let customer_id = row.get::<Uuid, _>("customerId").to_string();
-    let operator_id = row
-        .try_get::<Option<Uuid>, _>("operatorId")
-        .ok()
-        .flatten()
-        .map(|u| u.to_string());
-    let operator_name: Option<String> = if let Some(op) = operator_id.as_ref() {
-        sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
-            .bind(Uuid::parse_str(op)?)
-            .fetch_optional(&state.db)
-            .await?
-    } else {
-        None
-    };
+    let operator_name: Option<String> = sqlx::query_scalar(r#"SELECT name FROM users WHERE id = $1"#)
+        .bind(caller)
+        .fetch_optional(&mut *tx)
+        .await?;
+    tx.commit().await?;
 
     cache_and_emit_status(
         state,
         booking_id,
         "ACTIVE",
-        operator_id.as_deref(),
+        Some(caller_id),
         operator_name.as_deref(),
         Some(&customer_id),
         None,
@@ -289,38 +310,61 @@ pub async fn notify_completion(
 pub async fn verify_completion_otp(
     state: &AppState,
     booking_id: &str,
+    caller_id: &str,
     otp: &str,
 ) -> AppResult<Value> {
     let bid = Uuid::parse_str(booking_id)?;
+    let caller = Uuid::parse_str(caller_id)?;
 
-    let booking = sqlx::query(
+    let mut tx = state.db.begin().await?;
+    let locked = sqlx::query(
         r#"SELECT status::text AS status, "completionOtp", type::text AS type, amount,
-                  "acceptDistanceKm", "startedAt", "paymentMethod", "customerId", "operatorId",
+                  "acceptDistanceKm", "petrolRatePerKm", "startedAt", "acceptedAt", "createdAt",
+                  "paymentMethod", "customerId", "operatorId",
                   "workerPaidConfirmed", "customerPaidConfirmed", "isPaid"
-           FROM bookings WHERE id = $1"#,
+           FROM bookings WHERE id = $1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
 
-    let expected = booking.get::<Option<String>, _>("completionOtp");
+    let operator_id = locked
+        .try_get::<Option<Uuid>, _>("operatorId")
+        .ok()
+        .flatten();
+    if operator_id != Some(caller) {
+        return Err(AppError::Forbidden(
+            "Only the assigned pro can submit the completion OTP".into(),
+        ));
+    }
+
+    let status = locked.get::<String, _>("status");
+    if status == "COMPLETED" {
+        // Already settled — do not rewrite billing or emit another settlement.
+        let is_paid = locked.get::<bool, _>("isPaid");
+        tx.commit().await?;
+        return Ok(json!({
+            "message": "Job completed successfully.",
+            "status": "COMPLETED",
+            "isPaid": is_paid,
+        }));
+    }
+
+    let expected = locked.get::<Option<String>, _>("completionOtp");
     if expected.as_deref() != Some(otp) {
         return Err(AppError::BadRequest("Invalid completion OTP".into()));
     }
-
-    if booking.get::<String, _>("status") != "ACTIVE" {
+    if status != "ACTIVE" {
         return Err(AppError::BadRequest("Job must be active to complete".into()));
     }
 
-    let booking_type = booking.get::<String, _>("type");
+    let booking_type = locked.get::<String, _>("type");
     let configured_petrol_rate = if booking_type == "INSTANT" {
         config_number(state, "instant_petrol_per_km", INSTANT_PETROL_PER_KM_DEFAULT).await
     } else {
         0.0
     };
-
-    let mut tx = state.db.begin().await?;
 
     let claim = sqlx::query(
         r#"UPDATE bookings SET status = 'COMPLETED', "completedAt" = NOW()
@@ -332,18 +376,10 @@ pub async fn verify_completion_otp(
 
     if claim.rows_affected() == 0 {
         tx.rollback().await?;
-        return Err(AppError::BadRequest("Job must be active to complete".into()));
+        return Err(AppError::Conflict(
+            "This booking changed. Refresh and try again.".into(),
+        ));
     }
-
-    let locked = sqlx::query(
-        r#"SELECT type::text AS type, amount, "acceptDistanceKm", "petrolRatePerKm", "startedAt",
-                  "acceptedAt", "createdAt", "paymentMethod",
-                  "customerId", "operatorId", "workerPaidConfirmed", "customerPaidConfirmed", "isPaid"
-           FROM bookings WHERE id = $1"#,
-    )
-    .bind(bid)
-    .fetch_one(&mut *tx)
-    .await?;
 
     let start_ms = crate::common::pg::timestamp_utc(&locked, "startedAt")
         .or_else(|| crate::common::pg::timestamp_utc(&locked, "acceptedAt"))
@@ -504,7 +540,7 @@ pub async fn verify_completion_otp(
     .await;
 
     if let Some(op) = operator_id {
-        workers::set_worker_status(state, &op.to_string(), "available").await;
+        workers::sync_worker_availability(state, &op.to_string()).await;
     }
 
     Ok(json!({

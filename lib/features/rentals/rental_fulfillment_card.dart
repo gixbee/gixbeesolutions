@@ -90,6 +90,11 @@ class _RentalFulfillmentCardState extends ConsumerState<RentalFulfillmentCard> {
         Text('Rental ${eventMoney(p['rent'])} · Delivery ${eventMoney(p['delivery'])}'),
         Text('Refundable deposit ${eventMoney(p['deposit'])}'),
         if (r['advanceAmount'] != null) Text('Advance ${eventMoney(r['advanceAmount'])}'),
+        if ('${p['refundStatus'] ?? ''}'.isNotEmpty)
+          Text(
+            'Advance refund: ${p['refundStatus']}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         Text('${p['depositTerms'] ?? ''}'),
       ],
       if (owner && (status == 'CONFIRMED' || status == 'ACTIVE')) ...[

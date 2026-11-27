@@ -25,6 +25,13 @@ void main() {
     });
   });
 
+  group('AppConfig.isCleartextUrl', () {
+    test('flags http and allows https', () {
+      expect(AppConfig.isCleartextUrl('http://api.example.com'), isTrue);
+      expect(AppConfig.isCleartextUrl('https://api.example.com'), isFalse);
+    });
+  });
+
   group('AppConfig.assertReleaseNetworkConfig', () {
     test('no-ops in non-release mode even with loopback defaults', () {
       expect(
