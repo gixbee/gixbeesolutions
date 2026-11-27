@@ -242,7 +242,7 @@ class _BusinessCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
-            if (business.status == 'VERIFIED')
+            if (business.status == 'VERIFIED') ...[
               _BizAction(
                 icon: Icons.workspace_premium_outlined,
                 label: 'Plans & billing',
@@ -251,6 +251,8 @@ class _BusinessCard extends ConsumerWidget {
                   builder: (_) => PlatformPlansScreen(family: business.type),
                 )),
               ),
+              const SizedBox(height: 10),
+            ],
             if (business.type == 'SERVICE')
               for (final service in const ['PHOTOGRAPHY', 'CATERING', 'DECORATION'])
                 if (business.serviceType == service || business.eventServices.contains(service)) ...[
@@ -261,7 +263,7 @@ class _BusinessCard extends ConsumerWidget {
                       'DECORATION' => 'Decoration catalogue',
                       _ => 'Photography catalogue',
                     },
-                    primary: true,
+                    primary: false,
                     onTap: () => Navigator.push(context, MaterialPageRoute<void>(
                       builder: (_) => EventServiceCatalogueScreen(business: business, service: service),
                     )),
@@ -539,7 +541,7 @@ class _BusinessCard extends ConsumerWidget {
                 },
               ),
             ] else ...[
-              _BizAction(icon: Icons.celebration_outlined, label: 'Event enquiries & bookings', primary: true,
+              _BizAction(icon: Icons.celebration_outlined, label: 'Event enquiries & bookings', primary: false,
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => EventPlansScreen(business: business)));
                 }),

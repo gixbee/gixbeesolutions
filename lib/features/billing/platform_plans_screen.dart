@@ -63,6 +63,14 @@ class _PlatformPlansScreenState extends ConsumerState<PlatformPlansScreen> {
   }
 
   Future<void> _buy(Map plan) async {
+    final action = '${plan['action'] ?? 'buy'}';
+    if (action == 'active' || action == 'included') {
+      showGxSnack(
+        context,
+        '${plan['hint'] ?? 'This plan is already covered.'}',
+      );
+      return;
+    }
     setState(() => _busy = true);
     try {
       final response = await ref.read(dioProvider).post(
@@ -95,7 +103,8 @@ class _PlatformPlansScreenState extends ConsumerState<PlatformPlansScreen> {
         'amount': order['amount'],
         'currency': order['currency'],
         'name': 'Gixbee',
-        'description': '${plan['name']} · ${plan['days']} days',
+        'description':
+            '${action == 'renew' ? 'Renew' : 'Buy'} ${plan['name']} · ${plan['days']} days',
         'prefill': {'contact': user?.phone ?? '', 'email': user?.email ?? ''},
       });
     } catch (error) {
@@ -137,12 +146,20 @@ class _PlatformPlansScreenState extends ConsumerState<PlatformPlansScreen> {
         _ => 'collecting hiring requests per business',
       };
 
+  String _buttonLabel(String action) => switch (action) {
+        'renew' => 'Renew',
+        'active' => 'Active',
+        'included' => 'Included',
+        _ => 'Choose',
+      };
+
   @override
   Widget build(BuildContext context) {
     final data = _catalogue;
     final plans = data?['plans'] as List? ?? [];
     final active = data?['active'] as List? ?? [];
     final trial = data?['trialDays'] as int? ?? 0;
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title:
@@ -177,11 +194,21 @@ class _PlatformPlansScreenState extends ConsumerState<PlatformPlansScreen> {
                 ],
                 if (data != null)
                   ListTile(
+                      contentPadding: EdgeInsets.zero,
                       title: const Text('Basic · Free'),
                       subtitle: Text('Up to ${data['basicCapacity']} $_unit')),
+                if (active.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text('Your active plans',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                ],
                 for (final grant in active)
                   ListTile(
-                    leading: const Icon(Icons.check_circle_outline),
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.check_circle,
+                        color: theme.colorScheme.primary),
                     title: Text(
                         '${grant['tier'] == 'PRO' ? 'Pro' : 'Standard'} active'),
                     subtitle:
@@ -192,26 +219,79 @@ class _PlatformPlansScreenState extends ConsumerState<PlatformPlansScreen> {
                     onPressed: _busy ? null : _trial,
                     child: Text('Try Pro free for $trial days'),
                   ),
+                if (plans.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text('Available plans',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                ],
                 for (final plan in plans.cast<Map>())
                   Card(
-                    child: ListTile(
-                      title: Text('${plan['name']} · ₹${plan['price']}'),
-                      subtitle: Text(
-                        '${plan['days']} days · ${plan['capacity'] == 0 ? 'Unlimited' : 'Up to ${plan['capacity']}'} $_unit'
-                        '${widget.family == 'CAREER' ? '\nPriority among eligible matches' : ''}'
-                        '${widget.family == 'SERVICE' ? '\nPriority placement in event listings' : ''}',
-                      ),
-                      trailing: FilledButton(
-                        onPressed: _busy ? null : () => _buy(plan),
-                        child: const Text('Choose'),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${plan['name']} · ₹${plan['price']}',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${plan['days']} days · ${plan['capacity'] == 0 ? 'Unlimited' : 'Up to ${plan['capacity']}'} $_unit'
+                                      '${widget.family == 'CAREER' ? '\nPriority among eligible matches' : ''}'
+                                      '${widget.family == 'SERVICE' ? '\nPriority placement in event listings' : ''}',
+                                    ),
+                                    if ('${plan['hint'] ?? ''}'.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${plan['hint']}',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton(
+                                onPressed: _busy ||
+                                        plan['action'] == 'active' ||
+                                        plan['action'] == 'included'
+                                    ? null
+                                    : () => _buy(plan),
+                                child: Text(_buttonLabel(
+                                    '${plan['action'] ?? 'buy'}')),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 if (plans.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
-                        'Pay once for the selected period. Renew whenever you need to.'),
+                      active.isEmpty
+                          ? 'Pay once for the selected period. Renew in the last 7 days if you want to extend.'
+                          : 'You already have an active plan. Renew only appears in the last 7 days before it ends.',
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ),
                 if (_busy) const LinearProgressIndicator(),
               ],

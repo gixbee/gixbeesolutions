@@ -38,6 +38,11 @@ class AppConfig {
     return uri.scheme.toLowerCase() == 'http';
   }
 
+  /// Transitional MilesWeb escape hatch until TLS cutover
+  /// (`docs/architecture/HTTPS_ROLLOUT.md`). Prefer HTTPS release builds.
+  static bool get allowCleartextApi =>
+      const bool.fromEnvironment('ALLOW_CLEARTEXT_API', defaultValue: false);
+
   /// Fail-closed for release/profile when API/socket URL is still loopback
   /// or cleartext HTTP. Debug `flutter run` keeps local HTTP working.
   ///
@@ -60,13 +65,16 @@ class AppConfig {
       );
     }
 
-    if (isCleartextUrl(baseUrl) || isCleartextUrl(socketUrl)) {
+    if (!allowCleartextApi &&
+        (isCleartextUrl(baseUrl) || isCleartextUrl(socketUrl))) {
       throw StateError(
         'Release build refused to start: API_BASE_URL / SOCKET_URL must use '
         'HTTPS (got API_BASE_URL=$baseUrl, SOCKET_URL=$socketUrl).\n'
         'Point DNS at the MilesWeb TLS terminator and rebuild with '
         '--dart-define=API_BASE_URL=https://api.your-domain… '
-        '--dart-define=SOCKET_URL=https://api.your-domain…',
+        '--dart-define=SOCKET_URL=https://api.your-domain…\n'
+        'Until TLS is live, transitional MilesWeb APKs may pass '
+        '--dart-define=ALLOW_CLEARTEXT_API=true.',
       );
     }
 

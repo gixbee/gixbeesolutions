@@ -121,14 +121,6 @@ async fn catalogue(
         None => 2,
     };
     let uid = Uuid::parse_str(&user.user_id)?;
-    let mut plans = Vec::new();
-    for plan in PLANS.iter().filter(|plan| plan.family == family) {
-        let (price, snapshot) = quote(&state, *plan).await?;
-        if price > 0 {
-            plans.push(json!({"code":plan.code,"name":plan.name,"price":price,
-                "days":snapshot["days"],"capacity":snapshot["capacity"]}));
-        }
-    }
     let rows = sqlx::query(
         "SELECT tier, MAX(valid_until) AS expiry FROM platform_plan_grants
          WHERE user_id=$1 AND family=$2 AND valid_until>NOW() GROUP BY tier ORDER BY tier",
@@ -146,6 +138,34 @@ async fn catalogue(
             })
         })
         .collect();
+    let pro_active = rows.iter().any(|row| row.get::<String, _>("tier") == "PRO");
+    let expiry_by_tier: std::collections::HashMap<String, chrono::DateTime<chrono::Utc>> = rows
+        .iter()
+        .map(|row| {
+            (
+                row.get::<String, _>("tier"),
+                row.get::<chrono::DateTime<chrono::Utc>, _>("expiry"),
+            )
+        })
+        .collect();
+    let mut plans = Vec::new();
+    for plan in PLANS.iter().filter(|plan| plan.family == family) {
+        let (price, snapshot) = quote(&state, *plan).await?;
+        if price <= 0 {
+            continue;
+        }
+        let (action, hint) = plan_offer_action(plan.tier, &expiry_by_tier, pro_active);
+        plans.push(json!({
+            "code": plan.code,
+            "name": plan.name,
+            "tier": plan.tier,
+            "price": price,
+            "days": snapshot["days"],
+            "capacity": snapshot["capacity"],
+            "action": action,
+            "hint": hint,
+        }));
+    }
     let mut trial_days = 0;
     if family == "CAREER" && active.is_empty() {
         let used: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM platform_plan_grants WHERE user_id=$1 AND family='CAREER')")
@@ -155,8 +175,47 @@ async fn catalogue(
         }
     }
     Ok(Json(
-        json!({"plans":plans,"basicCapacity":base_limit,"active":active,"trialDays":trial_days}),
+        json!({
+            "plans": plans,
+            "basicCapacity": base_limit,
+            "active": active,
+            "trialDays": trial_days,
+            "renewWindowDays": 7,
+        }),
     ))
+}
+
+fn plan_offer_action(
+    tier: &str,
+    expiry_by_tier: &std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>,
+    pro_active: bool,
+) -> (&'static str, String) {
+    if tier == "STANDARD" && pro_active {
+        return (
+            "included",
+            "Pro is already active, so Standard is included.".into(),
+        );
+    }
+    if let Some(until) = expiry_by_tier.get(tier) {
+        let renew_from = *until - chrono::Duration::days(7);
+        if chrono::Utc::now() < renew_from {
+            return (
+                "active",
+                format!(
+                    "Already active until {}. Renew in the last 7 days.",
+                    until.format("%d/%m/%Y %H:%M")
+                ),
+            );
+        }
+        return (
+            "renew",
+            format!(
+                "Renew to extend past {}.",
+                until.format("%d/%m/%Y %H:%M")
+            ),
+        );
+    }
+    ("buy", String::new())
 }
 
 async fn quote(state: &AppState, plan: Plan) -> AppResult<(i32, Value)> {
@@ -207,6 +266,44 @@ async fn checkout(
         return Err(AppError::Conflict(
             "Plan details changed. Reopen Plans to see the current offer.".into(),
         ));
+    }
+    let uid = Uuid::parse_str(&user.user_id)?;
+    // Block same-tier repurchase while the grant still has more than 7 days left.
+    // Within that window, checkout is treated as a renewal that extends validity.
+    let active_until: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar(
+        "SELECT MAX(valid_until) FROM platform_plan_grants
+         WHERE user_id=$1 AND family=$2 AND tier=$3 AND valid_until>NOW()",
+    )
+    .bind(uid)
+    .bind(plan.family)
+    .bind(plan.tier)
+    .fetch_one(&state.db)
+    .await?;
+    if let Some(until) = active_until {
+        let renew_from = until - chrono::Duration::days(7);
+        if chrono::Utc::now() < renew_from {
+            return Err(AppError::Conflict(format!(
+                "Your {} plan is already active until {}. Renew in the last 7 days.",
+                plan.name,
+                until.format("%d/%m/%Y %H:%M")
+            )));
+        }
+    }
+    // Pro already covers Standard capacity — don't sell Standard while Pro is live.
+    if plan.tier == "STANDARD" {
+        let pro_active: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM platform_plan_grants
+             WHERE user_id=$1 AND family=$2 AND tier='PRO' AND valid_until>NOW())",
+        )
+        .bind(uid)
+        .bind(plan.family)
+        .fetch_one(&state.db)
+        .await?;
+        if pro_active {
+            return Err(AppError::Conflict(
+                "Pro is already active for this category, so Standard is included.".into(),
+            ));
+        }
     }
     crate::payments::create_razorpay_order(&state, &user.user_id, PURPOSE, price, Some(snapshot))
         .await
