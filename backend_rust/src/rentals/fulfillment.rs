@@ -19,7 +19,7 @@ pub(super) async fn change(state:&AppState,user:&AuthUser,id:&str,action:&str)->
     let status=r.get::<String,_>("status");
     let timestamp=|key:&str|r.get::<Option<DateTime<Utc>>,_>(key).is_some();
     let returned=timestamp("ownerReturnedAt")&&timestamp("renterReturnedAt");
-    let column=match action {
+    let (column, counterpart_column, notification)=match action {
         "handover"=>{
             if !["CONFIRMED","ACTIVE"].contains(&status.as_str()) || returned {
                 return Err(AppError::Conflict("Handover requires a confirmed rental".into()));
@@ -27,17 +27,29 @@ pub(super) async fn change(state:&AppState,user:&AuthUser,id:&str,action:&str)->
             if r.get::<chrono::NaiveDateTime,_>("startTime")>Utc::now().naive_utc() || r.get::<chrono::NaiveDateTime,_>("endTime")<=Utc::now().naive_utc() {
                 return Err(AppError::Conflict("Handover must take place within the reserved time".into()));
             }
-            if is_owner {"ownerHandedOverAt"} else {"renterCollectedAt"}
+            if is_owner {
+                ("ownerHandedOverAt", "renterCollectedAt", "Confirm when you collect the rental.")
+            } else {
+                ("renterCollectedAt", "ownerHandedOverAt", "Confirm when you hand over the rental.")
+            }
         },
         "return"=>{
             if !["CONFIRMED","ACTIVE"].contains(&status.as_str()) || (!timestamp("ownerHandedOverAt")&&!timestamp("renterCollectedAt")) {
                 return Err(AppError::Conflict("The item has not been handed over".into()));
             }
-            if is_owner {"ownerReturnedAt"} else {"renterReturnedAt"}
+            if is_owner {
+                ("ownerReturnedAt", "renterReturnedAt", "Confirm that you returned the rental.")
+            } else {
+                ("renterReturnedAt", "ownerReturnedAt", "Confirm that you received the returned rental.")
+            }
         },
         "payment"=>{
             if !["CONFIRMED","ACTIVE","RETURN_PENDING"].contains(&status.as_str()) {return Err(AppError::Conflict("Payment acknowledgement requires a confirmed rental".into()));}
-            if is_owner {"ownerPaidAt"} else {"renterPaidAt"}
+            if is_owner {
+                ("ownerPaidAt", "renterPaidAt", "Confirm your rental payment in the app.")
+            } else {
+                ("renterPaidAt", "ownerPaidAt", "Review the rental payment and confirm receipt.")
+            }
         },
         "refund"=>{
             let paid=timestamp("ownerPaidAt")||timestamp("renterPaidAt");
@@ -47,7 +59,11 @@ pub(super) async fn change(state:&AppState,user:&AuthUser,id:&str,action:&str)->
             if !paid || !(status=="CANCELLED" || (returned && deposit>Decimal::ZERO)) {
                 return Err(AppError::Conflict("No recorded payment is due for refund yet".into()));
             }
-            if is_owner {"ownerRefundedAt"} else {"renterRefundedAt"}
+            if is_owner {
+                ("ownerRefundedAt", "renterRefundedAt", "Confirm once you receive your rental refund.")
+            } else {
+                ("renterRefundedAt", "ownerRefundedAt", "Review the refund and confirm on your side.")
+            }
         },
         _=>return Err(AppError::BadRequest("Unknown rental acknowledgement".into())),
     };
@@ -65,9 +81,17 @@ pub(super) async fn change(state:&AppState,user:&AuthUser,id:&str,action:&str)->
         AND "ownerPaidAt" IS NOT NULL AND "renterPaidAt" IS NOT NULL
         AND (COALESCE(("priceBreakdown"->>'deposit')::numeric,0)=0 OR ("ownerRefundedAt" IS NOT NULL AND "renterRefundedAt" IS NOT NULL))"#)
         .bind(id).execute(&mut *tx).await?;
-    crate::outbox::notify(&mut tx,id,if is_owner {renter} else {owner},"Rental update",
-        "A participant updated handover, return or payment. Review your rental to acknowledge your side.",
-        json!({"type":"rental_status","reservationId":id,"audience":if is_owner {"renter"} else {"owner"}})).await?;
+    let counterpart = if is_owner { renter } else { owner };
+    if counterpart != uid && !timestamp(column) && !timestamp(counterpart_column) {
+        crate::outbox::notify(
+            &mut tx,
+            id,
+            counterpart,
+            "Rental confirmation needed",
+            notification,
+            json!({"type":"rental_status","reservationId":id,"audience":if is_owner {"renter"} else {"owner"}}),
+        ).await?;
+    }
     let row=sqlx::query(&format!("SELECT {RENTAL_RESERVATION_COLS} FROM rental_reservations WHERE id=$1"))
         .bind(id).fetch_one(&mut *tx).await?;
     tx.commit().await?;Ok(Json(reservation_json(&row)))

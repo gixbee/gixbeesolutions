@@ -702,9 +702,16 @@ async fn interest_decision(
     let changed = changed.ok_or_else(|| {
         AppError::BadRequest("Candidate is unavailable or this decision is not allowed".into())
     })?;
-    crate::outbox::notify(&mut tx,changed.get("requestId"),changed.get("candidateId"),"Hiring status update",
-        &format!("Your application status is now {}.",body.decision.to_lowercase()),
-        json!({"type":"hiring_status","requestId":changed.get::<Uuid,_>("requestId"),"decision":body.decision})).await?;
+    if body.decision == "REJECTED" {
+        crate::outbox::notify(
+            &mut tx,
+            changed.get("requestId"),
+            changed.get("candidateId"),
+            "Hiring status update",
+            "You were not selected for this opening.",
+            json!({"type":"hiring_status","requestId":changed.get::<Uuid,_>("requestId"),"decision":body.decision}),
+        ).await?;
+    }
     tx.commit().await?;
     Ok(Json(json!({ "status": body.decision })))
 }

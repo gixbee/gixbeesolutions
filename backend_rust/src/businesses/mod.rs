@@ -620,15 +620,6 @@ async fn set_hall_unavailable_day(
         )
         .await?;
         bump_hall_caches(tx, business_id, None).await?;
-        crate::outbox::notify(
-            tx,
-            business_id,
-            actor,
-            "Calendar updated",
-            "A calendar block was added.",
-            json!({"type": "hall_calendar_update", "businessId": business_id, "blockId": id}),
-        )
-        .await?;
     } else {
         let ids: Vec<Uuid> = sqlx::query_scalar(
             r#"UPDATE hall_calendar_blocks

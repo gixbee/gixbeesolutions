@@ -379,20 +379,6 @@ pub(super) async fn acknowledge(
         })
         .execute(&mut *tx)
         .await?;
-
-        crate::outbox::notify(
-            &mut tx,
-            context.plan_id,
-            if context.customer { context.vendor_id } else { context.customer_id },
-            "Event milestone acknowledged",
-            if context.customer {
-                "The customer acknowledged a direct payment or deliverable."
-            } else {
-                "The vendor acknowledged a direct payment or deliverable."
-            },
-            json!({"type":"event_update","planId":context.plan_id}),
-        )
-        .await?;
     }
     let item: Value = sqlx::query_scalar(
         r#"SELECT to_jsonb(m) || jsonb_build_object('overdue',

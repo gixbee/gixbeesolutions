@@ -99,27 +99,6 @@ pub async fn rebroadcast_booking(
         .realtime
         .emit_to_user(&customer_id, "booking_search_expanded", &search_payload)
         .await;
-    let body = if fresh_ids.is_empty() {
-        "We expanded the search area — still looking for an available pro.".to_string()
-    } else {
-        format!(
-            "We expanded the search area and notified {} more {} pro{}.",
-            fresh_ids.len(),
-            skill,
-            if fresh_ids.len() == 1 { "" } else { "s" }
-        )
-    };
-    state
-        .fcm
-        .send_to_user(
-            state,
-            &customer_id,
-            "Still searching…",
-            &body,
-            Some(&[("type", "booking_search_expanded"), ("bookingId", booking_id)]),
-        )
-        .await;
-
     if fresh_ids.is_empty() {
         return Ok((true, 0));
     }

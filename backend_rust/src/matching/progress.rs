@@ -108,6 +108,14 @@ pub(super) async fn action(
         }
     }
     let mut progress: Value = interest.get("progress");
+    let notify_counterpart = match action.as_str() {
+        "invite" => progress["invited"].as_bool() != Some(true),
+        "request-contact" => progress["contactRequested"].as_bool() != Some(true),
+        "joined" => progress["employerJoinedAt"].is_null() && progress["candidateJoinedAt"].is_null(),
+        "accept-invite" | "interview" | "accept-interview" | "decline-interview"
+        | "offer" | "accept-offer" | "decline-offer" | "withdraw" => true,
+        _ => false,
+    };
     let stage = progress
         .get("stage")
         .and_then(Value::as_str)
@@ -338,7 +346,7 @@ pub(super) async fn action(
     .bind(iid)
     .execute(&mut *tx)
     .await?;
-    if action != "view" {
+    if notify_counterpart {
         crate::outbox::notify(
             &mut tx,
             request_id,

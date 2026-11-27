@@ -562,15 +562,6 @@ async fn assign_hall(
     )
     .await?;
     bump_hall_caches(&mut tx, business_id, Some(body.hall_id)).await?;
-    crate::outbox::notify(
-        &mut tx,
-        enquiry_id,
-        uid,
-        "Hall assigned",
-        "An enquiry was assigned to a hall. Send a quote to the customer.",
-        json!({"type": "hall_enquiry_update", "enquiryId": enquiry_id, "hallId": body.hall_id, "status": "ASSIGNED"}),
-    )
-    .await?;
     tx.commit().await?;
     Ok(Json(json!({
         "status": "ASSIGNED",

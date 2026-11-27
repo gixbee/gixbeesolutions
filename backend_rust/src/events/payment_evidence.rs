@@ -5,7 +5,7 @@ use axum::{
 };
 use sha2::{Digest, Sha256};
 use sqlx::Row;
-use super::commerce_common::{access, active, milestone, notify_other};
+use super::commerce_common::{access, active, milestone};
 
 const MAX_RECEIPT: usize = 5 * 1024 * 1024;
 
@@ -104,8 +104,6 @@ pub(super) async fn upload(
     ).bind(file_id).bind(id).bind(milestone_id).bind(report_id)
     .bind(&name).bind(mime).bind(&bytes).bind(&hash).bind(uid)
     .execute(&mut *tx).await?;
-    notify_other(&mut tx,&context,"Payment receipt attached",
-        "A customer supplied additional payment evidence for review.").await?;
     tx.commit().await?;
     Ok(Json(json!({"id":file_id,"reportId":report_id,"fileName":name,"sha256":hash})))
 }

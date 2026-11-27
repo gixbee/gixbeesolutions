@@ -614,16 +614,5 @@ pub async fn refresh_completion_otp(
         .execute(&state.db)
         .await?;
 
-    state
-        .fcm
-        .send_to_user(
-            state,
-            customer_user_id,
-            "Completion OTP refreshed",
-            &format!("Completion OTP: {}. Enter this to confirm and close the job.", new_otp),
-            None,
-        )
-        .await;
-
     Ok(json!({ "message": "Completion OTP refreshed", "completionOtp": new_otp }))
 }

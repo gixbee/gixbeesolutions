@@ -370,15 +370,6 @@ async fn create_hall(
     )
     .await?;
     bump_hall_caches(&mut tx, business_id, Some(id)).await?;
-    crate::outbox::notify(
-        &mut tx,
-        business_id,
-        uid,
-        "Hall added",
-        &format!("Hall \"{name}\" was added to your venue."),
-        json!({"type": "hall_update", "businessId": business_id, "hallId": id}),
-    )
-    .await?;
     tx.commit().await?;
     get_hall(State(state), user, Path((business_id, id))).await
 }
@@ -510,15 +501,6 @@ async fn archive_hall(
     )
     .await?;
     bump_hall_caches(&mut tx, business_id, Some(hall_id)).await?;
-    crate::outbox::notify(
-        &mut tx,
-        business_id,
-        uid,
-        "Hall archived",
-        "A hall was archived and removed from the active list.",
-        json!({"type": "hall_update", "businessId": business_id, "hallId": hall_id}),
-    )
-    .await?;
     tx.commit().await?;
     Ok(Json(json!({"archived": true, "hallId": hall_id})))
 }
@@ -627,15 +609,6 @@ async fn put_package(
     )
     .await?;
     bump_hall_caches(&mut tx, business_id, Some(hall_id)).await?;
-    crate::outbox::notify(
-        &mut tx,
-        business_id,
-        uid,
-        "Package saved",
-        "Hall price and package settings were updated.",
-        json!({"type": "hall_package", "businessId": business_id, "hallId": hall_id, "revision": next_rev}),
-    )
-    .await?;
     tx.commit().await?;
     Ok(Json(json!({
         "packageSaved": true,
@@ -1070,15 +1043,6 @@ async fn create_block_inner(
     )
     .await?;
     bump_hall_caches(&mut tx, business_id, hall_id).await?;
-    crate::outbox::notify(
-        &mut tx,
-        business_id,
-        uid,
-        "Calendar updated",
-        "A calendar block was added.",
-        json!({"type": "hall_calendar_update", "businessId": business_id, "hallId": hall_id, "blockId": id}),
-    )
-    .await?;
     tx.commit().await?;
     Ok(Json(json!({"id": id, "releasedAt": null})))
 }
@@ -1131,15 +1095,6 @@ async fn release_block(
     )
     .await?;
     bump_hall_caches(&mut tx, business_id, hall_id).await?;
-    crate::outbox::notify(
-        &mut tx,
-        business_id,
-        uid,
-        "Calendar updated",
-        "A calendar block was released.",
-        json!({"type": "hall_calendar_update", "businessId": business_id, "blockId": block_id}),
-    )
-    .await?;
     tx.commit().await?;
     Ok(Json(json!({"id": block_id, "released": true})))
 }

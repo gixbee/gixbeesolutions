@@ -249,19 +249,17 @@ pub async fn verify_otp(
         .execute(&mut *tx)
         .await?;
     }
-    crate::outbox::notify(
-        &mut tx,
-        rid,
-        row.get("renterId"),
-        "Rental update",
-        if kind == "handover" {
-            "Handover OTP verified. The rental is now active."
-        } else {
-            "Return OTP verified. Complete settlement to close the rental."
-        },
-        json!({"type":"rental_status","reservationId":rid,"audience":"renter"}),
-    )
-    .await?;
+    if kind == "return" && row.get::<Option<DateTime<Utc>>, _>("renterPaidAt").is_none() {
+        crate::outbox::notify(
+            &mut tx,
+            rid,
+            row.get("renterId"),
+            "Rental settlement needed",
+            "Return OTP verified. Complete settlement to close the rental.",
+            json!({"type":"rental_status","reservationId":rid,"audience":"renter"}),
+        )
+        .await?;
+    }
     let out = sqlx::query(&format!(
         r#"SELECT {RENTAL_RESERVATION_COLS} FROM rental_reservations WHERE id = $1"#
     ))
