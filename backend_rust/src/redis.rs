@@ -8,6 +8,8 @@ use crate::config::Config;
 
 const GEO_INDEX: &str = "workers:geo";
 const SKILL_INDEX_PREFIX: &str = "skill:index:";
+pub(crate) const OPTIONAL_REDIS_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_millis(250);
 
 #[derive(Debug, Clone)]
 pub struct WorkerLocationSnapshot {

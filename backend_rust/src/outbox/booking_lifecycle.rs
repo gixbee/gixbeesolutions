@@ -1,6 +1,7 @@
 use serde_json::{json, Value};
 use tracing::error;
 
+use crate::redis::OPTIONAL_REDIS_TIMEOUT;
 use crate::state::AppState;
 use crate::workers;
 
@@ -39,18 +40,29 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
     let customer_id = str_field(p, "customerId")?;
     let attempt = p.get("attempt").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
     let arrival_otp = str_field(p, "arrivalOtp")?;
-    let completion_otp = str_field(p, "completionOtp")?;
+    let batch_ids: Vec<uuid::Uuid> = p
+        .get("notifiedWorkerIds")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter_map(|id| uuid::Uuid::parse_str(id).ok())
+        .collect();
+    let notified_ok: Vec<String> = sqlx::query_scalar(
+        r#"SELECT o.worker_id::text FROM booking_offer_recipients o
+           JOIN bookings b ON b.id=o.booking_id
+           WHERE o.booking_id=$1 AND o.worker_id=ANY($2) AND o.dismissed_at IS NULL
+             AND o.expires_at>NOW() AND b.status='REQUESTED' AND b."operatorId" IS NULL"#,
+    )
+    .bind(uuid::Uuid::parse_str(&booking_id).map_err(|e| e.to_string())?)
+    .bind(batch_ids)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| e.to_string())?;
 
-    state
-        .redis
-        .save_otp(&format!("otp:booking:{}:arrival", booking_id), &arrival_otp)
-        .await
-        .map_err(|e| e.to_string())?;
-    state
-        .redis
-        .save_otp(&format!("otp:booking:{}:completion", booking_id), &completion_otp)
-        .await
-        .map_err(|e| e.to_string())?;
+    if notified_ok.is_empty() {
+        return Ok(());
+    }
 
     if attempt == 1 {
         cache_and_emit(
@@ -65,31 +77,6 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
             }),
         )
         .await;
-    }
-
-    let notified_ids: Vec<String> = p
-        .get("notifiedWorkerIds")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let mut notified_ok = Vec::new();
-    for wid in &notified_ids {
-        if state
-            .redis
-            .add_pending_booking(wid, &booking_id)
-            .await
-            .is_ok()
-        {
-            notified_ok.push(wid.clone());
-        }
-    }
-    if notified_ok.is_empty() {
-        return Ok(());
     }
 
     let notified_at = p
@@ -113,12 +100,13 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         "attempt": attempt,
     });
 
-    for wid in &notified_ok {
-        state
-            .realtime
-            .emit_to_user(wid, "new_booking_request", &socket_payload)
-            .await;
-    }
+    let _ = tokio::time::timeout(
+        OPTIONAL_REDIS_TIMEOUT,
+        futures::future::join_all(notified_ok.iter().map(|wid| {
+            state.realtime.emit_to_user(wid, "new_booking_request", &socket_payload)
+        })),
+    )
+    .await;
 
     let customer_name = p
         .get("customerName")
@@ -184,27 +172,6 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         )
         .await;
 
-    let existing = if attempt > 1 {
-        get_notified_worker_ids(state, &booking_id).await
-    } else {
-        vec![]
-    };
-    let merged: Vec<String> = existing
-        .into_iter()
-        .chain(notified_ok.into_iter())
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    state
-        .redis
-        .set(
-            &format!("booking:notified:{}", booking_id),
-            &serde_json::to_string(&merged).unwrap_or("[]".to_string()),
-            60 * 60,
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-
     Ok(())
 }
 
@@ -216,7 +183,6 @@ async fn on_accepted(state: &AppState, p: &Value) -> Result<(), String> {
     let arrival_otp = p.get("arrivalOtp").and_then(|v| v.as_str());
 
     workers::set_worker_status(state, &worker_id, "busy").await;
-    let _ = state.redis.remove_pending_booking(&worker_id, &booking_id).await;
 
     cache_and_emit(
         state,
@@ -230,8 +196,6 @@ async fn on_accepted(state: &AppState, p: &Value) -> Result<(), String> {
         }),
     )
     .await;
-
-    clear_all_notified_pending(state, &booking_id).await;
 
     let cancelled_customer_ids: Vec<String> = p
         .get("cancelledCustomerIds")
@@ -257,10 +221,6 @@ async fn on_accepted(state: &AppState, p: &Value) -> Result<(), String> {
         .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
         .unwrap_or_default();
     for cancelled_id in &cancelled_booking_ids {
-        let _ = state
-            .redis
-            .remove_pending_booking(&worker_id, cancelled_id)
-            .await;
         cache_and_emit(
             state,
             cancelled_id,
@@ -316,7 +276,6 @@ async fn on_cancelled(state: &AppState, p: &Value) -> Result<(), String> {
     let operator_name = p.get("operatorName").and_then(|v| v.as_str());
 
     if let Some(op) = operator_id {
-        let _ = state.redis.remove_pending_booking(op, &booking_id).await;
         if source == "customer" || source == "WORKER_NO_PROGRESS" {
             let body = if source == "WORKER_NO_PROGRESS" {
                 "The customer cancelled — GPS showed you were not heading to the job."
@@ -340,7 +299,6 @@ async fn on_cancelled(state: &AppState, p: &Value) -> Result<(), String> {
     }
 
     let notified = get_notified_worker_ids(state, &booking_id).await;
-    clear_all_notified_pending(state, &booking_id).await;
 
     let extras: Vec<String> = p
         .get("notifyWorkerIds")
@@ -448,7 +406,6 @@ async fn on_payment_confirmed(state: &AppState, p: &Value) -> Result<(), String>
 }
 
 async fn cache_and_emit(state: &AppState, booking_id: &str, payload: Value) {
-    let _ = state.redis.cache_booking_status(booking_id, &payload).await;
     let status = payload
         .get("status")
         .and_then(|v| v.as_str())
@@ -456,61 +413,51 @@ async fn cache_and_emit(state: &AppState, booking_id: &str, payload: Value) {
         .to_uppercase();
     let customer_id = payload.get("customerId").and_then(|v| v.as_str());
     let operator_id = payload.get("operatorId").and_then(|v| v.as_str());
-    let arrival_otp = payload.get("arrivalOtp").cloned();
-
-    if let Some(cid) = customer_id {
-        let mut customer_payload = payload.clone();
-        if let Some(obj) = customer_payload.as_object_mut() {
-            obj.insert("bookingId".into(), json!(booking_id));
-            obj.insert("id".into(), json!(booking_id));
-            let otp = if status == "ACCEPTED" || status == "ARRIVED" {
-                arrival_otp
-            } else {
-                None
-            };
-            obj.insert("arrivalOtp".into(), otp.unwrap_or(Value::Null));
+    let customer_update = async {
+        if let Some(cid) = customer_id {
+            let mut customer_payload = payload.clone();
+            customer_payload["bookingId"] = json!(booking_id);
+            customer_payload["id"] = json!(booking_id);
+            if status != "ACCEPTED" && status != "ARRIVED" {
+                customer_payload["arrivalOtp"] = Value::Null;
+            }
+            state
+                .realtime
+                .emit_to_user(cid, "booking_status_update", &customer_payload)
+                .await;
         }
-        state
-            .realtime
-            .emit_to_user(cid, "booking_status_update", &customer_payload)
-            .await;
-    }
-    if let Some(oid) = operator_id {
-        let mut worker_payload = payload.clone();
-        if let Some(obj) = worker_payload.as_object_mut() {
-            obj.insert("bookingId".into(), json!(booking_id));
-            obj.insert("id".into(), json!(booking_id));
-            obj.insert("arrivalOtp".into(), Value::Null);
+    };
+    let worker_update = async {
+        if let Some(oid) = operator_id {
+            let mut worker_payload = payload.clone();
+            worker_payload["bookingId"] = json!(booking_id);
+            worker_payload["id"] = json!(booking_id);
+            worker_payload["arrivalOtp"] = Value::Null;
+            state
+                .realtime
+                .emit_to_user(oid, "booking_status_update", &worker_payload)
+                .await;
         }
-        state
-            .realtime
-            .emit_to_user(oid, "booking_status_update", &worker_payload)
-            .await;
-    }
+    };
+    let _ = tokio::time::timeout(OPTIONAL_REDIS_TIMEOUT, async {
+        tokio::join!(
+            state.redis.cache_booking_status(booking_id, &payload),
+            customer_update,
+            worker_update,
+        )
+    })
+    .await;
 }
 
 async fn get_notified_worker_ids(state: &AppState, booking_id: &str) -> Vec<String> {
-    let raw = state
-        .redis
-        .get(&format!("booking:notified:{}", booking_id))
-        .await
-        .ok()
-        .flatten();
-    match raw {
-        Some(s) => serde_json::from_str::<Vec<String>>(&s).unwrap_or_default(),
-        None => vec![],
-    }
-}
-
-async fn clear_all_notified_pending(state: &AppState, booking_id: &str) {
-    let notified = get_notified_worker_ids(state, booking_id).await;
-    for wid in notified {
-        let _ = state.redis.remove_pending_booking(&wid, booking_id).await;
-    }
-    let _ = state
-        .redis
-        .del(&format!("booking:notified:{}", booking_id))
-        .await;
+    let Ok(id) = uuid::Uuid::parse_str(booking_id) else { return vec![]; };
+    sqlx::query_scalar(
+        "SELECT worker_id::text FROM booking_offer_recipients WHERE booking_id=$1",
+    )
+    .bind(id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default()
 }
 
 fn str_field(p: &Value, key: &str) -> Result<String, String> {

@@ -38,6 +38,7 @@ docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/platform_payment_plans.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/account_profile_setup.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/hiring_no_response_credit.sql
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/booking_offer_recipients.sql
 echo SCHEMA_OK
 
 if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then

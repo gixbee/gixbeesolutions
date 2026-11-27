@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::billing::refund_credit;
 use crate::common::pg::timestamp_utc;
 use crate::error::{AppError, AppResult};
+use crate::redis::OPTIONAL_REDIS_TIMEOUT;
 use crate::state::AppState;
 use crate::workers;
 
@@ -117,19 +118,18 @@ pub async fn cache_and_emit_status(
         "customerId": customer_id,
         "cancelRequested": cancel_requested,
     });
-    let _ = state.redis.cache_booking_status(booking_id, &patch).await;
-    if let Some(cid) = customer_id {
-        state
-            .realtime
-            .emit_to_user(cid, "booking_status_update", &patch)
-            .await;
-    }
-    if let Some(oid) = operator_id {
-        state
-            .realtime
-            .emit_to_user(oid, "booking_status_update", &patch)
-            .await;
-    }
+    let _ = tokio::time::timeout(OPTIONAL_REDIS_TIMEOUT, async {
+        tokio::join!(
+            state.redis.cache_booking_status(booking_id, &patch),
+            futures::future::join_all(
+                [customer_id, operator_id]
+                    .into_iter()
+                    .flatten()
+                    .map(|id| state.realtime.emit_to_user(id, "booking_status_update", &patch)),
+            ),
+        )
+    })
+    .await;
 }
 
 pub async fn publish_cancelled(
@@ -173,12 +173,8 @@ async fn compute_distance_compensation(
     let job_lat = service_lat.and_then(|d| d.to_f64());
     let job_lng = service_lng.and_then(|d| d.to_f64());
 
-    let worker_coords = if let Some(loc) = state
-        .redis
-        .get_worker_location(&operator_id.to_string())
-        .await
-        .ok()
-        .flatten()
+    let worker_coords = if let Some(loc) =
+        super::live_worker_location(state, &operator_id.to_string()).await
     {
         Some(loc)
     } else {

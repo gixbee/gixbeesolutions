@@ -48,13 +48,13 @@ async fn request_otp(
 ) -> AppResult<Json<RequestOtpResponse>> {
     let otp = format!("{:06}", rand::random::<u32>() % 900_000 + 100_000);
     let key = format!("otp:{}", body.phone);
-    state.redis.save_otp(&key, &otp).await?;
+    with_otp_store(state.redis.save_otp(&key, &otp)).await?;
 
     if let (Some(auth_key), Some(template_id)) = (
         &state.config.msg91_auth_key,
         &state.config.msg91_template_id,
     ) {
-        let _ = send_msg91_otp(&state, &body.phone, &otp, auth_key, template_id).await;
+        send_msg91_otp(&state, &body.phone, &otp, auth_key, template_id).await?;
     } else if state.config.is_production {
         return Err(AppError::ServiceUnavailable(
             "Could not send OTP SMS — please try again shortly".into(),
@@ -80,6 +80,19 @@ async fn request_otp(
     }))
 }
 
+async fn with_otp_store<T>(
+    operation: impl std::future::Future<Output = anyhow::Result<T>>,
+) -> AppResult<T> {
+    match tokio::time::timeout(std::time::Duration::from_secs(2), operation).await {
+        Ok(Ok(value)) => return Ok(value),
+        Ok(Err(error)) => tracing::warn!(%error, "OTP storage temporarily unavailable"),
+        Err(error) => tracing::warn!(%error, "OTP storage request timed out"),
+    }
+    Err(AppError::ServiceUnavailable(
+        "Phone verification is temporarily unavailable. Please try again shortly.".into(),
+    ))
+}
+
 async fn send_msg91_otp(
     state: &AppState,
     phone: &str,
@@ -97,14 +110,21 @@ async fn send_msg91_otp(
         .post("https://control.msg91.com/api/v5/flow/")
         .header("authkey", auth_key)
         .json(&payload)
+        .timeout(std::time::Duration::from_secs(8))
         .send()
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    if !resp.status().is_success() {
-        tracing::warn!("MSG91 failed: {}", resp.status());
-        if state.config.is_production {
+        .await;
+    match resp {
+        Ok(response) if response.status().is_success() => {}
+        Ok(response) => {
+            tracing::warn!(status = %response.status(), "MSG91 rejected the SMS request");
             return Err(AppError::ServiceUnavailable(
-                "Could not send OTP SMS — please try again shortly".into(),
+                "Could not send OTP SMS. Please try again shortly.".into(),
+            ));
+        }
+        Err(error) => {
+            tracing::warn!(%error, "MSG91 SMS request failed");
+            return Err(AppError::ServiceUnavailable(
+                "Could not send OTP SMS. Please try again shortly.".into(),
             ));
         }
     }
@@ -128,7 +148,7 @@ async fn verify_otp(
     Json(body): Json<VerifyOtpBody>,
 ) -> AppResult<Json<TokenPair>> {
     let key = format!("otp:{}", body.phone);
-    let stored = state.redis.consume_otp(&key).await?;
+    let stored = with_otp_store(state.redis.consume_otp(&key)).await?;
     if stored.as_deref() != Some(body.otp.as_str()) {
         return Err(AppError::Unauthorized("Invalid or expired OTP".into()));
     }
@@ -189,7 +209,7 @@ async fn confirm_otp(
     Json(body): Json<VerifyOtpBody>,
 ) -> AppResult<Json<Value>> {
     let key = format!("otp:{}", body.phone);
-    let stored = state.redis.consume_otp(&key).await?;
+    let stored = with_otp_store(state.redis.consume_otp(&key)).await?;
     if stored.as_deref() != Some(body.otp.as_str()) {
         return Err(AppError::Unauthorized("Invalid or expired OTP".into()));
     }

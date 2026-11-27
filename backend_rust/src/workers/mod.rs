@@ -1275,12 +1275,20 @@ pub async fn force_offline(state: &AppState, user_id: &str) -> AppResult<()> {
         .execute(&state.db)
         .await?;
 
-    let _ = state.redis.clear_worker_live_state(user_id, &all_skills).await;
+    let _ = tokio::time::timeout(
+        crate::redis::OPTIONAL_REDIS_TIMEOUT,
+        state.redis.clear_worker_live_state(user_id, &all_skills),
+    )
+    .await;
     Ok(())
 }
 
 pub async fn set_worker_status(state: &AppState, user_id: &str, status: &str) {
-    let _ = state.redis.set_worker_status(user_id, status).await;
+    let _ = tokio::time::timeout(
+        crate::redis::OPTIONAL_REDIS_TIMEOUT,
+        state.redis.set_worker_status(user_id, status),
+    )
+    .await;
 }
 
 async fn config_number(state: &AppState, key: &str, fallback: i32) -> i32 {

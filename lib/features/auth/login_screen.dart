@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../shared/utils/api_error_message.dart';
 
 import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
@@ -87,8 +88,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       );
     } catch (e) {
       if (mounted) {
-        showGxSnack(context, 'Could not send code. Try again.',
-            type: GxSnackType.error);
+        showGxSnack(
+          context,
+          apiErrorMessage(e, fallback: 'Could not send code. Try again.'),
+          type: GxSnackType.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSending = false);

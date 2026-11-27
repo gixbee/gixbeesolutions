@@ -15,6 +15,14 @@ mod settlement;
 
 pub use cancel::timeout_cancel_booking;
 
+async fn live_worker_location(state: &AppState, worker: &str) -> Option<(f64, f64)> {
+    tokio::time::timeout(OPTIONAL_REDIS_TIMEOUT, state.redis.get_worker_location(worker))
+        .await
+        .ok()?
+        .ok()
+        .flatten()
+}
+
 pub async fn rebroadcast_booking(
     state: &AppState,
     booking_id: &str,
@@ -58,7 +66,15 @@ pub async fn rebroadcast_booking(
     );
 
     let already_notified: std::collections::HashSet<String> =
-        get_notified_worker_ids(state, booking_id).await.into_iter().collect();
+        sqlx::query_scalar::<_, Uuid>(
+            "SELECT worker_id FROM booking_offer_recipients WHERE booking_id=$1",
+        )
+        .bind(bid)
+        .fetch_all(&state.db)
+        .await?
+        .into_iter()
+        .map(|id| id.to_string())
+        .collect();
     let nearby_ids = workers::find_broadcast_target_ids(
         state,
         &customer_id,
@@ -149,18 +165,18 @@ pub async fn rebroadcast_booking(
         "notifiedWorkerIds": fresh_ids,
         "attempt": 2,
     });
-    sqlx::query(
-        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
-    )
-    .bind("booking.broadcast_created")
-    .bind(bid)
-    .bind(outbox_payload)
-    .execute(&state.db)
-    .await?;
-
-    for wid in &fresh_ids {
-        let _ = state.redis.add_pending_booking(wid, booking_id).await;
+    let mut tx = state.db.begin().await?;
+    let still_open = sqlx::query_scalar::<_, Uuid>(
+        r#"SELECT id FROM bookings
+           WHERE id=$1 AND status='REQUESTED' AND "operatorId" IS NULL
+             AND "createdAt" + INTERVAL '180 seconds' > NOW()
+           FOR UPDATE"#,
+    ).bind(bid).fetch_optional(&mut *tx).await?;
+    if still_open.is_none() {
+        return Ok((false, 0));
     }
+    save_broadcast(&mut tx, bid, &fresh_ids, outbox_payload).await?;
+    tx.commit().await?;
 
     Ok((true, fresh_ids.len()))
 }
@@ -182,6 +198,7 @@ use cancel::{
 use crate::billing::consume_credit;
 use crate::common::money::DEFAULT_BOOKING_PAYMENT_METHOD;
 use crate::common::pg::BOOKING_COLS;
+use crate::redis::OPTIONAL_REDIS_TIMEOUT;
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::{require_admin_page, AuthUser};
 use crate::state::AppState;
@@ -333,6 +350,7 @@ async fn create_instant(
     let completion_otp = generate_otp();
     let notified_at = chrono::Utc::now().to_rfc3339();
 
+    let mut tx = state.db.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO bookings (
@@ -361,27 +379,8 @@ async fn create_instant(
             .as_ref()
             .map(|c| json!({ "name": c.name, "relation": c.relation, "phone": c.phone })),
     )
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
-
-    let booking_id = id.to_string();
-    let status_patch = json!({
-        "status": "REQUESTED",
-        "operatorName": null,
-        "operatorId": null,
-        "customerId": user.user_id,
-        "arrivalOtp": arrival_otp,
-        "bookingId": booking_id,
-        "id": booking_id,
-    });
-    let _ = state.redis.cache_booking_status(&booking_id, &status_patch).await;
-    state
-        .realtime
-        .emit_to_user(&user.user_id, "booking_status_update", &status_patch)
-        .await;
-    for wid in &notified_worker_ids {
-        let _ = state.redis.add_pending_booking(wid, &booking_id).await;
-    }
 
     let outbox_payload = json!({
         "bookingId": id.to_string(),
@@ -401,14 +400,27 @@ async fn create_instant(
         "notifiedWorkerIds": notified_worker_ids,
         "attempt": 1,
     });
-    sqlx::query(
-        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts) VALUES ($1, $2, $3, 'pending', 0)"#,
-    )
-    .bind("booking.broadcast_created")
-    .bind(id)
-    .bind(outbox_payload)
-    .execute(&state.db)
-    .await?;
+    save_broadcast(&mut tx, id, &notified_worker_ids, outbox_payload).await?;
+    tx.commit().await?;
+
+    let booking_id = id.to_string();
+    let status_patch = json!({
+        "status": "REQUESTED",
+        "operatorName": null,
+        "operatorId": null,
+        "customerId": user.user_id,
+        "arrivalOtp": arrival_otp,
+        "bookingId": booking_id,
+        "id": booking_id,
+    });
+    let _ = tokio::time::timeout(OPTIONAL_REDIS_TIMEOUT, async {
+        let _ = state.redis.cache_booking_status(&booking_id, &status_patch).await;
+        state
+            .realtime
+            .emit_to_user(&user.user_id, "booking_status_update", &status_patch)
+            .await;
+    })
+    .await;
 
     let booking = get_one_inner(&state, &id.to_string(), &user.user_id).await?;
     Ok(Json(json!({
@@ -500,57 +512,23 @@ const MY_BOOKING_COLS: &str = r#"
 "#;
 
 async fn list_pending(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Vec<Value>>> {
-    let worker_id = user.user_id.clone();
-    let pending_ids = state.redis.get_pending_booking_ids(&worker_id).await?;
-
-    if !pending_ids.is_empty() {
-        let uuids: Vec<Uuid> = pending_ids
-            .iter()
-            .filter_map(|id| Uuid::parse_str(id).ok())
-            .collect();
-        if uuids.is_empty() {
-            return Ok(Json(vec![]));
-        }
-
-        let rows = sqlx::query(&format!(
-            r#"SELECT {BOOKING_COLS} FROM bookings WHERE id = ANY($1)"#
-        ))
-        .bind(&uuids)
-        .fetch_all(&state.db)
-        .await?;
-
-        let mut open: Vec<(usize, Value)> = Vec::new();
-        for row in rows {
-            let id = row.get::<Uuid, _>("id").to_string();
-            let status = row.get::<String, _>("status");
-            if status == "REQUESTED" {
-                let order = pending_ids
-                    .iter()
-                    .position(|p| p == &id)
-                    .unwrap_or(usize::MAX);
-                open.push((order, booking_json(&row)));
-            } else {
-                let _ = state.redis.remove_pending_booking(&worker_id, &id).await;
-            }
-        }
-        open.sort_by_key(|(order, _)| *order);
-        return Ok(Json(open.into_iter().map(|(_, v)| v).collect()));
-    }
-
-    // Targeted offers already assigned to this worker (operatorId set).
-    let uid = Uuid::parse_str(&worker_id)?;
+    let worker = Uuid::parse_str(&user.user_id)?;
     let rows = sqlx::query(&format!(
-        r#"SELECT {BOOKING_COLS} FROM bookings WHERE "operatorId" = $1 AND status = 'REQUESTED' ORDER BY "createdAt" DESC"#
+        r#"SELECT {BOOKING_COLS} FROM bookings b
+           WHERE b.status='REQUESTED' AND b.id IN (
+               SELECT assigned.id FROM bookings assigned
+               WHERE assigned."operatorId"=$1 AND assigned.status='REQUESTED'
+               UNION ALL
+               SELECT o.booking_id FROM booking_offer_recipients o
+               JOIN bookings offered ON offered.id=o.booking_id
+               WHERE offered."operatorId" IS NULL AND o.worker_id=$1
+                 AND o.dismissed_at IS NULL AND o.expires_at>NOW()
+           )
+           ORDER BY b."createdAt" DESC, b.id DESC"#
     ))
-    .bind(uid)
+    .bind(worker)
     .fetch_all(&state.db)
     .await?;
-
-    for row in &rows {
-        let id = row.get::<Uuid, _>("id").to_string();
-        let _ = state.redis.add_pending_booking(&worker_id, &id).await;
-    }
-
     Ok(Json(rows.iter().map(booking_json).collect()))
 }
 
@@ -560,44 +538,49 @@ async fn reject(
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
     let bid = Uuid::parse_str(&id)?;
-    let worker_id = user.user_id.clone();
-
+    let worker = Uuid::parse_str(&user.user_id)?;
+    let mut tx = state.db.begin().await?;
     let row = sqlx::query(
-        r#"SELECT status::text AS status, "operatorId", "customerId", skill FROM bookings WHERE id = $1"#,
+        r#"SELECT status::text AS status, "operatorId", "customerId", skill
+           FROM bookings WHERE id=$1 FOR UPDATE"#,
     )
     .bind(bid)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await?
     .ok_or_else(|| AppError::NotFound("Booking not found".into()))?;
-
-    let status = row.get::<String, _>("status");
-    if status != "REQUESTED" {
+    if row.get::<String, _>("status") != "REQUESTED" {
         return Err(AppError::BadRequest("Only pending requests can be declined.".into()));
     }
-
-    let operator_id = row.try_get::<Option<Uuid>, _>("operatorId").ok().flatten();
-    let is_assigned = operator_id.map(|u| u.to_string()) == Some(worker_id.clone());
-    let pending = state.redis.get_pending_booking_ids(&worker_id).await?;
-    let notified = get_notified_worker_ids(&state, &id).await;
-    if !is_assigned && !pending.contains(&id) && !notified.contains(&worker_id) {
-        return Err(AppError::NotFound("Booking not found".into()));
-    }
-
-    let _ = state.redis.remove_pending_booking(&worker_id, &id).await;
-    if let Some(skill) = row.get::<Option<String>, _>("skill") {
-        if let Some(customer_id) = row.try_get::<Uuid, _>("customerId").ok() {
-            let _ = state
-                .redis
-                .mark_worker_rejected_job(&customer_id.to_string(), &skill, &worker_id)
-                .await;
+    match row.get::<Option<Uuid>, _>("operatorId") {
+        Some(assigned) if assigned == worker => {
+            sqlx::query("UPDATE bookings SET status='REJECTED' WHERE id=$1")
+                .bind(bid)
+                .execute(&mut *tx)
+                .await?;
         }
-    }
-
-    if is_assigned {
-        sqlx::query(r#"UPDATE bookings SET status = 'REJECTED' WHERE id = $1"#)
+        None => {
+            let changed = sqlx::query(
+                "UPDATE booking_offer_recipients SET dismissed_at=NOW()
+                 WHERE booking_id=$1 AND worker_id=$2 AND dismissed_at IS NULL AND expires_at>NOW()",
+            )
             .bind(bid)
-            .execute(&state.db)
+            .bind(worker)
+            .execute(&mut *tx)
             .await?;
+            if changed.rows_affected() == 0 {
+                return Err(AppError::NotFound("Pending offer not found".into()));
+            }
+        }
+        Some(_) => return Err(AppError::NotFound("Pending offer not found".into())),
+    }
+    tx.commit().await?;
+    if let Some(skill) = row.get::<Option<String>, _>("skill") {
+        let customer = row.get::<Uuid, _>("customerId").to_string();
+        let _ = tokio::time::timeout(
+            OPTIONAL_REDIS_TIMEOUT,
+            state.redis.mark_worker_rejected_job(&customer, &skill, &user.user_id),
+        )
+        .await;
     }
 
     Ok(Json(json!({ "message": "Booking declined." })))
@@ -799,17 +782,34 @@ async fn get_one_inner(state: &AppState, id: &str, viewer_id: &str) -> AppResult
     Ok(my_booking_json(&row, viewer_id))
 }
 
-async fn get_notified_worker_ids(state: &AppState, booking_id: &str) -> Vec<String> {
-    let raw = state
-        .redis
-        .get(&format!("booking:notified:{}", booking_id))
-        .await
-        .ok()
-        .flatten();
-    match raw {
-        Some(s) => serde_json::from_str(&s).unwrap_or_default(),
-        None => vec![],
-    }
+async fn save_broadcast(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    booking: Uuid,
+    recipients: &[String],
+    payload: Value,
+) -> AppResult<()> {
+    let recipients = recipients.iter().map(|id| Uuid::parse_str(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    sqlx::query(
+        r#"INSERT INTO booking_offer_recipients (booking_id, worker_id, expires_at)
+           SELECT b.id, recipient, b."createdAt" + INTERVAL '180 seconds'
+           FROM bookings b CROSS JOIN unnest($2::uuid[]) AS recipient
+           WHERE b.id=$1
+           ON CONFLICT (booking_id, worker_id) DO NOTHING"#,
+    )
+    .bind(booking)
+    .bind(recipients)
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query(
+        r#"INSERT INTO outbox_events (type, "aggregateId", payload, status, attempts)
+           VALUES ('booking.broadcast_created', $1, $2, 'pending', 0)"#,
+    )
+    .bind(booking)
+    .bind(payload)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }
 
 fn haversine_km(lat1: f64, lng1: f64, lat2: f64, lng2: f64) -> f64 {
@@ -907,6 +907,11 @@ async fn accept(
     let worker_id_str = user.user_id.clone();
 
     let mut tx = state.db.begin().await?;
+    // Serialize accepts by the same worker before locking the booking.
+    sqlx::query("SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE")
+        .bind(worker_id)
+        .fetch_one(&mut *tx)
+    .await?;
 
     let locked = sqlx::query(
         r#"SELECT id, status::text AS status, "operatorId", "customerId", skill, amount,
@@ -943,13 +948,15 @@ async fn accept(
 
     let existing_operator = locked.try_get::<Option<Uuid>, _>("operatorId").ok().flatten();
     if existing_operator.is_none() {
-        let pending = state
-            .redis
-            .get_pending_booking_ids(&worker_id_str)
-            .await
-            .unwrap_or_default();
-        let notified = get_notified_worker_ids(&state, &id).await;
-        if !pending.contains(&id) && !notified.contains(&worker_id_str) {
+        let eligible: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM booking_offer_recipients
+             WHERE booking_id=$1 AND worker_id=$2 AND dismissed_at IS NULL AND expires_at>NOW())",
+        )
+        .bind(bid)
+        .bind(worker_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !eligible {
             tx.rollback().await?;
             return Err(AppError::BadRequest(
                 "You are not eligible to accept this booking.".into(),
@@ -970,7 +977,7 @@ async fn accept(
         .flatten();
 
     let (accept_lat, accept_lng, accept_distance_km) =
-        if let Some((lat, lng)) = state.redis.get_worker_location(&worker_id_str).await? {
+        if let Some((lat, lng)) = live_worker_location(&state, &worker_id_str).await {
             let job_lat = locked
                 .try_get::<Option<rust_decimal::Decimal>, _>("serviceLat")
                 .ok()
@@ -1068,22 +1075,34 @@ async fn accept(
     .execute(&mut *tx)
     .await?;
 
+    sqlx::query(
+        "UPDATE booking_offer_recipients SET dismissed_at=NOW()
+         WHERE worker_id=$1 AND dismissed_at IS NULL AND expires_at>NOW()",
+    )
+    .bind(worker_id)
+    .execute(&mut *tx)
+    .await?;
+
     tx.commit().await?;
 
-    publish_accepted_status(
-        &state,
-        &id,
-        &customer_id.to_string(),
-        &worker_id_str,
-        operator_name.as_deref(),
-        arrival_otp.as_deref(),
-    )
-    .await;
-    workers::set_worker_status(&state, &worker_id_str, "busy").await;
-    // The worker just committed to a job. Drop every other broadcast request
-    // they were notified about so `list_pending` returns nothing and the
-    // incoming-job card (and its ringtone) can't reappear on the next resume.
-    let _ = state.redis.clear_pending_bookings(&worker_id_str).await;
+    let customer_id_str = customer_id.to_string();
+    let _ = tokio::join!(
+        tokio::time::timeout(
+            OPTIONAL_REDIS_TIMEOUT,
+            publish_accepted_status(
+                &state,
+                &id,
+                &customer_id_str,
+                &worker_id_str,
+                operator_name.as_deref(),
+                arrival_otp.as_deref(),
+            ),
+        ),
+        tokio::time::timeout(
+            OPTIONAL_REDIS_TIMEOUT,
+            workers::set_worker_status(&state, &worker_id_str, "busy"),
+        ),
+    );
 
     if force_offline {
         let _ = workers::force_offline(&state, &worker_id_str).await;
@@ -1315,30 +1334,19 @@ async fn mark_paid(
 
     tx.commit().await?;
 
-    let status_patch = json!({
-        "status": "COMPLETED",
-        "bookingId": id,
-        "id": id,
-        "operatorId": operator_id.map(|u| u.to_string()),
-        "customerId": customer_id.to_string(),
-        "operatorName": operator_name,
-        "isPaid": is_paid,
-        "workerPaidConfirmed": worker_confirmed,
-        "customerPaidConfirmed": customer_confirmed,
-    });
-    let _ = state.redis.cache_booking_status(&id, &status_patch).await;
-    if let Some(cid) = Some(customer_id.to_string()) {
-        state
-            .realtime
-            .emit_to_user(&cid, "booking_status_update", &status_patch)
-            .await;
-    }
-    if let Some(oid) = operator_id.map(|u| u.to_string()) {
-        state
-            .realtime
-            .emit_to_user(&oid, "booking_status_update", &status_patch)
-            .await;
-    }
+    settlement::cache_and_emit_status(
+        &state,
+        &id,
+        "COMPLETED",
+        operator_id.map(|u| u.to_string()).as_deref(),
+        operator_name.as_deref(),
+        Some(&customer_id.to_string()),
+        None,
+        Some(is_paid),
+        Some(worker_confirmed),
+        Some(customer_confirmed),
+    )
+    .await;
 
     Ok(Json(json!({
         "message": if is_paid {
@@ -1358,10 +1366,17 @@ async fn get_status(
     Path(id): Path<String>,
 ) -> AppResult<Json<Value>> {
     let bid = Uuid::parse_str(&id)?;
-    let mut payload = if let Some(v) = state.redis.get(&format!("booking:status:{id}")).await? {
-        serde_json::from_str(&v).unwrap_or(json!({}))
-    } else {
-        get_one_inner(&state, &id, &user.user_id).await?
+    let key = format!("booking:status:{id}");
+    let cached = tokio::time::timeout(OPTIONAL_REDIS_TIMEOUT, state.redis.get(&key))
+        .await
+        .ok()
+        .and_then(Result::ok)
+        .flatten()
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .filter(Value::is_object);
+    let mut payload = match cached {
+        Some(value) => value,
+        None => get_one_inner(&state, &id, &user.user_id).await?,
     };
 
     let row = sqlx::query(
@@ -1441,7 +1456,7 @@ async fn get_status(
             "ACCEPTED" | "ARRIVED" | "ACTIVE" | "IN_PROGRESS"
         ) {
             if let Some(op) = operator_id.as_deref() {
-                if let Some((lat, lng)) = state.redis.get_worker_location(op).await? {
+                if let Some((lat, lng)) = live_worker_location(&state, op).await {
                     obj.insert("operatorLat".into(), json!(lat));
                     obj.insert("operatorLng".into(), json!(lng));
                 }

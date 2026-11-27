@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::common::money::WALLET_PAYMENTS_ENABLED;
 use crate::error::{AppError, AppResult};
+use crate::redis::OPTIONAL_REDIS_TIMEOUT;
 use crate::state::AppState;
 use crate::workers;
 
@@ -72,32 +73,30 @@ pub async fn cache_and_emit_status(
             obj.insert("customerPaidConfirmed".into(), json!(v));
         }
     }
-    let _ = state.redis.cache_booking_status(booking_id, &patch).await;
-    if let Some(cid) = customer_id {
-        let customer_payload = if status == "ACCEPTED" || status == "ARRIVED" {
-            patch.clone()
-        } else {
+    let customer_update = async {
+        if let Some(cid) = customer_id {
             let mut p = patch.clone();
-            if let Some(obj) = p.as_object_mut() {
-                obj.insert("arrivalOtp".into(), Value::Null);
+            if status != "ACCEPTED" && status != "ARRIVED" {
+                p["arrivalOtp"] = Value::Null;
             }
-            p
-        };
-        state
-            .realtime
-            .emit_to_user(cid, "booking_status_update", &customer_payload)
-            .await;
-    }
-    if let Some(oid) = operator_id {
-        let mut worker_payload = patch.clone();
-        if let Some(obj) = worker_payload.as_object_mut() {
-            obj.insert("arrivalOtp".into(), Value::Null);
+            state.realtime.emit_to_user(cid, "booking_status_update", &p).await;
         }
-        state
-            .realtime
-            .emit_to_user(oid, "booking_status_update", &worker_payload)
-            .await;
-    }
+    };
+    let worker_update = async {
+        if let Some(oid) = operator_id {
+            let mut p = patch.clone();
+            p["arrivalOtp"] = Value::Null;
+            state.realtime.emit_to_user(oid, "booking_status_update", &p).await;
+        }
+    };
+    let _ = tokio::time::timeout(OPTIONAL_REDIS_TIMEOUT, async {
+        tokio::join!(
+            state.redis.cache_booking_status(booking_id, &patch),
+            customer_update,
+            worker_update,
+        )
+    })
+    .await;
 }
 
 pub async fn verify_arrival_otp(
@@ -126,11 +125,6 @@ pub async fn verify_arrival_otp(
             "Arrival OTP can only be verified after the pro has accepted / arrived.".into(),
         ));
     }
-
-    let _ = state
-        .redis
-        .del(&format!("otp:booking:{}:arrival", booking_id))
-        .await;
 
     sqlx::query(
         r#"UPDATE bookings SET status = 'ACTIVE', "startedAt" = NOW() WHERE id = $1"#,
@@ -318,11 +312,6 @@ pub async fn verify_completion_otp(
     if booking.get::<String, _>("status") != "ACTIVE" {
         return Err(AppError::BadRequest("Job must be active to complete".into()));
     }
-
-    let _ = state
-        .redis
-        .del(&format!("otp:booking:{}:completion", booking_id))
-        .await;
 
     let booking_type = booking.get::<String, _>("type");
     let configured_petrol_rate = if booking_type == "INSTANT" {
@@ -588,11 +577,6 @@ pub async fn refresh_completion_otp(
         .bind(bid)
         .execute(&state.db)
         .await?;
-
-    let _ = state
-        .redis
-        .save_otp(&format!("otp:booking:{}:completion", booking_id), &new_otp)
-        .await;
 
     state
         .fcm

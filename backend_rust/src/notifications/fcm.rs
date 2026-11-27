@@ -335,7 +335,12 @@ fn build_credentials(
 }
 
 async fn resolve_fcm_token(state: &AppState, user_id: &str) -> Option<String> {
-    if let Ok(Some(t)) = state.redis.get_fcm_token(user_id).await {
+    if let Ok(Ok(Some(t))) = tokio::time::timeout(
+        crate::redis::OPTIONAL_REDIS_TIMEOUT,
+        state.redis.get_fcm_token(user_id),
+    )
+    .await
+    {
         return Some(t);
     }
     let uid = Uuid::parse_str(user_id).ok()?;
@@ -347,7 +352,11 @@ async fn resolve_fcm_token(state: &AppState, user_id: &str) -> Option<String> {
         .flatten()?;
     let token: Option<String> = row.try_get("fcmToken").ok().flatten();
     if let Some(t) = token {
-        let _ = state.redis.cache_fcm_token(user_id, &t).await;
+        let _ = tokio::time::timeout(
+            crate::redis::OPTIONAL_REDIS_TIMEOUT,
+            state.redis.cache_fcm_token(user_id, &t),
+        )
+        .await;
         return Some(t);
     }
     None
