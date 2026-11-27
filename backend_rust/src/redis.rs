@@ -1,10 +1,8 @@
 use anyhow::{Context, Result};
-use redis::aio::ConnectionManager;
+use redis::aio::{ConnectionManager, ConnectionManagerConfig};
 use redis::AsyncCommands;
 use serde_json::json;
 use tokio::sync::Mutex;
-
-use crate::config::Config;
 
 const GEO_INDEX: &str = "workers:geo";
 const SKILL_INDEX_PREFIX: &str = "skill:index:";
@@ -19,9 +17,8 @@ pub struct WorkerLocationSnapshot {
 }
 
 pub struct RedisStore {
-    ready: bool,
     /// Cheap to clone; multiplexes commands without a process-wide lock.
-    client: Option<ConnectionManager>,
+    client: std::sync::OnceLock<ConnectionManager>,
     allow_memory_fallback: bool,
     mem_kv: Mutex<std::collections::HashMap<String, (String, Option<std::time::Instant>)>>,
     mem_sets: Mutex<std::collections::HashMap<String, std::collections::HashSet<String>>>,
@@ -32,46 +29,51 @@ pub struct RedisStore {
 impl RedisStore {
     #[cfg(test)]
     pub fn for_tests() -> Self {
+        Self::empty(true)
+    }
+
+    fn empty(allow_memory_fallback: bool) -> Self {
         Self {
-            ready: false, client: None, allow_memory_fallback: true,
+            client: std::sync::OnceLock::new(), allow_memory_fallback,
             mem_kv: Mutex::new(Default::default()), mem_sets: Mutex::new(Default::default()),
             mem_zsets: Mutex::new(Default::default()), mem_geo: Mutex::new(Default::default()),
         }
     }
 
-    pub async fn connect(config: &Config) -> Result<Self> {
-        let client = match ConnectionManager::new(
-            redis::Client::open(config.redis_url.as_str()).context("invalid redis url")?,
-        )
-        .await
-        {
-            Ok(c) => {
-                tracing::info!("Redis connected successfully");
-                Some(c)
-            }
-            Err(e) => {
-                if config.redis_allow_memory_fallback {
-                    tracing::warn!("Redis unreachable ({e}) — using in-memory fallback");
-                    None
-                } else {
-                    return Err(e.into());
+    pub async fn connect(url: Option<&str>, allow_memory_fallback: bool) -> Result<std::sync::Arc<Self>> {
+        let store = std::sync::Arc::new(Self::empty(allow_memory_fallback));
+        let Some(url) = url else { return Ok(store) };
+        let client = redis::Client::open(url).context("invalid redis url")?;
+        let config = ConnectionManagerConfig::new()
+            .set_connection_timeout(std::time::Duration::from_secs(1))
+            .set_response_timeout(std::time::Duration::from_secs(2));
+        if let Ok(Ok(connection)) = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            ConnectionManager::new_with_config(client.clone(), config.clone()),
+        ).await {
+            let _ = store.client.set(connection);
+        } else {
+            tracing::warn!("Redis unavailable at startup; retrying in background");
+            let weak = std::sync::Arc::downgrade(&store);
+            tokio::spawn(async move {
+                while let Some(store) = weak.upgrade() {
+                    if let Ok(Ok(connection)) = tokio::time::timeout(
+                        std::time::Duration::from_secs(2),
+                        ConnectionManager::new_with_config(client.clone(), config.clone()),
+                    ).await {
+                        let _ = store.client.set(connection);
+                        break;
+                    }
+                    drop(store);
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
-            }
-        };
-
-        Ok(Self {
-            ready: client.is_some(),
-            client,
-            allow_memory_fallback: config.redis_allow_memory_fallback,
-            mem_kv: Mutex::new(std::collections::HashMap::new()),
-            mem_sets: Mutex::new(std::collections::HashMap::new()),
-            mem_zsets: Mutex::new(std::collections::HashMap::new()),
-            mem_geo: Mutex::new(std::collections::HashMap::new()),
-        })
+            });
+        }
+        Ok(store)
     }
 
     fn conn(&self) -> Option<ConnectionManager> {
-        self.client.clone()
+        self.client.get().cloned()
     }
 
     fn skill_key(skill: &str) -> String {
@@ -89,7 +91,7 @@ impl RedisStore {
     }
 
     pub fn is_ready(&self) -> bool {
-        self.ready
+        self.client.get().is_some()
     }
 
     pub async fn ping(&self) -> bool {
@@ -104,7 +106,7 @@ impl RedisStore {
     }
 
     fn assert_fallback(&self, op: &str) -> Result<()> {
-        if self.ready || self.allow_memory_fallback {
+        if self.is_ready() || self.allow_memory_fallback {
             Ok(())
         } else {
             anyhow::bail!("Redis unavailable for {op} (in-memory fallback disabled)")
@@ -222,6 +224,23 @@ impl RedisStore {
                 })
                 .collect())
         }
+    }
+
+    pub async fn allow_otp_attempt(&self, phone_key: &str, ip_key: Option<&str>, phone_limit: u32, ip_limit: u32) -> Result<bool> {
+        let mut client = self.conn().context("Redis unavailable for OTP limits")?;
+        let keys: Vec<&str> = std::iter::once(phone_key).chain(ip_key).collect();
+        let allowed: i32 = redis::cmd("EVAL").arg(r#"
+            for i, key in ipairs(KEYS) do
+                if tonumber(redis.call('GET', key) or '0') >= tonumber(ARGV[i]) then
+                    return 0
+                end
+            end
+            for _, key in ipairs(KEYS) do
+                if redis.call('INCR', key) == 1 then redis.call('EXPIRE', key, 300) end
+            end
+            return 1
+        "#).arg(keys.len()).arg(keys).arg(phone_limit).arg(ip_limit).query_async(&mut client).await?;
+        Ok(allowed == 1)
     }
 
     pub async fn save_otp(&self, key: &str, otp: &str) -> Result<()> {

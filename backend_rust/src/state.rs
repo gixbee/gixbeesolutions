@@ -14,6 +14,7 @@ pub struct AppState {
     pub cache: CacheConfig,
     pub db: PgPool,
     pub redis: Arc<RedisStore>,
+    pub cache_redis: Arc<RedisStore>,
     pub http: reqwest::Client,
     pub realtime: Arc<RealtimeHub>,
     pub fcm: Arc<FcmService>,

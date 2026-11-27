@@ -33,26 +33,47 @@ async fn poll(state:&AppState)->Result<(),String> {
         FROM bookings b WHERE b.status='ACCEPTED' AND b."acceptedAt" IS NOT NULL AND b."workerNoProgressAt" IS NULL AND b."gpsStrikes"<3
         ON CONFLICT ("bookingId",kind,sequence) DO NOTHING"#).execute(&state.db).await.map_err(|e|e.to_string())?;
     for _ in 0..25 {
-        let mut tx=state.db.begin().await.map_err(|e|e.to_string())?;
-        let job=sqlx::query(r#"SELECT id,"bookingId",kind,sequence,attempts FROM booking_deadlines
-            WHERE "processedAt" IS NULL AND "dueAt"<=NOW() ORDER BY "dueAt" LIMIT 1 FOR UPDATE SKIP LOCKED"#)
-            .fetch_optional(&mut *tx).await.map_err(|e|e.to_string())?;
-        let Some(job)=job else {break};
-        let id:Uuid=job.get("id");let bid=job.get::<Uuid,_>("bookingId").to_string();let sequence=job.get::<i32,_>("sequence");
-        let result=match job.get::<String,_>("kind").as_str() {
-            "TIMEOUT"=>handle_request_timeout(state,&bid,sequence as u32).await,
-            "REMINDER"=>handle_seven_minute_reminder(state,&bid).await,
-            "GPS"=>handle_ten_minute_gps_check(state,&bid,sequence-1).await,
-            _=>Err("Unknown deadline kind".to_string()),
-        };
-        match result {
-            Ok(())=>{sqlx::query(r#"UPDATE booking_deadlines SET "processedAt"=NOW(),attempts=attempts+1,"lastError"=NULL WHERE id=$1"#)
-                .bind(id).execute(&mut *tx).await.map_err(|e|e.to_string())?;},
-            Err(e)=>{warn!("booking deadline {}: {}",id,e);
-                sqlx::query(r#"UPDATE booking_deadlines SET attempts=attempts+1,"lastError"=$2,"dueAt"=NOW()+INTERVAL '30 seconds' WHERE id=$1"#)
-                    .bind(id).bind(e.chars().take(2000).collect::<String>()).execute(&mut *tx).await.map_err(|e|e.to_string())?;},
-        }
-        tx.commit().await.map_err(|e|e.to_string())?;
+        let job = sqlx::query(
+            r#"WITH candidate AS (
+                   SELECT id FROM booking_deadlines
+                   WHERE "processedAt" IS NULL AND "dueAt" <= NOW()
+                     AND ("leaseUntil" IS NULL OR "leaseUntil" <= NOW())
+                   ORDER BY "dueAt", id LIMIT 1 FOR UPDATE SKIP LOCKED
+               )
+               UPDATE booking_deadlines d SET "leaseUntil"=NOW()+INTERVAL '60 seconds',
+                   attempts=d.attempts+1
+               FROM candidate c WHERE d.id=c.id
+               RETURNING d.id,d."bookingId",d.kind,d.sequence,d.attempts"#,
+        )
+        .fetch_optional(&state.db).await.map_err(|error| error.to_string())?;
+        let Some(job) = job else { break };
+        let id: Uuid = job.get("id");
+        let bid = job.get::<Uuid, _>("bookingId").to_string();
+        let sequence: i32 = job.get("sequence");
+        let attempts: i32 = job.get("attempts");
+        let kind: String = job.get("kind");
+        let result = tokio::time::timeout(Duration::from_secs(40), async {
+            match kind.as_str() {
+                "TIMEOUT" => handle_request_timeout(state, &bid, sequence as u32).await,
+                "REMINDER" => handle_seven_minute_reminder(state, &bid).await,
+                "GPS" => handle_ten_minute_gps_check(state, &bid, sequence-1).await,
+                _ => Err("Unknown deadline kind".to_string()),
+            }
+        }).await.unwrap_or_else(|_| Err("Deadline handler timed out".into()));
+
+        let failure = result.err().map(|error| {
+            warn!(%id, %error, "Booking deadline failed");
+            error.chars().take(2000).collect::<String>()
+        });
+        sqlx::query(
+            r#"UPDATE booking_deadlines SET "leaseUntil"=NULL,
+                      "processedAt"=CASE WHEN $3::text IS NULL THEN NOW() END,
+                      "lastError"=$3,
+                      "dueAt"=CASE WHEN $3 IS NULL THEN "dueAt" ELSE NOW()+INTERVAL '30 seconds' END
+               WHERE id=$1 AND attempts=$2 AND "processedAt" IS NULL"#,
+        )
+        .bind(id).bind(attempts).bind(failure)
+        .execute(&state.db).await.map_err(|error| error.to_string())?;
     }
     Ok(())
 }

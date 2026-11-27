@@ -1,5 +1,6 @@
 use axum::{
     extract::State,
+    http::HeaderMap,
     routing::{get, patch, post},
     Json, Router,
 };
@@ -44,8 +45,10 @@ struct RequestOtpResponse {
 
 async fn request_otp(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<RequestOtpBody>,
 ) -> AppResult<Json<RequestOtpResponse>> {
+    limit_otp(&state, &headers, &body.phone, "send", 3, 20).await?;
     let otp = format!("{:06}", rand::random::<u32>() % 900_000 + 100_000);
     let key = format!("otp:{}", body.phone);
     with_otp_store(state.redis.save_otp(&key, &otp)).await?;
@@ -91,6 +94,32 @@ async fn with_otp_store<T>(
     Err(AppError::ServiceUnavailable(
         "Phone verification is temporarily unavailable. Please try again shortly.".into(),
     ))
+}
+
+async fn limit_otp(
+    state: &AppState,
+    headers: &HeaderMap,
+    phone: &str,
+    action: &str,
+    phone_limit: u32,
+    ip_limit: u32,
+) -> AppResult<()> {
+    if !state.config.is_production {
+        return Ok(());
+    }
+    use sha2::{Digest, Sha256};
+    let digits: String = phone.chars().filter(char::is_ascii_digit).collect();
+    let number = digits.strip_prefix("91").filter(|rest| rest.len() == 10).unwrap_or(&digits);
+    let phone_key = format!("otp-limit:{action}:phone:{:x}", Sha256::digest(number.as_bytes()));
+    // The published Nginx proxy overwrites X-Real-IP and Rust has no public port.
+    let ip = headers.get("x-real-ip").and_then(|v| v.to_str().ok())
+        .and_then(|ip| ip.parse::<std::net::IpAddr>().ok());
+    let ip_key = ip.map(|ip| format!("otp-limit:{action}:ip:{ip}"));
+    if with_otp_store(state.redis.allow_otp_attempt(&phone_key, ip_key.as_deref(), phone_limit, ip_limit)).await? {
+        Ok(())
+    } else {
+        Err(AppError::TooManyRequests("Too many OTP requests. Please try again in a few minutes.".into()))
+    }
 }
 
 async fn send_msg91_otp(
@@ -145,8 +174,10 @@ struct TokenPair {
 
 async fn verify_otp(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(body): Json<VerifyOtpBody>,
 ) -> AppResult<Json<TokenPair>> {
+    limit_otp(&state, &headers, &body.phone, "verify", 8, 40).await?;
     let key = format!("otp:{}", body.phone);
     let stored = with_otp_store(state.redis.consume_otp(&key)).await?;
     if stored.as_deref() != Some(body.otp.as_str()) {
@@ -206,8 +237,10 @@ async fn verify_otp(
 async fn confirm_otp(
     State(state): State<AppState>,
     _user: AuthUser,
+    headers: HeaderMap,
     Json(body): Json<VerifyOtpBody>,
 ) -> AppResult<Json<Value>> {
+    limit_otp(&state, &headers, &body.phone, "verify", 8, 40).await?;
     let key = format!("otp:{}", body.phone);
     let stored = with_otp_store(state.redis.consume_otp(&key)).await?;
     if stored.as_deref() != Some(body.otp.as_str()) {

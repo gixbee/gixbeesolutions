@@ -30,6 +30,8 @@ pub enum AppError {
     #[error("{0}")]
     Conflict(String),
     #[error("{0}")]
+    TooManyRequests(String),
+    #[error("{0}")]
     ServiceUnavailable(String),
     #[error("{0}")]
     Internal(String),
@@ -56,6 +58,7 @@ impl AppError {
             AppError::Forbidden(m) => (StatusCode::FORBIDDEN, "Forbidden".into(), json!(m)),
             AppError::NotFound(m) => (StatusCode::NOT_FOUND, "Not Found".into(), json!(m)),
             AppError::Conflict(m) => (StatusCode::CONFLICT, "Conflict".into(), json!(m)),
+            AppError::TooManyRequests(m) => (StatusCode::TOO_MANY_REQUESTS, "Too Many Requests".into(), json!(m)),
             AppError::ServiceUnavailable(m) => {
                 (StatusCode::SERVICE_UNAVAILABLE, "Service Unavailable".into(), json!(m))
             }

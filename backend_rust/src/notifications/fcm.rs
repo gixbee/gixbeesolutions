@@ -170,7 +170,9 @@ impl FcmService {
             "https://fcm.googleapis.com/v1/projects/{}/messages:send",
             creds.project_id
         );
-        let payload = json!({
+        let delivery_id = data_map.get("eventId").and_then(Value::as_str)
+            .map(str::to_owned);
+        let mut payload = json!({
             "message": {
                 "token": fcm_token,
                 "notification": { "title": title, "body": body },
@@ -195,6 +197,10 @@ impl FcmService {
                 }
             }
         });
+        if let Some(id) = delivery_id {
+            payload["message"]["android"]["notification"]["tag"] = json!(&id);
+            payload["message"]["apns"]["headers"]["apns-collapse-id"] = json!(id);
+        }
 
         let resp = self
             .http

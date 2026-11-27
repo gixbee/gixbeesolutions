@@ -20,92 +20,73 @@ pub async fn run_poller(state: AppState) {
 }
 
 async fn poll_once(state: &AppState) -> Result<(), String> {
-    let rows = sqlx::query(
-        r#"SELECT id FROM outbox_events WHERE status = 'pending' AND attempts < $1 ORDER BY "createdAt" ASC LIMIT $2"#,
+    sqlx::query(
+        r#"UPDATE outbox_events SET status='failed', "processedAt"=NOW(),
+                  "lastError"='Final delivery lease expired'
+           WHERE status='processing' AND "availableAt" <= NOW() AND attempts >= $1"#,
     )
     .bind(MAX_ATTEMPTS)
-    .bind(POLL_LIMIT)
-    .fetch_all(&state.db)
+    .execute(&state.db)
     .await
     .map_err(|e| e.to_string())?;
 
-    for row in rows {
+    for _ in 0..POLL_LIMIT {
+        let row = sqlx::query(
+            r#"WITH candidate AS (
+                   SELECT id FROM outbox_events
+                   WHERE status IN ('pending','processing') AND "availableAt" <= NOW() AND attempts < $1
+                   ORDER BY "availableAt", "createdAt", id
+                   LIMIT 1 FOR UPDATE SKIP LOCKED
+               )
+               UPDATE outbox_events e
+               SET status='processing', attempts=e.attempts+1, "availableAt"=NOW()+INTERVAL '60 seconds'
+               FROM candidate c WHERE e.id=c.id
+               RETURNING e.id,e.type,e.payload,e.attempts"#,
+        )
+        .bind(MAX_ATTEMPTS)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| e.to_string())?;
+        let Some(row) = row else { break };
+
         let id: Uuid = row.get("id");
-        if let Err(e) = dispatch_one(state, id).await {
-            warn!("outbox dispatch {}: {}", id, e);
-        }
-    }
-    Ok(())
-}
-
-async fn dispatch_one(state: &AppState, event_id: Uuid) -> Result<(), String> {
-    let mut tx = state.db.begin().await.map_err(|e| e.to_string())?;
-    let row = sqlx::query(
-        r#"SELECT id, type, "aggregateId", payload, status, attempts FROM outbox_events WHERE id = $1 FOR UPDATE SKIP LOCKED"#,
-    )
-    .bind(event_id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|e| e.to_string())?;
-
-    let Some(row) = row else {
-        return Ok(());
-    };
-    let status: String = row.get("status");
-    if status == "processed" {
-        return Ok(());
-    }
-    if status == "failed" {
+        let event_type: String = row.get("type");
+        let mut payload: serde_json::Value = row.get("payload");
         let attempts: i32 = row.get("attempts");
-        if attempts >= MAX_ATTEMPTS {
-            return Ok(());
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("eventId".into(), serde_json::json!(id));
         }
-    }
+        let delivery = tokio::time::timeout(
+            std::time::Duration::from_secs(40),
+            booking_lifecycle::handle(state, &event_type, &payload),
+        )
+        .await
+        .unwrap_or_else(|_| Err("Delivery timed out".into()));
 
-    let attempts: i32 = row.get("attempts");
-    let claimed = sqlx::query(
-        r#"UPDATE outbox_events SET attempts = attempts + 1 WHERE id = $1 AND status = 'pending' AND attempts = $2"#,
-    )
-    .bind(event_id)
-    .bind(attempts)
-    .execute(&mut *tx)
-    .await
-    .map_err(|e| e.to_string())?;
-    if claimed.rows_affected() == 0 {
-        return Ok(());
+        let (status, last_error, delay) = match delivery {
+            Ok(()) => ("processed", None, 0),
+            Err(e) => {
+                error!(%id, %event_type, error = %e, "Outbox delivery failed");
+                let status = if attempts >= MAX_ATTEMPTS { "failed" } else { "pending" };
+                let delay = (5_i32 * 2_i32.pow((attempts - 1) as u32)).min(900);
+                (status, Some(e.chars().take(2000).collect::<String>()), delay)
+            }
+        };
+        sqlx::query(
+            r#"UPDATE outbox_events SET status=$3, "lastError"=$4,
+                      "availableAt"=NOW()+($5::integer * INTERVAL '1 second'),
+                      "processedAt"=CASE WHEN $3 IN ('processed', 'failed') THEN NOW() END
+               WHERE id=$1 AND status='processing' AND attempts=$2"#,
+        )
+        .bind(id)
+        .bind(attempts)
+        .bind(status)
+        .bind(last_error)
+        .bind(delay)
+        .execute(&state.db)
+        .await
+        .map_err(|e| e.to_string())?;
     }
-
-    let event_type: String = row.get("type");
-    let payload = row.get::<serde_json::Value, _>("payload");
-
-    match booking_lifecycle::handle(state, &event_type, &payload).await {
-        Ok(()) => {
-            sqlx::query(
-                r#"UPDATE outbox_events SET status = 'processed', "processedAt" = NOW(), "lastError" = NULL WHERE id = $1"#,
-            )
-            .bind(event_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| e.to_string())?;
-        }
-        Err(e) => {
-            error!("outbox {} ({}) failed: {}", event_id, event_type, e);
-            let new_attempts = attempts + 1;
-            let terminal = new_attempts >= MAX_ATTEMPTS;
-            let new_status = if terminal { "failed" } else { "pending" };
-            sqlx::query(
-                r#"UPDATE outbox_events SET status = $1, "lastError" = $2, "processedAt" = CASE WHEN $3 THEN NOW() ELSE NULL END WHERE id = $4"#,
-            )
-            .bind(new_status)
-            .bind(e.chars().take(2000).collect::<String>())
-            .bind(terminal)
-            .bind(event_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| e.to_string())?;
-        }
-    }
-    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 

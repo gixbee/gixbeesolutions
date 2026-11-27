@@ -106,18 +106,20 @@ class _InstantHelpUnblockScreenState
     }
   }
 
-  void _onPaymentSuccess(PaymentSuccessResponse response) {
+  Future<void> _onPaymentSuccess(PaymentSuccessResponse response) async {
+    if (!mounted) return;
+    final confirmed = await ref.read(paymentsRepositoryProvider)
+        .confirmCapturedPayment(response.orderId, response.paymentId);
     if (!mounted) return;
     setState(() => _paying = false);
-    showGxSnack(context, 'Payment received — unlocking Instant Help…',
-        type: GxSnackType.success);
     ref.invalidate(currentUserProvider);
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        ref.invalidate(currentUserProvider);
-        Navigator.pop(context, true);
-      }
-    });
+    if (confirmed) {
+      showGxSnack(context, 'Payment received. Instant Help is unlocked.',
+          type: GxSnackType.success);
+      Navigator.pop(context, true);
+    } else {
+      showGxSnack(context, 'Payment is being confirmed.');
+    }
   }
 
   void _onPaymentError(PaymentFailureResponse response) {

@@ -14,6 +14,19 @@ class PaymentsRepository {
 
   PaymentsRepository(this._dio);
 
+  Future<bool> confirmCapturedPayment(String? orderId, String? paymentId) async {
+    if (orderId == null || paymentId == null) return false;
+    try {
+      final response = await _dio.post('/payments/orders/$orderId/verify',
+          data: {'paymentId': paymentId});
+      final data = response.data;
+      return data is Map && data['status'] == 'CREDITED';
+    } on DioException {
+      // The durable webhook can still complete the order.
+      return false;
+    }
+  }
+
   /// Direct Razorpay checkout for late-cancel travel compensation.
   /// `POST /payments/late-cancel-compensation/order` → {orderId, amount(paise),
   /// currency, keyId}. The webhook unblocks Instant Help on capture.

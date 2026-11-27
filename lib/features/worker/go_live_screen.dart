@@ -8,6 +8,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/config/app_config.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/booking_repository.dart';
+import '../../repositories/payments_repository.dart';
 import '../../repositories/worker_repository.dart';
 import '../../services/location_service.dart';
 import '../../services/socket_service.dart';
@@ -15,7 +16,6 @@ import '../../theme.dart';
 import '../../shared/widgets/gx_snackbar.dart';
 import '../../shared/widgets/gx_button.dart';
 import '../../shared/widgets/gx_pressable.dart';
-import '../../shared/widgets/gx_sheet.dart';
 import '../../shared/widgets/gx_network_error.dart';
 import '../jobs/register_pro_screen.dart';
 import '../booking/incoming_job_screen.dart';
@@ -267,11 +267,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
   }
 
-  void _onFeePaymentSuccess(PaymentSuccessResponse response) {
+  Future<void> _onFeePaymentSuccess(PaymentSuccessResponse response) async {
+    if (!mounted) return;
+    final confirmed = await ref.read(paymentsRepositoryProvider)
+        .confirmCapturedPayment(response.orderId, response.paymentId);
     if (!mounted) return;
     setState(() => _payingFee = false);
-    _toast('Payment received — unlocking your jobs…', error: false);
-    // Webhook fulfils within seconds; refresh twice, staggered.
+    _toast(confirmed ? 'Payment received. Your jobs are unlocked.' :
+        'Payment is being confirmed.', error: false);
+    ref.invalidate(goLiveDashboardProvider);
+    if (confirmed) return;
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) ref.invalidate(goLiveDashboardProvider);
     });

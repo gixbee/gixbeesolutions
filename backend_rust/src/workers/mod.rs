@@ -287,7 +287,7 @@ async fn skill_worker_ids_from_db(state: &AppState, skill: &str) -> AppResult<Ve
         .collect())
 }
 
-async fn find_nearby_for_dispatch(
+async fn load_nearby_for_dispatch(
     state: &AppState,
     requester_id: &str,
     skill: &str,
@@ -489,6 +489,29 @@ pub async fn find_broadcast_target_ids(
     let nearby =
         find_nearby_for_dispatch(state, requester_id, skill, lat, lng, radius_stretch).await?;
     Ok(select_broadcast_targets(nearby, preferred_languages))
+}
+
+async fn find_nearby_for_dispatch(
+    state: &AppState,
+    requester_id: &str,
+    skill: &str,
+    lat: f64,
+    lng: f64,
+    radius_stretch: f64,
+) -> AppResult<Vec<DispatchWorker>> {
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        load_nearby_for_dispatch(state, requester_id, skill, lat, lng, radius_stretch),
+    )
+    .await;
+    match result {
+        Ok(Err(AppError::Anyhow(error))) => {
+            tracing::warn!(%error, "Worker presence lookup unavailable");
+        }
+        Err(_) => tracing::warn!("Worker presence lookup timed out"),
+        Ok(result) => return result,
+    }
+    Err(AppError::ServiceUnavailable("Live worker matching is temporarily unavailable. Please try again shortly.".into()))
 }
 
 async fn get_nearby(
@@ -1406,25 +1429,25 @@ pub async fn record_strike(
     Ok(())
 }
 
-pub async fn mark_period_fee_paid(state: &AppState, user_id: &str) -> AppResult<()> {
-    let uid = Uuid::parse_str(user_id)?;
+pub async fn mark_period_fee_paid(
+    state: &AppState,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    payment_order_id: Uuid,
+    uid: Uuid,
+) -> AppResult<()> {
     sqlx::query(r#"UPDATE worker_profiles SET "jobsSincePayment" = 0 WHERE "userId" = $1"#)
         .bind(uid)
-        .execute(&state.db)
+        .execute(&mut **tx)
         .await?;
     let jobs_included = periodic_jobs_per_payment(state).await;
-    state
-        .fcm
-        .send_to_user(
-            state,
-            user_id,
-            "Payment received",
-            &format!(
-                "Your next {} jobs are unlocked — go live when ready!",
-                jobs_included
-            ),
-            Some(&[("type", "period_fee_paid")]),
-        )
-        .await;
+    crate::outbox::notify(
+        tx,
+        payment_order_id,
+        uid,
+        "Payment received",
+        &format!("Your next {} jobs are unlocked — go live when ready!", jobs_included),
+        json!({"type": "period_fee_paid"}),
+    )
+    .await?;
     Ok(())
 }

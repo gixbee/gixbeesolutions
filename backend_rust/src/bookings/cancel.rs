@@ -933,17 +933,16 @@ pub async fn get_late_cancel_compensation_quote(
 }
 
 pub async fn mark_late_cancel_compensation_paid(
-    state: &AppState,
-    customer_user_id: &str,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    uid: Uuid,
 ) -> AppResult<()> {
-    let uid = Uuid::parse_str(customer_user_id)?;
     let row = sqlx::query(
         r#"SELECT "instantHelpBlocked", "unblockCompensationBookingId",
                   "unblockCompensationAmountInr", "unblockCompensationDistanceKm"
-           FROM users WHERE id = $1"#,
+           FROM users WHERE id = $1 FOR UPDATE"#,
     )
     .bind(uid)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut **tx)
     .await?
     .ok_or_else(|| AppError::NotFound("User not found".into()))?;
 
@@ -971,7 +970,7 @@ pub async fn mark_late_cancel_compensation_paid(
            WHERE id = $1"#,
     )
     .bind(uid)
-    .execute(&state.db)
+    .execute(&mut **tx)
     .await?;
 
     let worker_id: Option<Uuid> = if let Some(bid) = booking_id {
@@ -985,38 +984,32 @@ pub async fn mark_late_cancel_compensation_paid(
         .bind(amount)
         .bind(distance_km)
         .bind(bid)
-        .execute(&state.db)
+        .execute(&mut **tx)
         .await?;
 
-        sqlx::query_scalar(r#"SELECT "operatorId" FROM bookings WHERE id = $1"#)
+        sqlx::query_scalar::<_, Option<Uuid>>(r#"SELECT "operatorId" FROM bookings WHERE id = $1"#)
             .bind(bid)
-            .fetch_optional(&state.db)
+            .fetch_optional(&mut **tx)
             .await?
+            .flatten()
     } else {
         None
     };
 
-    if let Some(wid) = worker_id {
-        let booking_id_str = booking_id.map(|u| u.to_string()).unwrap_or_default();
-        let amount_str = amount.to_string();
-        state
-            .fcm
-            .send_to_user(
-                state,
-                &wid.to_string(),
-                "Travel compensation received",
-                &format!(
-                    "A customer paid ₹{} travel compensation for a late-cancelled job.",
-                    amount
-                ),
-                Some(&[
-                    ("type", "late_cancel_compensation_paid"),
-                    ("bookingId", &booking_id_str),
-                    ("amount", &amount_str),
-                ]),
-            )
-            .await;
+    if let (Some(wid), Some(bid)) = (worker_id, booking_id) {
+        crate::outbox::notify(
+            tx,
+            bid,
+            wid,
+            "Travel compensation received",
+            &format!("A customer paid ₹{amount} travel compensation for a late-cancelled job."),
+            json!({
+                "type": "late_cancel_compensation_paid",
+                "bookingId": bid.to_string(),
+                "amount": amount.to_string(),
+            }),
+        )
+        .await?;
     }
-
     Ok(())
 }

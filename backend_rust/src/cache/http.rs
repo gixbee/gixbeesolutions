@@ -26,12 +26,12 @@ async fn list_versions(State(state): State<AppState>) -> AppResult<Json<serde_js
 
 async fn admin_stats(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<serde_json::Value>> {
     require_admin_page(&user, "monitoring")?;
-    Ok(Json(stats::snapshot(state.redis.as_ref(), state.redis.is_ready()).await))
+    Ok(Json(stats::snapshot(state.cache_redis.as_ref(), state.cache_redis.is_ready()).await))
 }
 
 async fn admin_stats_reset(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<serde_json::Value>> {
     require_admin_page(&user, "monitoring")?;
-    stats::reset_all(state.redis.as_ref()).await?;
+    stats::reset_all(state.cache_redis.as_ref()).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 

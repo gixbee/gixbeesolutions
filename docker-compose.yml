@@ -134,13 +134,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # maxmemory: without a cap Redis grows until the LINUX OOM KILLER picks a
-    # victim (possibly Postgres). noeviction (not allkeys-lru!) because Bull
-    # jobs + outbox dispatch + OTPs live here — BullMQ requires noeviction;
-    # an evicted job disappears silently. Cache keys all carry TTLs, so
-    # normal operation stays far below the cap. AOF persists queued jobs
-    # across restarts. If used_memory ever nears 512mb, split into a second
-    # cache-only instance with allkeys-lru instead of raising this blindly.
+    # Keep OTPs, live presence and operational keys protected from eviction.
+    # The read-through cache runs on cache_redis.
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
@@ -155,6 +150,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  cache_redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --maxmemory 128mb --maxmemory-policy allkeys-lru
+    networks:
+      - gixbee_net
 
   # ── Coturn (WebRTC TURN/STUN for in-app voice) ─────────────────────────────
   # Clients get credentials from GET /bookings/:id/webrtc-config.
@@ -207,8 +209,9 @@ services:
       DATABASE_NAME: gixbee_db
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      CACHE_REDIS_URL: redis://cache_redis:6379
       REDIS_ALLOW_MEMORY_FALLBACK: "false"
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
       FIREBASE_KEY_PATH: /app/firebase-service-account.json
       UPLOADS_DIR: /app/uploads
@@ -229,7 +232,9 @@ services:
       pgbouncer:
         condition: service_healthy
       redis:
-        condition: service_healthy
+        condition: service_started
+      cache_redis:
+        condition: service_started
 
   # ── Nginx API Load Balancer ────────────────────────────────────────────────
   api_balancer:
@@ -254,7 +259,7 @@ services:
     ports:
       - "3000:3000"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/readyz || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

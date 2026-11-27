@@ -26,11 +26,11 @@ use crate::matching::{
 };
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
-use crate::wallets::add_funds;
 use crate::workers::{mark_period_fee_paid, periodic_jobs_per_payment};
 
 type HmacSha256 = Hmac<Sha256>;
 mod recovery;
+pub(crate) use recovery::run_reconciliation;
 
 const PURPOSE_WALLET_RECHARGE: &str = "WALLET_RECHARGE";
 const PURPOSE_PERIOD_FEE: &str = "PERIOD_FEE";
@@ -376,6 +376,25 @@ pub(crate) async fn create_razorpay_order(
                 "currency":"INR","keyId":key_id,"resumed":true})));
         }
     }
+    if matches!(purpose, PURPOSE_PERIOD_FEE | PURPOSE_LATE_CANCEL | PURPOSE_RENTAL_ADVANCE | PURPOSE_RENTAL_SETTLEMENT) {
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR NO KEY UPDATE")
+            .bind(uid).fetch_one(&mut *tx).await?;
+        let existing: Option<String> = sqlx::query_scalar(
+            r#"SELECT "razorpayOrderId" FROM payment_orders
+               WHERE "userId"=$1 AND purpose::text=$2 AND amount=$3
+                 AND meta IS NOT DISTINCT FROM $4::jsonb AND status='CREATED'
+                 AND "createdAt">NOW()-INTERVAL '24 hours'
+               ORDER BY "createdAt" DESC LIMIT 1"#,
+        )
+        .bind(uid).bind(purpose).bind(rupees).bind(&meta)
+        .fetch_optional(&mut *tx).await?;
+        if let Some(order_id) = existing {
+            return Ok(Json(json!({
+                "orderId": order_id, "amount": rupees * 100,
+                "currency": "INR", "keyId": key_id, "resumed": true,
+            })));
+        }
+    }
     if let Some(basic) = hiring_basic {
         let business = meta.as_ref().and_then(|m|m["businessId"].as_str())
             .ok_or_else(|| AppError::BadRequest("Hiring business is required".into()))?;
@@ -596,101 +615,108 @@ async fn webhook(
         return Err(AppError::ServiceUnavailable("Payment order not persisted yet".into()));
     }
 
-    let claim = sqlx::query(
-        r#"UPDATE payment_orders
-           SET status = 'CREDITED', "razorpayPaymentId" = $2
-           WHERE "razorpayOrderId" = $1 AND status = 'CREATED' AND purpose::text != 'JOB_CREDITS'"#,
+    let payment = payment.ok_or_else(|| AppError::ServiceUnavailable("Captured payment details are required".into()))?;
+    let amount: rust_decimal::Decimal = sqlx::query_scalar(
+        r#"SELECT amount FROM payment_orders WHERE "razorpayOrderId"=$1"#,
     )
     .bind(order_id)
-    .bind(payment_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::ServiceUnavailable("Payment order not persisted yet".into()))?;
+    captured_payment_id(payment, order_id, amount)?;
+    // Keep the signed capture durable while rental or fee fulfillment is retried.
+    sqlx::query(
+        r#"INSERT INTO outbox_events (id, type, "aggregateId", payload)
+           SELECT id, 'payment.captured', id, $2
+           FROM payment_orders WHERE "razorpayOrderId"=$1 AND status='CREATED'
+           ON CONFLICT (id) DO NOTHING"#,
+    )
+    .bind(order_id)
+    .bind(json!({"orderId": order_id, "payment": {
+        "id": payment["id"], "order_id": payment["order_id"], "status": payment["status"],
+        "amount": payment["amount"], "currency": payment["currency"],
+    }}))
     .execute(&state.db)
     .await?;
-
-    if claim.rows_affected() == 0 {
-        info!(
-            "[Razorpay] {}: already credited or unknown — duplicate delivery ignored",
-            order_id
-        );
-        return Ok(Json(json!({ "ok": true, "duplicate": true })));
-    }
-
-    let row = sqlx::query(
-        r#"SELECT id, "userId", amount, purpose::text AS purpose, meta, "razorpayPaymentId"
-           FROM payment_orders WHERE "razorpayOrderId" = $1"#,
-    )
-    .bind(order_id)
-    .fetch_one(&state.db)
-    .await?;
-
-    let order_uuid = row.get::<Uuid, _>("id");
-    let user_id = row.get::<Uuid, _>("userId").to_string();
-    let amount = row
-        .try_get::<rust_decimal::Decimal, _>("amount")
-        .ok()
-        .and_then(|d| d.round().to_string().parse::<i32>().ok())
-        .unwrap_or(0);
-    let purpose = row.get::<String, _>("purpose");
-    let meta = row.get::<Option<Value>, _>("meta");
-    let razorpay_payment_id = row.get::<Option<String>, _>("razorpayPaymentId");
-
-    let fulfil = fulfil_order(
-        &state,
-        order_id,
-        &user_id,
-        amount,
-        &purpose,
-        meta.as_ref(),
-        order_uuid,
-        razorpay_payment_id.as_deref(),
-    )
-    .await;
-
-    if let Err(e) = fulfil {
-        let _ = sqlx::query(
-            r#"UPDATE payment_orders
-               SET status = 'CREATED', "razorpayPaymentId" = NULL
-               WHERE "razorpayOrderId" = $1"#,
-        )
-        .bind(order_id)
-        .execute(&state.db)
-        .await;
-        error!(
-            "[Razorpay] {}: fulfilment FAILED — claim reverted for retry: {}",
-            order_id,
-            e
-        );
-        return Err(e);
-    }
-
     Ok(Json(json!({ "ok": true })))
 }
 
+fn captured_payment_id<'a>(
+    payment: &'a Value,
+    order_id: &str,
+    amount: rust_decimal::Decimal,
+) -> AppResult<&'a str> {
+    let payment_id = payment.get("id").and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| AppError::BadRequest("Missing captured payment reference".into()))?;
+    if payment["status"].as_str() != Some("captured") || payment["currency"].as_str() != Some("INR")
+        || payment["order_id"].as_str() != Some(order_id)
+        || payment["amount"].as_i64().map(rust_decimal::Decimal::from) != Some(amount * rust_decimal::Decimal::from(100)) {
+        return Err(AppError::BadRequest("Captured payment does not match the order".into()));
+    }
+    Ok(payment_id)
+}
+
+pub(crate) async fn apply_legacy_payment(state: &AppState, order_id: &str, payment: &Value) -> AppResult<()> {
+    let mut tx = state.db.begin().await?;
+    let row = sqlx::query(
+        r#"SELECT id, "userId", amount, purpose::text AS purpose, meta, status::text AS status
+           FROM payment_orders WHERE "razorpayOrderId"=$1 FOR UPDATE"#,
+    )
+    .bind(order_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::ServiceUnavailable("Payment order not persisted yet".into()))?;
+    if row.get::<String, _>("status") == "CREDITED" {
+        return Ok(());
+    }
+    if row.get::<String, _>("status") != "CREATED" {
+        return Err(AppError::Conflict("Payment order is not payable".into()));
+    }
+    let payment_id = captured_payment_id(payment, order_id, row.get("amount"))?;
+    let id: Uuid = row.get("id");
+    let user_id: Uuid = row.get("userId");
+    let meta: Option<Value> = row.get("meta");
+    match row.get::<String, _>("purpose").as_str() {
+        PURPOSE_PERIOD_FEE => mark_period_fee_paid(state, &mut tx, id, user_id).await?,
+        PURPOSE_LATE_CANCEL => mark_late_cancel_compensation_paid(&mut tx, user_id).await?,
+        PURPOSE_RENTAL_ADVANCE => apply_rental_advance(&mut tx, user_id, meta.as_ref(), payment_id).await?,
+        PURPOSE_RENTAL_SETTLEMENT => apply_rental_settlement(&mut tx, user_id, meta.as_ref(), payment_id).await?,
+        _ => return Err(AppError::Conflict("Payment purpose requires reconciliation".into())),
+    }
+    sqlx::query(r#"UPDATE payment_orders SET status='CREDITED', "razorpayPaymentId"=$2, "updatedAt"=NOW() WHERE id=$1"#)
+        .bind(id).bind(payment_id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 async fn apply_rental_advance(
-    state: &AppState,
-    user_id: &str,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    uid: Uuid,
     meta: Option<&Value>,
-    razorpay_payment_id: Option<&str>,
+    razorpay_payment_id: &str,
 ) -> AppResult<()> {
     let reservation_id = meta
         .and_then(|m| m.get("reservationId"))
         .and_then(Value::as_str)
         .ok_or_else(|| AppError::BadRequest("Rental payment is missing its booking".into()))?;
     let rid = Uuid::parse_str(reservation_id)?;
-    let uid = Uuid::parse_str(user_id)?;
-    let mut tx = state.db.begin().await?;
-    let status: Option<String> = sqlx::query_scalar(
-        r#"SELECT status::text FROM rental_reservations WHERE id=$1 AND "renterId"=$2 FOR UPDATE"#,
+    let reservation = sqlx::query(
+        r#"SELECT status::text AS status, "priceBreakdown"->>'razorpayPaymentId' AS "capture"
+           FROM rental_reservations WHERE id=$1 AND "renterId"=$2 FOR UPDATE"#,
     )
     .bind(rid)
     .bind(uid)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?;
-    let Some(status) = status else {
+    let Some(reservation) = reservation else {
         return Err(AppError::NotFound("Reservation not found".into()));
     };
-    if !matches!(status.as_str(), "TEMP_HOLD" | "PAYMENT_PENDING") {
-        tx.commit().await?;
+    if reservation.get::<Option<String>, _>("capture").as_deref() == Some(razorpay_payment_id) {
         return Ok(());
+    }
+    if !matches!(reservation.get::<String, _>("status").as_str(), "TEMP_HOLD" | "PAYMENT_PENDING") {
+        return Err(AppError::Conflict("Captured rental advance requires reconciliation".into()));
     }
     sqlx::query(
         r#"UPDATE rental_reservations
@@ -703,18 +729,18 @@ async fn apply_rental_advance(
     )
     .bind(rid)
     .bind(uid)
-    .bind(razorpay_payment_id.unwrap_or(""))
-    .execute(&mut *tx)
+    .bind(razorpay_payment_id)
+    .execute(&mut **tx)
     .await?;
     let owner: Option<Uuid> = sqlx::query_scalar(
         r#"SELECT i."ownerId" FROM rental_items i JOIN rental_reservations r ON r."itemId"=i.id WHERE r.id=$1"#,
     )
     .bind(rid)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?;
     if let Some(owner) = owner {
         crate::outbox::notify(
-            &mut tx,
+            tx,
             rid,
             owner,
             "New rental request",
@@ -723,24 +749,21 @@ async fn apply_rental_advance(
         )
         .await?;
     }
-    tx.commit().await?;
     Ok(())
 }
 
 async fn apply_rental_settlement(
-    state: &AppState,
-    user_id: &str,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    uid: Uuid,
     meta: Option<&Value>,
-    razorpay_payment_id: Option<&str>,
+    razorpay_payment_id: &str,
 ) -> AppResult<()> {
     let reservation_id = meta
         .and_then(|m| m.get("reservationId"))
         .and_then(Value::as_str)
         .ok_or_else(|| AppError::BadRequest("Rental payment is missing its booking".into()))?;
     let rid = Uuid::parse_str(reservation_id)?;
-    let uid = Uuid::parse_str(user_id)?;
-    let mut tx = state.db.begin().await?;
-    sqlx::query(
+    let change = sqlx::query(
         r#"UPDATE rental_reservations
            SET "paymentStatus" = 'SETTLED',
                "remainingAmount" = 0,
@@ -748,22 +771,32 @@ async fn apply_rental_settlement(
                "ownerPaidAt" = COALESCE("ownerPaidAt", NOW()),
                "priceBreakdown" = jsonb_set(COALESCE("priceBreakdown", '{}'::jsonb), '{settlementPaymentId}', to_jsonb($3::text), true),
                "updatedAt" = NOW()
-           WHERE id = $1 AND "renterId" = $2 AND status::text IN ('ACTIVE','RETURN_PENDING')"#,
+           WHERE id = $1 AND "renterId" = $2 AND status::text IN ('ACTIVE','RETURN_PENDING')
+             AND "paymentStatus"::text IS DISTINCT FROM 'SETTLED'"#,
     )
     .bind(rid)
     .bind(uid)
-    .bind(razorpay_payment_id.unwrap_or(""))
-    .execute(&mut *tx)
+    .bind(razorpay_payment_id)
+    .execute(&mut **tx)
     .await?;
+    if change.rows_affected() == 0 {
+        let already_applied: bool = sqlx::query_scalar(
+            r#"SELECT EXISTS(SELECT 1 FROM rental_reservations
+               WHERE id=$1 AND "renterId"=$2 AND "priceBreakdown"->>'settlementPaymentId'=$3)"#,
+        ).bind(rid).bind(uid).bind(razorpay_payment_id).fetch_one(&mut **tx).await?;
+        if already_applied {
+            return Ok(());
+        }
+        return Err(AppError::Conflict("Captured rental settlement requires reconciliation".into()));
+    }
     sqlx::query(
         r#"UPDATE rental_reservations SET status = 'COMPLETED'::rental_reservations_status_enum
            WHERE id = $1 AND status::text = 'RETURN_PENDING'
              AND "ownerReturnedAt" IS NOT NULL AND "renterReturnedAt" IS NOT NULL"#,
     )
     .bind(rid)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
-    tx.commit().await?;
     Ok(())
 }
 
@@ -780,24 +813,6 @@ async fn fulfil_order(
     match purpose {
         crate::plans::PURPOSE => {
             crate::plans::fulfil(state, user_id, payment_order_id, meta.unwrap_or(&Value::Null)).await?;
-        }
-        PURPOSE_PERIOD_FEE => {
-            mark_period_fee_paid(state, user_id).await?;
-            info!(
-                "[Razorpay] {}: period fee ₹{} — jobs unlocked for {}",
-                razorpay_order_id,
-                amount_inr,
-                user_id
-            );
-        }
-        PURPOSE_LATE_CANCEL => {
-            mark_late_cancel_compensation_paid(state, user_id).await?;
-            info!(
-                "[Razorpay] {}: late-cancel compensation ₹{} — Instant Help unlocked for {}",
-                razorpay_order_id,
-                amount_inr,
-                user_id
-            );
         }
         PURPOSE_HIRING_MATCH => {
             create_request_from_payment(
@@ -822,37 +837,6 @@ async fn fulfil_order(
                 razorpay_order_id,
                 amount_inr,
                 user_id
-            );
-        }
-        PURPOSE_WALLET_RECHARGE => {
-            if !WALLET_PAYMENTS_ENABLED {
-                warn!(
-                    "[Razorpay] {}: wallet recharge ignored — WALLET_PAYMENTS_ENABLED=false",
-                    razorpay_order_id
-                );
-                return Ok(());
-            }
-            add_funds(state, user_id, amount_inr, "Wallet Recharge (Razorpay)").await?;
-            info!(
-                "[Razorpay] {}: credited ₹{} to {}",
-                razorpay_order_id,
-                amount_inr,
-                user_id
-            );
-            apply_first_recharge_bonus(state, user_id).await;
-        }
-        PURPOSE_RENTAL_ADVANCE => {
-            apply_rental_advance(state, user_id, meta, razorpay_payment_id).await?;
-            info!(
-                "[Razorpay] {}: rental advance ₹{} for {}",
-                razorpay_order_id, amount_inr, user_id
-            );
-        }
-        PURPOSE_RENTAL_SETTLEMENT => {
-            apply_rental_settlement(state, user_id, meta, razorpay_payment_id).await?;
-            info!(
-                "[Razorpay] {}: rental settlement ₹{} for {}",
-                razorpay_order_id, amount_inr, user_id
             );
         }
         other => {

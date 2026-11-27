@@ -62,6 +62,7 @@ async fn fixture() -> (AppState, Router) {
             .await
             .unwrap(),
         redis: Arc::new(crate::redis::RedisStore::for_tests()),
+        cache_redis: Arc::new(crate::redis::RedisStore::for_tests()),
         fcm: Arc::new(crate::notifications::FcmService::from_config(
             &config,
             http.clone(),

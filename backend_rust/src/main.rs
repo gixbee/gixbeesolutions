@@ -46,9 +46,10 @@ mod workers;
 mod marketplace_tests;
 
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-use axum::{middleware::from_fn_with_state, routing::get, Router};
+use axum::{extract::{Request, State}, http::StatusCode, middleware::from_fn_with_state, routing::get, Json, Router};
+use tower::ServiceExt;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
@@ -76,13 +77,11 @@ async fn main() -> anyhow::Result<()> {
     if let Err(e) = cache::versions::ensure_table(&db).await {
         tracing::warn!("cache_versions table ensure failed (run migration): {e}");
     }
-    let redis = Arc::new(RedisStore::connect(&config).await?);
-
-    if !redis.is_ready() && !config.redis_allow_memory_fallback {
-        anyhow::bail!(
-            "Redis is required for Socket.IO across backend replicas. Start Redis or set REDIS_ALLOW_MEMORY_FALLBACK=true for single-process local dev."
-        );
-    }
+    let cache_url = std::env::var("CACHE_REDIS_URL").ok();
+    let (redis, cache_redis) = tokio::try_join!(
+        RedisStore::connect(Some(&config.redis_url), config.redis_allow_memory_fallback),
+        RedisStore::connect(cache_url.as_deref().filter(|url| !url.is_empty()), false),
+    )?;
 
     let http = reqwest::Client::new();
     let fcm = Arc::new(FcmService::from_config(&config, http.clone()));
@@ -92,13 +91,11 @@ async fn main() -> anyhow::Result<()> {
         cache: cache::CacheConfig::from_env(),
         db,
         redis,
+        cache_redis,
         http,
         realtime: Arc::new(RealtimeHub),
         fcm,
     };
-
-    let (socket_layer, io) = realtime::build_socket_layer(&config.redis_url, state.clone()).await?;
-    realtime::register_handlers(&io).await?;
 
     let poller_state = state.clone();
     tokio::spawn(async move {
@@ -106,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
     });
     tokio::spawn(matching::run_scheduler(state.clone()));
     tokio::spawn(jobs::run_scheduler(state.clone()));
+    tokio::spawn(payments::run_reconciliation(state.clone()));
     let embed_state = state.clone();
     tokio::spawn(async move {
         crate::match_engine::persist::backfill_embeddings(&embed_state).await;
@@ -113,11 +111,11 @@ async fn main() -> anyhow::Result<()> {
 
     let logging_state = state.clone();
     let uploads = ServeDir::new(&config.uploads_dir);
-    let app = Router::new()
+    let http_app: Router = Router::new()
         .route("/", get(|| async { "Hello World!" }))
+        .route("/readyz", get(readiness))
         .nest_service("/uploads", uploads)
         .merge(api_router())
-        .layer(socket_layer)
         .layer(from_fn_with_state(
             logging_state,
             system_logs::api_logging_middleware,
@@ -129,11 +127,46 @@ async fn main() -> anyhow::Result<()> {
                 .allow_headers(Any),
         )
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .with_state(state.clone());
+
+    let socket_app = Arc::new(OnceLock::<Router>::new());
+    let socket_slot = socket_app.clone();
+    let socket_base = http_app.clone();
+    tokio::spawn(async move {
+        loop {
+            let setup = async {
+                let (layer, io) = realtime::build_socket_layer(&state.config.redis_url, state.clone()).await?;
+                realtime::register_handlers(&io).await?;
+                Ok::<_, anyhow::Error>(layer)
+            };
+            if let Ok(Ok(layer)) = tokio::time::timeout(std::time::Duration::from_secs(3), setup).await {
+                let _ = socket_slot.set(socket_base.layer(layer));
+                break;
+            }
+            tracing::warn!("Socket.IO unavailable; HTTP continues while Socket.IO retries");
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        }
+    });
+    let app = Router::new().fallback(move |request: Request| {
+        let app = socket_app.get().unwrap_or(&http_app).clone();
+        async move { app.oneshot(request).await.expect("Router is infallible") }
+    });
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     tracing::info!("Gixbee Rust backend running on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn readiness(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
+    let timeout = std::time::Duration::from_millis(500);
+    let (postgres, redis) = tokio::join!(
+        tokio::time::timeout(timeout, sqlx::query("SELECT 1").execute(&state.db)),
+        tokio::time::timeout(timeout, state.redis.ping()),
+    );
+    let postgres = matches!(postgres, Ok(Ok(_)));
+    let redis = matches!(redis, Ok(true));
+    let status = if postgres { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+    (status, Json(serde_json::json!({"postgres": postgres, "redis": redis})))
 }

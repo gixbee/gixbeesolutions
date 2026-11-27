@@ -9,6 +9,13 @@ pub async fn handle(state: &AppState, event_type: &str, payload: &Value) -> Resu
     match event_type {
         "booking.gps_progress" => crate::bookings::progress::dispatch_gps_progress(state,payload).await.map_err(|e|e.to_string()),
         "hiring.refund" => Ok(()),
+        "payment.captured" => {
+            let order_id = str_field(payload, "orderId")?;
+            let payment = payload.get("payment").ok_or("Missing captured payment")?;
+            crate::payments::apply_legacy_payment(state, &order_id, payment)
+                .await
+                .map_err(|error| error.to_string())
+        }
         "marketplace.notify" => {
             let uid = str_field(payload, "userId")?;
             // An account without a registered device still sees the durable offer/status in the app.
@@ -18,8 +25,11 @@ pub async fn handle(state: &AppState, event_type: &str, payload: &Value) -> Resu
             if token.as_deref().unwrap_or("").is_empty() { return Ok(()); }
             let title = str_field(payload,"title")?;
             let body = str_field(payload,"body")?;
-            let data = payload.get("data").and_then(Value::as_object).map(|o|o.iter()
+            let mut data = payload.get("data").and_then(Value::as_object).map(|o|o.iter()
                 .filter_map(|(k,v)|v.as_str().map(|v|(k.as_str(),v))).collect::<Vec<_>>()).unwrap_or_default();
+            if let Some(event_id) = payload.get("eventId").and_then(Value::as_str) {
+                data.push(("eventId", event_id));
+            }
             if state.fcm.send_to_user(state,&uid,&title,&body,Some(&data)).await { Ok(()) }
             else { Err("Marketplace push delivery failed".into()) }
         },
@@ -147,6 +157,7 @@ async fn on_broadcast_created(state: &AppState, p: &Value) -> Result<(), String>
         .map(|v| v.to_string())
         .unwrap_or_else(|| "[]".to_string());
     let fcm_data = [
+        ("eventId", p.get("eventId").and_then(Value::as_str).unwrap_or(&booking_id)),
         ("type", "new_booking"),
         ("bookingId", booking_id.as_str()),
         ("skill", skill),

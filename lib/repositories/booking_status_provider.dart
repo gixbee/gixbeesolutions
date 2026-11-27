@@ -6,10 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'booking_repository.dart';
 import '../core/config/app_config.dart';
 import '../services/socket_service.dart';
+import '../shared/utils/booking_flags.dart';
 
 /// Terminal booking statuses — HTTP fallback stops once we see one.
 const _terminalStatuses = {
-  'COMPLETED',
   'CANCELLED',
   'REJECTED',
 };
@@ -67,7 +67,8 @@ final bookingStatusNudgeProvider = Provider<BookingStatusNudge>((ref) {
 /// Interval is a **fallback** (FCM + Socket.IO are primary):
 /// - Socket connected → slow poll ([AppConfig.bookingPollBackoffSeconds])
 /// - Socket down → fast poll ([AppConfig.bookingPollIntervalSeconds])
-/// - Terminal status → stop HTTP polling entirely (socket already delivered)
+/// - Completed and unpaid → keep polling until the API confirms payment
+/// - Terminal status or completed and paid → stop polling
 final bookingStatusProvider = StreamProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, bookingId) {
   final repo = ref.watch(bookingRepositoryProvider);
@@ -76,13 +77,19 @@ final bookingStatusProvider = StreamProvider.autoDispose
 
   Timer? timer;
   var inFlight = false;
+  var refreshQueued = false;
+  var paused = false;
   var disposed = false;
   var terminal = false;
   String? lastStatus;
   late void Function() start;
 
-  Future<void> tick() async {
-    if (disposed || inFlight || terminal) return;
+  Future<void> tick({bool queueIfBusy = false}) async {
+    if (disposed || paused || terminal) return;
+    if (inFlight) {
+      refreshQueued = refreshQueued || queueIfBusy;
+      return;
+    }
     inFlight = true;
     try {
       final data = await repo.pollBookingStatus(bookingId);
@@ -90,7 +97,8 @@ final bookingStatusProvider = StreamProvider.autoDispose
         final prev = lastStatus;
         lastStatus = data['status']?.toString().toUpperCase();
         controller.add(data);
-        if (_isTerminalStatus(lastStatus)) {
+        if (_isTerminalStatus(lastStatus) ||
+            (lastStatus == 'COMPLETED' && bookingFlagTrue(data['isPaid']))) {
           terminal = true;
           timer?.cancel();
           timer = null;
@@ -105,18 +113,23 @@ final bookingStatusProvider = StreamProvider.autoDispose
       debugPrint('Booking status poll failed ($bookingId): $e');
     } finally {
       inFlight = false;
+      if (refreshQueued) {
+        refreshQueued = false;
+        unawaited(tick());
+      }
     }
   }
 
   start = () {
-    if (disposed || terminal) return;
+    if (disposed || paused || terminal) return;
     timer?.cancel();
     // Fast while matching (or socket down); backoff only after accept when
     // the socket is healthy.
-    final seconds =
-        !socketService.isLiveForPolling || _isOpenMatchStatus(lastStatus)
-            ? AppConfig.bookingPollIntervalSeconds
-            : AppConfig.bookingPollBackoffSeconds;
+    final seconds = !socketService.isLiveForPolling ||
+            _isOpenMatchStatus(lastStatus) ||
+            lastStatus == 'COMPLETED'
+        ? AppConfig.bookingPollIntervalSeconds
+        : AppConfig.bookingPollBackoffSeconds;
     timer = Timer.periodic(Duration(seconds: seconds), (_) => tick());
   };
 
@@ -129,13 +142,7 @@ final bookingStatusProvider = StreamProvider.autoDispose
       if (targetId == bookingId && !disposed && !controller.isClosed) {
         debugPrint(
             '[BookingStatusProvider] Instant socket push received for $bookingId: ${data['status'] ?? event}');
-        controller.add(Map<String, dynamic>.from(data));
-        if (_isTerminalStatus(data['status']?.toString()) ||
-            event == 'booking_cancelled') {
-          terminal = true;
-          timer?.cancel();
-          timer = null;
-        }
+        unawaited(tick(queueIfBusy: true));
       }
     }
   });
@@ -144,14 +151,14 @@ final bookingStatusProvider = StreamProvider.autoDispose
       ref.watch(bookingStatusNudgeProvider).stream.listen((nudgedId) {
     if (nudgedId != bookingId || disposed || terminal) return;
     debugPrint('[BookingStatusProvider] FCM nudge for $bookingId — polling');
-    tick();
+    tick(queueIfBusy: true);
   });
 
   // Re-tune poll interval when socket drops/reconnects (fast when offline).
   final connectSub = socketService.connectionChanges.listen((connected) {
     if (disposed || terminal) return;
     if (connected) {
-      // Fresh push path is back — slow the fallback.
+      tick();
       start();
     } else {
       tick();
@@ -161,8 +168,12 @@ final bookingStatusProvider = StreamProvider.autoDispose
 
   // Pause polling while backgrounded; refresh immediately on resume.
   final lifecycleListener = AppLifecycleListener(
-    onPause: () => timer?.cancel(),
+    onPause: () {
+      paused = true;
+      timer?.cancel();
+    },
     onResume: () {
+      paused = false;
       if (terminal) return;
       tick();
       start();

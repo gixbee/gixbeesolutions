@@ -160,6 +160,9 @@ pub fn assert_production_secrets(config: &Config) -> Result<()> {
             "RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing or placeholder — period fee / late-cancel payments disabled",
         );
     }
+    if !is_real_secret(config.razorpay_webhook_secret.as_deref()) {
+        problems.push("RAZORPAY_WEBHOOK_SECRET is missing or placeholder");
+    }
 
     if !problems.is_empty() {
         eprintln!("\n[FATAL] Refusing to start in production with insecure config:");

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/config/app_config.dart';
+import '../../repositories/payments_repository.dart';
 import '../../repositories/rentals_repository.dart';
 import '../../shared/widgets/dribbble_background.dart';
 import '../../shared/widgets/gx_button.dart';
@@ -231,10 +232,17 @@ class _MyRentalsScreenState extends ConsumerState<MyRentalsScreen> {
           .read(rentalsRepositoryProvider)
           .createAdvanceOrder(r['id'].toString());
       _razorpay ??= Razorpay()
-        ..on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse _) {
+        ..on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) async {
           if (!mounted) return;
-          showGxSnack(context, 'Advance received — waiting for the store',
-              type: GxSnackType.success);
+          final confirmed = await ref.read(paymentsRepositoryProvider)
+              .confirmCapturedPayment(response.orderId, response.paymentId);
+          if (!mounted) return;
+          if (confirmed) {
+            showGxSnack(context, 'Advance received — waiting for the store',
+                type: GxSnackType.success);
+          } else {
+            showGxSnack(context, 'Advance payment is being confirmed.');
+          }
           _load();
         })
         ..on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
