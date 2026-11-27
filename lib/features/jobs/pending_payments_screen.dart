@@ -71,8 +71,15 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
     try {
       final order = response.orderId; final payment = response.paymentId;
       if (order == null || payment == null) throw StateError('Missing payment reference');
-      await ref.read(matchingRepositoryProvider).verifyPayment(order, payment);
-      if (mounted) showGxSnack(context, 'Payment confirmed. Your purchase is ready.');
+      final status = await ref.read(matchingRepositoryProvider).verifyPayment(order, payment);
+      if (mounted) {
+        showGxSnack(context, switch (status) {
+          'CREDITED' => 'Payment confirmed. Your purchase is ready.',
+          'REFUND_REQUIRED' || 'REFUND_PENDING' => 'This checkout expired. Your refund is being processed.',
+          'REFUNDED' => 'This checkout expired and your payment was refunded.',
+          _ => 'Payment confirmation is pending.',
+        });
+      }
     } catch (_) {
       if (mounted) showGxSnack(context, 'Payment confirmation is still pending. Your order is saved; check again shortly.');
     } finally {
@@ -87,7 +94,7 @@ class _PendingPaymentsScreenState extends ConsumerState<PendingPaymentsScreen> {
       : Column(mainAxisSize: MainAxisSize.min, children: [Text(_error!), TextButton(onPressed: _load, child: const Text('Try again'))]))
       : RefreshIndicator(onRefresh: _load, child: ListView(physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(20), children: [
         if (_error != null) Text(_error!),
-        const Text('Resume an unfinished checkout or check a payment awaiting confirmation. Hiring Coins stay reserved against its saved order.'),
+        const Text('Resume checkout or check an unconfirmed payment. Hiring Coins are released when an expired checkout is verified as unpaid.'),
         const SizedBox(height: 16),
         if (_orders!.isEmpty) const Text('No pending payments.'),
         for (final order in _orders!) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -922,6 +922,11 @@ pub(crate) async fn fulfil_captured_order(state: &AppState, order_id: &str, paym
         PURPOSE_HIRING_MATCH | PURPOSE_EXTRA_JOB_TYPE | crate::plans::PURPOSE => {
             let status = row.get::<String, _>("status");
             if status == "CREDITED" { return Ok(()); }
+            if purpose == PURPOSE_HIRING_MATCH &&
+                matches!(status.as_str(), "REFUND_REQUIRED" | "REFUND_PENDING" | "REFUNDED")
+            {
+                return Ok(());
+            }
             if status != "CREATED" {
                 return Err(AppError::Conflict("Payment order is not payable".into()));
             }

@@ -163,8 +163,10 @@ class MatchingRepository {
     return (response.data as List).map((v) => Map<String, dynamic>.from(v as Map)).toList();
   }
 
-  Future<void> verifyPayment(String orderId, String paymentId) async {
-    await _dio.post('/payments/orders/$orderId/verify', data: {'paymentId': paymentId});
+  Future<String> verifyPayment(String orderId, String paymentId) async {
+    final response = await _dio.post('/payments/orders/$orderId/verify',
+        data: {'paymentId': paymentId});
+    return '${response.data['status']}';
   }
 
   Future<String> paymentStatus(String orderId) async {

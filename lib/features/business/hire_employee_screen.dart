@@ -345,8 +345,17 @@ class _HireEmployeeScreenState extends ConsumerState<HireEmployeeScreen> {
     if (!mounted) return;
     try {
       if (payment.orderId == null || payment.paymentId == null) throw StateError('Missing payment reference');
-      await ref.read(matchingRepositoryProvider).verifyPayment(payment.orderId!, payment.paymentId!);
-      if (mounted) showGxSnack(context, 'Payment confirmed — matching started', type: GxSnackType.success);
+      final status = await ref.read(matchingRepositoryProvider)
+          .verifyPayment(payment.orderId!, payment.paymentId!);
+      if (mounted) {
+        showGxSnack(context, switch (status) {
+          'CREDITED' => 'Payment confirmed — matching started',
+          'REFUND_REQUIRED' || 'REFUND_PENDING' =>
+            'This checkout expired. Your refund is being processed.',
+          'REFUNDED' => 'This checkout expired and your payment was refunded.',
+          _ => 'Payment confirmation is pending.',
+        }, type: status == 'CREDITED' ? GxSnackType.success : GxSnackType.info);
+      }
     } catch (_) {
       if (mounted) showGxSnack(context, 'Payment confirmation is pending. Open Pending payments to check it.');
     }
