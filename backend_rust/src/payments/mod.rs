@@ -26,6 +26,7 @@ use crate::matching::{
 };
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
+use crate::wallets::add_funds;
 use crate::workers::{mark_period_fee_paid, periodic_jobs_per_payment};
 
 type HmacSha256 = Hmac<Sha256>;
