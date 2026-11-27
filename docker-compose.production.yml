@@ -1,0 +1,31 @@
+services:
+  backend_rust:
+    environment:
+      NODE_ENV: production
+  api_balancer:
+    depends_on:
+      admin:
+        condition: service_started
+    environment:
+      GIXBEE_API_HOST: ${GIXBEE_API_HOST:?Set the production API hostname}
+      GIXBEE_ADMIN_HOST: ${GIXBEE_ADMIN_HOST:?Set the production admin hostname}
+    volumes:
+      - ./nginx/lb.https.conf:/etc/nginx/gixbee-https.template:ro
+      - ${GIXBEE_TLS_CERT_DIR:?Set the persistent TLS certificate directory}:/etc/nginx/ssl:ro
+    ports: !override
+      - "80:80"
+      - "443:443"
+    command:
+      - sh
+      - -ec
+      - |
+        for host in "$$GIXBEE_API_HOST" "$$GIXBEE_ADMIN_HOST"; do
+          case "$$host" in
+            ''|*[!A-Za-z0-9.-]*) echo "Invalid Gixbee TLS hostname" >&2; exit 1 ;;
+          esac
+        done
+        test "$$GIXBEE_API_HOST" != "$$GIXBEE_ADMIN_HOST"
+        envsubst '$$GIXBEE_API_HOST $$GIXBEE_ADMIN_HOST' < /etc/nginx/gixbee-https.template > /tmp/gixbee-nginx.conf
+        exec nginx -c /tmp/gixbee-nginx.conf -g 'daemon off;'
+  admin:
+    ports: !reset []

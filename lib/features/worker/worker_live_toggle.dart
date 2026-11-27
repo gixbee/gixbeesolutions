@@ -88,7 +88,7 @@ Future<void> runWorkerLiveToggle(
 
       final pos = await ref
           .read(locationServiceProvider)
-          .getCurrentPosition(fallbackToLastKnown: true);
+          .getCurrentPosition();
       if (pos == null) {
         if (context.mounted) {
           // Release busy before the sheet — retry runs after the first call

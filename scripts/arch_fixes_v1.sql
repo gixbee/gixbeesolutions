@@ -15,6 +15,9 @@ ALTER TABLE payment_orders
     ADD COLUMN IF NOT EXISTS "refundFailure" text,
     ADD COLUMN IF NOT EXISTS "refundedAt" timestamptz;
 
+ALTER TABLE payment_orders
+    ADD COLUMN IF NOT EXISTS "razorpayRefundId" text;
+
 -- Compare enum values directly (casting status::text is not IMMUTABLE for indexes).
 CREATE INDEX IF NOT EXISTS payment_orders_refund_required
     ON payment_orders ("createdAt")

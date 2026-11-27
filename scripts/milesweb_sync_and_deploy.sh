@@ -21,9 +21,38 @@ if [[ -f "$BACKUP_ENV" ]]; then cp "$BACKUP_ENV" /root/gixbeesolutions_new/deplo
 if [[ -f "$BACKUP_FB" ]]; then cp "$BACKUP_FB" /root/gixbeesolutions_new/deploy/firebase-service-account.json; fi
 if [[ -f "$BACKUP_ROOT_ENV" ]]; then cp "$BACKUP_ROOT_ENV" /root/gixbeesolutions_new/.env; fi
 
+# Use the HTTPS production overlay only when TLS hostnames + cert dir are set.
+# Otherwise keep the current HTTP :3000 stack so deploys do not brick MilesWeb
+# before secrets/certs/DNS cutover (see docs/architecture/HTTPS_ROLLOUT.md).
+ROOT_ENV_CANDIDATE=/root/gixbeesolutions_new/.env
+use_tls=0
+if [[ -f "$ROOT_ENV_CANDIDATE" ]] \
+  && grep -qE '^GIXBEE_API_HOST=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
+  && grep -qE '^GIXBEE_ADMIN_HOST=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
+  && grep -qE '^GIXBEE_TLS_CERT_DIR=[^[:space:]]+' "$ROOT_ENV_CANDIDATE"; then
+  cert_dir=$(grep -E '^GIXBEE_TLS_CERT_DIR=' "$ROOT_ENV_CANDIDATE" | head -1 | cut -d= -f2-)
+  if [[ -f "$cert_dir/fullchain.pem" && -f "$cert_dir/privkey.pem" ]]; then
+    use_tls=1
+  fi
+fi
+
+if [[ "$use_tls" -eq 1 ]]; then
+  echo "Deploy mode: HTTPS production overlay"
+  docker compose -f /root/gixbeesolutions_new/docker-compose.yml \
+    -f /root/gixbeesolutions_new/docker-compose.production.yml config --quiet
+else
+  echo "Deploy mode: HTTP base compose (TLS env/certs not ready)"
+  docker compose -f /root/gixbeesolutions_new/docker-compose.yml config --quiet
+fi
+
 if [[ -d "$ROOT" ]]; then mv "$ROOT" "/root/gixbeesolutions.bak.$(date +%s)"; fi
 mv /root/gixbeesolutions_new "$ROOT"
 cd "$ROOT"
+if [[ "$use_tls" -eq 1 ]]; then
+  compose=(docker compose -f docker-compose.yml -f docker-compose.production.yml)
+else
+  compose=(docker compose -f docker-compose.yml)
+fi
 
 sed -i 's/\r$//' scripts/milesweb_sync_and_deploy.sh scripts/azure_hiring_migrations.sql scripts/cache_versions.sql scripts/master_data_audit.sql scripts/azure_hall_migrations.sql scripts/availability_intervals.sql scripts/azure_event_quote_milestones.sql scripts/azure_event_delivery_payments.sql scripts/event_catalogue_service_types.sql scripts/v147_gaps.sql 2>/dev/null || true
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_hiring_migrations.sql
@@ -47,8 +76,8 @@ if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then
   sed -i 's/FROM rust:bookworm AS builder/FROM rust:bookworm AS builder\nENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0/' "$ROOT/backend_rust/Dockerfile"
 fi
 
-docker compose build backend_rust admin
-docker compose up -d --scale backend_rust=2 backend_rust admin api_balancer
+"${compose[@]}" build backend_rust admin
+"${compose[@]}" up -d --scale backend_rust=2 backend_rust admin api_balancer
 docker image prune -f
-docker compose ps
+"${compose[@]}" ps
 echo DEPLOY_OK

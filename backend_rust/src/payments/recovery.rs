@@ -13,7 +13,29 @@ pub(crate) async fn run_reconciliation(state: AppState) {
         if let Err(error) = reconcile_recent_orders(&state).await {
             tracing::warn!(%error, "Could not claim payment reconciliation work");
         }
+        if let Err(error) = reconcile_pending_refunds(&state).await {
+            tracing::warn!(%error, "Could not claim refund reconciliation work");
+        }
     }
+}
+
+async fn reconcile_pending_refunds(state: &AppState) -> AppResult<()> {
+    use futures::{stream, StreamExt};
+    let ids: Vec<Uuid> = sqlx::query_scalar(
+        r#"WITH candidate AS (
+               SELECT id FROM payment_orders WHERE status='REFUND_PENDING' AND "razorpayRefundId" IS NOT NULL
+                 AND "updatedAt" <= NOW()-INTERVAL '5 minutes'
+               ORDER BY "updatedAt", id LIMIT 10 FOR UPDATE SKIP LOCKED
+           )
+           UPDATE payment_orders p SET "updatedAt"=NOW()
+           FROM candidate c WHERE p.id=c.id RETURNING p.id"#,
+    ).fetch_all(&state.db).await?;
+    stream::iter(ids).for_each_concurrent(4, |id| async move {
+        if let Err(error) = process_refund_required(state, &json!({"paymentOrderId": id})).await {
+            tracing::warn!(%id, %error, "Refund reconciliation failed");
+        }
+    }).await;
+    Ok(())
 }
 
 async fn reconcile_recent_orders(state: &AppState) -> AppResult<()> {
@@ -22,6 +44,7 @@ async fn reconcile_recent_orders(state: &AppState) -> AppResult<()> {
         r#"WITH candidate AS (
                SELECT p.id FROM payment_orders p
                WHERE p.status='CREATED'
+                 AND p."razorpayOrderId" IS NOT NULL
                  AND p.purpose::text IN ('PERIOD_FEE','LATE_CANCEL_COMPENSATION','RENTAL_ADVANCE','RENTAL_SETTLEMENT')
                  AND p."createdAt">NOW()-INTERVAL '24 hours'
                  AND COALESCE(p."reconcileAfter",p."createdAt"+INTERVAL '2 minutes')<=NOW()
@@ -64,7 +87,8 @@ async fn reconcile_order(state: &AppState, order_id: &str) -> AppResult<()> {
 
 pub(super) async fn pending(State(state):State<AppState>,user:AuthUser)->AppResult<Json<Vec<Value>>> {
     let rows=sqlx::query(r#"SELECT "razorpayOrderId",amount,purpose::text AS purpose,meta,"createdAt"
-        FROM payment_orders WHERE "userId"=$1 AND status='CREATED' AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')
+        FROM payment_orders WHERE "userId"=$1 AND status='CREATED' AND "razorpayOrderId" IS NOT NULL
+          AND purpose::text IN ('HIRING_MATCH_FEE','EXTRA_JOB_TYPE_FEE','PLATFORM_PLAN')
         ORDER BY "createdAt" DESC LIMIT 100"#).bind(Uuid::parse_str(&user.user_id)?).fetch_all(&state.db).await?;
     Ok(Json(rows.iter().map(|r|json!({"orderId":r.get::<String,_>("razorpayOrderId"),"amount":(r.get::<Decimal,_>("amount")*Decimal::from(100)).to_i64(),
         "currency":"INR","keyId":state.config.razorpay_key_id,"purpose":r.get::<String,_>("purpose"),
@@ -82,8 +106,11 @@ pub(super) struct VerifyInput {payment_id:String}
 
 pub(super) async fn verify(State(state):State<AppState>,user:AuthUser,Path(id):Path<String>,Json(input):Json<VerifyInput>)->AppResult<Json<Value>> {
     let order=owned(&state,&user,&id).await?;
-    if order.get::<String,_>("status")=="CREDITED" {return Ok(Json(json!({"status":"CREDITED"})));}
-    if order.get::<String,_>("status")!="CREATED" {return Err(AppError::Conflict("This order is not payable".into()));}
+    let order_status: String = order.get("status");
+    if matches!(order_status.as_str(), "CREDITED" | "REFUND_REQUIRED" | "REFUND_PENDING" | "REFUNDED") {
+        return Ok(Json(json!({"status": order_status})));
+    }
+    if order_status!="CREATED" {return Err(AppError::Conflict("This order is not payable".into()));}
     if !razorpay_configured(&state) {return Err(AppError::ServiceUnavailable("Payment gateway is unavailable".into()));}
     if !input.payment_id.starts_with("pay_") || input.payment_id.len()<=4 || input.payment_id.len()>100
         || !input.payment_id[4..].chars().all(|c|c.is_ascii_alphanumeric()) {return Err(AppError::BadRequest("Invalid payment reference".into()));}
@@ -103,7 +130,9 @@ pub(super) async fn verify(State(state):State<AppState>,user:AuthUser,Path(id):P
     let meta:Option<Value>=order.get("meta");let purpose:String=order.get("purpose");let order_id:Uuid=order.get("id");
     if matches!(purpose.as_str(), PURPOSE_PERIOD_FEE | PURPOSE_LATE_CANCEL | PURPOSE_RENTAL_ADVANCE | PURPOSE_RENTAL_SETTLEMENT) {
         apply_legacy_payment(&state, &id, &payment).await?;
-        return Ok(Json(json!({"status":"CREDITED"})));
+        let status: String = sqlx::query_scalar("SELECT status::text FROM payment_orders WHERE id=$1")
+            .bind(order_id).fetch_one(&state.db).await?;
+        return Ok(Json(json!({"status": status})));
     }
     fulfil_order(&state,&id,&user.user_id,amount.to_i32().unwrap_or(0),&purpose,meta.as_ref(),order_id,Some(&input.payment_id)).await?;
     sqlx::query(r#"UPDATE payment_orders SET status='CREDITED',"razorpayPaymentId"=$2,"updatedAt"=NOW() WHERE id=$1 AND status='CREATED'"#)

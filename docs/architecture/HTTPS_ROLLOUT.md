@@ -1,41 +1,19 @@
-# HTTPS rollout (MilesWeb)
+# HTTPS rollout on MilesWeb
 
-Prepare TLS **before** shipping a release APK that enforces HTTPS. Local `flutter run` / debug builds may still use `http://`.
+Before releasing an APK, point the public API hostname and a distinct admin hostname at the VPS. Open inbound ports 80 and 443. Use a certificate covering both hostnames and store its files outside the release directory so they survive the release script's directory swap.
 
-## What you must configure
+Set these values in the project root `.env`.
 
-1. **DNS** — Point `api.<your-domain>` (and optionally the admin hostname) at the MilesWeb VPS public IP (`103.102.234.152` today).
-2. **Certificates** — Place Let’s Encrypt (or equivalent) files on the host:
-   - `fullchain.pem`
-   - `privkey.pem`
-   - Default mount: `GIXBEE_TLS_CERT_DIR` → `/etc/nginx/ssl` inside `api_balancer` (compose defaults to `./nginx/ssl`).
-3. **Nginx config** — After certs exist:
-   ```bash
-   cp nginx/lb.https.conf nginx/lb.conf
-   # In docker-compose.yml under api_balancer.ports, uncomment:
-   # - "80:80"
-   # - "443:443"
-   docker compose up -d api_balancer
-   ```
-4. **Firewall** — Allow inbound TCP `80` and `443`. Keep `3000` only for cutover healthchecks, then restrict it.
-5. **Razorpay webhook** — Update the dashboard URL to  
-   `https://api.<your-domain>/payments/webhook`  
-   (same path; HMAC secret unchanged). Replay a test capture after cutover.
-6. **Flutter release** — Rebuild APK/IPA with HTTPS dart-defines:
-   ```text
-   --dart-define=API_BASE_URL=https://api.<your-domain>
-   --dart-define=SOCKET_URL=https://api.<your-domain>
-   ```
-   Release builds **reject** loopback and cleartext `http://` URLs.
-7. **Angular admin** — Serve admin over HTTPS (terminate TLS on `:443` for the admin container or put it behind the same edge). The SPA already uses same-origin `/api/` proxy; ensure `X-Forwarded-Proto` is `https`.
+```dotenv
+GIXBEE_API_HOST=api.example.com
+GIXBEE_ADMIN_HOST=admin.example.com
+GIXBEE_TLS_CERT_DIR=/persistent/path/to/tls
+```
 
-## Cutover order
+The directory must contain `fullchain.pem` and `privkey.pem`, readable by the edge container. If you use the ACME webroot for renewal, set `GIXBEE_CERTBOT_WEBROOT` to a persistent directory and reload the edge after certificates renew.
 
-1. Issue certs and switch `lb.conf` → `lb.https.conf` while old HTTP `:3000` clients still work.
-2. Update Razorpay webhook to HTTPS; confirm captures land.
-3. Ship the HTTPS APK.
-4. Optionally close public `:3000` after clients migrate.
+Prepare strong production secrets in `deploy/.env` before running the release. The MilesWeb script automatically loads `docker-compose.production.yml`. It sets the Rust API to production mode, serves both hosts at the edge, and exposes ports 80 and 443. The API probe uses the private listener inside the edge container. Local development can use the base Compose file with HTTP.
 
-## Rollback
+Configure Razorpay to use `https://api.example.com/payments/webhook` and verify a test capture. Verify that the admin sign-in, API readiness, and Socket.IO connection work over HTTPS. Then build Flutter with `API_BASE_URL=https://api.example.com` and `SOCKET_URL=https://api.example.com`. Existing clients configured with public port 3000 require an updated build before this cutover.
 
-Restore `nginx/lb.conf` from the HTTP template in git, comment out `80`/`443` ports, and `docker compose up -d api_balancer`. Existing HTTP clients keep working; HTTPS-only APKs will fail until certs/config return.
+For an application rollback, restore the previous API and admin images behind the same HTTPS edge. Keep the new nullable columns in place only if the old code can read checkout intents and refund states. Review incompatible pending rows before rolling back to a version that assumes an attached provider order for every payment.

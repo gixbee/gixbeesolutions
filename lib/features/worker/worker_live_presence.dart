@@ -39,7 +39,7 @@ class WorkerLivePresence {
       try {
         final pos = await _ref
             .read(locationServiceProvider)
-            .getCurrentPosition(fallbackToLastKnown: true);
+            .getCurrentPosition();
         if (pos == null) return;
         await _ref.read(workerRepositoryProvider).updateMyLocation(
               lat: pos.latitude,

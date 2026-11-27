@@ -70,7 +70,7 @@ async fn admin_refund_failures(
     let rows = sqlx::query(
         r#"SELECT id, "userId", amount, purpose::text AS purpose, status::text AS status,
                   "razorpayOrderId", "razorpayPaymentId", meta, "refundFailure",
-                  "createdAt", "updatedAt", "refundedAt"
+                  "createdAt", "updatedAt", "refundedAt", "razorpayRefundId"
            FROM payment_orders
            WHERE status::text IN ('REFUND_REQUIRED','REFUND_PENDING')
               OR ("refundFailure" IS NOT NULL AND status::text <> 'REFUNDED')
@@ -92,6 +92,7 @@ async fn admin_refund_failures(
                 "razorpayPaymentId": r.try_get::<Option<String>, _>("razorpayPaymentId").ok().flatten(),
                 "meta": r.try_get::<Option<Value>, _>("meta").ok().flatten(),
                 "refundFailure": r.try_get::<Option<String>, _>("refundFailure").ok().flatten(),
+                "razorpayRefundId": r.get::<Option<String>, _>("razorpayRefundId"),
                 "createdAt": crate::common::pg::date_json(r, "createdAt"),
                 "updatedAt": crate::common::pg::date_json(r, "updatedAt"),
                 "refundedAt": crate::common::pg::date_json(r, "refundedAt"),
@@ -642,26 +643,31 @@ async fn attach_razorpay_order(
             },
         }))
         .send()
-        .await
-        .map_err(|e| AppError::Internal(format!("Razorpay request failed: {}", e)))?;
-
-    if !res.status().is_success() {
-        let status = res.status();
-        let detail = res.text().await.unwrap_or_default();
-        error!(
-            "[Razorpay] order create failed ({}): {}",
-            status,
-            detail.chars().take(500).collect::<String>()
-        );
-        return Err(AppError::BadRequest(
-            "Could not start the payment — please try again in a moment.".into(),
-        ));
-    }
-
-    let order: Value = res
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("Razorpay response parse failed: {}", e)))?;
+        .await;
+    let created = match res {
+        Ok(response) if response.status().is_success() => response.json::<Value>().await.ok(),
+        _ => None,
+    };
+    let order = match created.filter(|order| order["id"].as_str().is_some()) {
+        Some(order) => order,
+        None => {
+            let response = state.http.get("https://api.razorpay.com/v1/orders")
+                .basic_auth(key_id, Some(key_secret))
+                .query(&[("receipt", receipt.as_str())])
+                .timeout(std::time::Duration::from_secs(8))
+                .send().await.and_then(|r| r.error_for_status())
+                .map_err(|_| AppError::ServiceUnavailable("Checkout recovery is temporarily unavailable".into()))?;
+            let result: Value = response.json().await
+                .map_err(|_| AppError::ServiceUnavailable("Invalid checkout recovery response".into()))?;
+            result["items"].as_array().and_then(|items| items.iter().find(|order|
+                order["receipt"].as_str() == Some(receipt.as_str())
+                    && order["amount"].as_i64() == Some(i64::from(rupees) * 100)
+                    && order["currency"].as_str() == Some("INR")
+            )).cloned().ok_or_else(|| AppError::ServiceUnavailable(
+                "Could not confirm the checkout yet. Please retry shortly.".into(),
+            ))?
+        }
+    };
     let razorpay_order_id = order
         .get("id")
         .and_then(|v| v.as_str())
@@ -1066,109 +1072,88 @@ async fn enqueue_refund_required(
 }
 
 pub(crate) async fn process_refund_required(state: &AppState, payload: &Value) -> AppResult<()> {
-    let payment_order_id = payload
-        .get("paymentOrderId")
-        .and_then(Value::as_str)
-        .ok_or_else(|| AppError::BadRequest("Missing paymentOrderId".into()))?;
-    let pid = Uuid::parse_str(payment_order_id)?;
-    let mut tx = state.db.begin().await?;
+    let pid = Uuid::parse_str(payload["paymentOrderId"].as_str()
+        .ok_or_else(|| AppError::BadRequest("Missing paymentOrderId".into()))?)?;
     let row = sqlx::query(
-        r#"SELECT status::text AS status, amount, "razorpayPaymentId", meta, "userId"
-           FROM payment_orders WHERE id=$1 FOR UPDATE"#,
-    )
-    .bind(pid)
-    .fetch_optional(&mut *tx)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Payment order not found".into()))?;
-    let status = row.get::<String, _>("status");
-    if status == "REFUNDED" {
+        r#"SELECT status::text AS status, amount, "razorpayPaymentId", "razorpayRefundId", meta
+           FROM payment_orders WHERE id=$1"#,
+    ).bind(pid).fetch_optional(&state.db).await?
+        .ok_or_else(|| AppError::NotFound("Payment order not found".into()))?;
+    if !matches!(row.get::<String, _>("status").as_str(), "REFUND_REQUIRED" | "REFUND_PENDING") {
         return Ok(());
     }
-    if status != "REFUND_REQUIRED" && status != "REFUND_PENDING" {
-        return Err(AppError::Conflict(
-            "Payment order is not awaiting refund".into(),
-        ));
-    }
-    let payment_id = row
-        .get::<Option<String>, _>("razorpayPaymentId")
-        .or_else(|| {
-            payload
-                .pointer("/payment/id")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
+    let payment_id = row.get::<Option<String>, _>("razorpayPaymentId")
         .ok_or_else(|| AppError::BadRequest("Missing captured payment id for refund".into()))?;
-    let amount = rust_decimal::prelude::ToPrimitive::to_i32(
-        &row.get::<rust_decimal::Decimal, _>("amount"),
-    )
-    .unwrap_or(0);
-    let reservation_id = row
-        .get::<Option<Value>, _>("meta")
-        .as_ref()
-        .and_then(|m| m.get("reservationId"))
-        .and_then(Value::as_str)
-        .unwrap_or(payment_order_id)
-        .to_string();
-
-    sqlx::query(
-        r#"UPDATE payment_orders
-           SET status='REFUND_PENDING'::payment_orders_status_enum,
-               "refundFailure"=NULL, "updatedAt"=NOW()
-           WHERE id=$1"#,
-    )
-    .bind(pid)
-    .execute(&mut *tx)
-    .await?;
-    tx.commit().await?;
-
-    match refund_payment(
-        state,
-        &payment_id,
-        amount,
-        &format!("gixbee-rental-{reservation_id}-{payment_id}"),
-    )
-    .await
-    {
-        Ok(()) => {
-            sqlx::query(
-                r#"UPDATE payment_orders
-                   SET status='REFUNDED'::payment_orders_status_enum,
-                       "refundedAt"=NOW(), "refundFailure"=NULL, "updatedAt"=NOW()
-                   WHERE id=$1"#,
-            )
-            .bind(pid)
-            .execute(&state.db)
-            .await?;
-            if let Ok(rid) = Uuid::parse_str(&reservation_id) {
-                let _ = sqlx::query(
-                    r#"UPDATE rental_reservations
-                       SET "priceBreakdown" = jsonb_set(
-                           COALESCE("priceBreakdown", '{}'::jsonb),
-                           '{refundStatus}', '"REFUNDED"'::jsonb, true),
-                           "updatedAt"=NOW()
-                       WHERE id=$1"#,
-                )
-                .bind(rid)
-                .execute(&state.db)
-                .await;
-            }
-            Ok(())
-        }
-        Err(e) => {
-            let detail = e.to_string();
-            sqlx::query(
-                r#"UPDATE payment_orders
-                   SET status='REFUND_REQUIRED'::payment_orders_status_enum,
-                       "refundFailure"=$2, "updatedAt"=NOW()
-                   WHERE id=$1"#,
-            )
-            .bind(pid)
-            .bind(&detail)
-            .execute(&state.db)
-            .await?;
-            Err(e)
-        }
+    let refund_id = row.get::<Option<String>, _>("razorpayRefundId");
+    let amount = rust_decimal::prelude::ToPrimitive::to_i64(
+        &(row.get::<rust_decimal::Decimal, _>("amount") * rust_decimal::Decimal::from(100)),
+    ).filter(|amount| *amount > 0)
+        .ok_or_else(|| AppError::BadRequest("Invalid refund amount".into()))?;
+    let meta = row.get::<Option<Value>, _>("meta");
+    let reservation_id = meta.as_ref().and_then(|m| m["reservationId"].as_str())
+        .and_then(|id| Uuid::parse_str(id).ok())
+        .ok_or_else(|| AppError::BadRequest("Missing rental reservation for refund".into()))?;
+    let url = format!("https://api.razorpay.com/v1/payments/{payment_id}");
+    let request = if let Some(id) = refund_id.as_deref() {
+        state.http.get(format!("{url}/refunds/{id}"))
+    } else {
+        state.http.post(format!("{url}/refund"))
+            // Preserve the key used by earlier attempts for this rental.
+            .header("X-Refund-Idempotency", format!("gixbee-rental-{reservation_id}-{payment_id}"))
+            .json(&json!({"amount": amount, "speed": "normal"}))
+    };
+    if !razorpay_configured(state) {
+        return Err(AppError::ServiceUnavailable("Refund gateway unavailable".into()));
     }
+    let response = request.basic_auth(
+        state.config.razorpay_key_id.as_deref().unwrap_or(""),
+        state.config.razorpay_key_secret.as_deref(),
+    ).timeout(std::time::Duration::from_secs(20)).send().await;
+    let response = match response.and_then(|response| response.error_for_status()) {
+        Ok(response) => response,
+        Err(error) => {
+            let message = error.status().map(|status| format!("Razorpay refund returned HTTP {status}"))
+                .unwrap_or_else(|| "Razorpay refund request did not complete".into());
+            sqlx::query(r#"UPDATE payment_orders SET "refundFailure"=$2
+                WHERE id=$1 AND status IN ('REFUND_REQUIRED','REFUND_PENDING')"#)
+                .bind(pid).bind(&message).execute(&state.db).await?;
+            return Err(AppError::ServiceUnavailable(message));
+        }
+    };
+    let refund: Value = response.json().await
+        .map_err(|_| AppError::ServiceUnavailable("Invalid Razorpay refund response".into()))?;
+    let id = refund["id"].as_str().filter(|id| id.starts_with("rfnd_"))
+        .ok_or_else(|| AppError::ServiceUnavailable("Missing Razorpay refund reference".into()))?;
+    if refund["payment_id"].as_str() != Some(payment_id.as_str())
+        || refund["amount"].as_i64() != Some(amount)
+        || refund_id.as_deref().is_some_and(|known| known != id) {
+        return Err(AppError::Conflict("Razorpay refund does not match the captured payment".into()));
+    }
+    let (status, renter_status, failure) = match refund["status"].as_str() {
+        Some("pending") => ("REFUND_PENDING", "REFUND_PENDING", None),
+        Some("processed") => ("REFUNDED", "REFUNDED", None),
+        Some("failed") => ("REFUND_REQUIRED", "REFUND_FAILED", Some("Razorpay reported a failed refund. Review before retrying.")),
+        _ => return Err(AppError::ServiceUnavailable("Unknown Razorpay refund status".into())),
+    };
+    let mut tx = state.db.begin().await?;
+    let updated = sqlx::query(
+        r#"UPDATE payment_orders SET status=$2::payment_orders_status_enum,
+                  "razorpayRefundId"=$3, "refundFailure"=$4, "updatedAt"=NOW(),
+                  "refundedAt"=CASE WHEN $2='REFUNDED' THEN NOW() ELSE "refundedAt" END
+           WHERE id=$1 AND status IN ('REFUND_REQUIRED','REFUND_PENDING')
+             AND ("razorpayRefundId" IS NULL OR "razorpayRefundId"=$3)
+             AND ($2<>'REFUND_PENDING' OR "razorpayRefundId" IS NULL OR status='REFUND_PENDING')"#,
+    ).bind(pid).bind(status).bind(id).bind(failure).execute(&mut *tx).await?;
+    if updated.rows_affected() > 0 {
+        sqlx::query(
+            r#"UPDATE rental_reservations SET "priceBreakdown"=jsonb_set(
+                    COALESCE("priceBreakdown", '{}'::jsonb), '{refundStatus}', to_jsonb($3::text), true),
+                    "updatedAt"=NOW()
+               WHERE id=$1 AND "lateCapturePaymentId"=$2"#,
+        ).bind(reservation_id).bind(&payment_id).bind(renter_status).execute(&mut *tx).await?;
+    }
+    tx.commit().await?;
+    Ok(())
 }
 
 async fn apply_rental_advance(
@@ -1184,7 +1169,7 @@ async fn apply_rental_advance(
     let rid = Uuid::parse_str(reservation_id)?;
     let reservation = sqlx::query(
         r#"SELECT status::text AS status, "priceBreakdown"->>'razorpayPaymentId' AS "capture",
-                  "lateCapturePaymentId"
+                  "lateCapturePaymentId", COALESCE("holdExpiresAt" <= clock_timestamp(), false) AS expired
            FROM rental_reservations WHERE id=$1 AND "renterId"=$2 FOR UPDATE"#,
     )
     .bind(rid)
@@ -1202,7 +1187,7 @@ async fn apply_rental_advance(
     {
         return Ok(());
     }
-    if !matches!(
+    if reservation.get::<bool, _>("expired") || !matches!(
         reservation.get::<String, _>("status").as_str(),
         "TEMP_HOLD" | "PAYMENT_PENDING"
     ) {
@@ -1210,6 +1195,8 @@ async fn apply_rental_advance(
         sqlx::query(
             r#"UPDATE rental_reservations
                SET "lateCapturePaymentId" = $3,
+                   status = CASE WHEN status IN ('TEMP_HOLD','PAYMENT_PENDING') THEN 'CANCELLED'::rental_reservations_status_enum ELSE status END,
+                   "paymentStatus" = CASE WHEN status IN ('TEMP_HOLD','PAYMENT_PENDING') THEN 'EXPIRED' ELSE "paymentStatus" END,
                    "priceBreakdown" = jsonb_set(
                        jsonb_set(COALESCE("priceBreakdown", '{}'::jsonb), '{lateCapturePaymentId}', to_jsonb($3::text), true),
                        '{refundStatus}', '"REFUND_REQUIRED"'::jsonb, true),

@@ -522,12 +522,33 @@ impl RedisStore {
             .unwrap_or_else(|| "available".to_string()))
     }
 
-    pub async fn set_worker_status(&self, user_id: &str, status: &str) -> Result<()> {
-        self.set(&format!("worker:status:{user_id}"), status, 3600)
-            .await
+    pub async fn begin_worker_status_update(&self, user_id: &str) -> Result<String> {
+        let token = uuid::Uuid::new_v4().to_string();
+        self.set(&format!("worker:status-token:{user_id}"), &token, 3600).await?;
+        Ok(token)
     }
 
-    /// Batch status reads — missing keys default to available at the caller.
+    pub async fn finish_worker_status_update(&self, user_id: &str, token: &str, status: &str) -> Result<()> {
+        let token_key = format!("worker:status-token:{user_id}");
+        let status_key = format!("worker:status:{user_id}");
+        if let Some(mut connection) = self.conn() {
+            redis::cmd("EVAL").arg(r#"
+                if redis.call('GET', KEYS[1]) == ARGV[1] then
+                    redis.call('SETEX', KEYS[2], 3600, ARGV[2])
+                end
+            "#).arg(2).arg(&token_key).arg(&status_key).arg(token).arg(status)
+                .query_async::<()>(&mut connection).await?;
+        } else {
+            self.assert_fallback("worker status update")?;
+            let mut values = self.mem_kv.lock().await;
+            if values.get(&token_key).is_some_and(|(current, _)| current.as_str() == token) {
+                values.insert(status_key, (status.to_owned(), Some(std::time::Instant::now() + std::time::Duration::from_secs(3600))));
+            }
+        }
+        Ok(())
+    }
+
+    /// Batch status reads for workers with an explicit online state.
     pub async fn mget_worker_statuses(
         &self,
         user_ids: &[String],
@@ -542,10 +563,9 @@ impl RedisStore {
             .collect();
         let values = self.mget_strings(&keys).await?;
         for (id, value) in user_ids.iter().zip(values.into_iter()) {
-            out.insert(
-                id.clone(),
-                value.unwrap_or_else(|| "available".to_string()),
-            );
+            if let Some(value) = value {
+                out.insert(id.clone(), value);
+            }
         }
         Ok(out)
     }
@@ -564,11 +584,16 @@ impl RedisStore {
             .map(|id| format!("worker:location:{id}"))
             .collect();
         let values = self.mget_strings(&keys).await?;
+        let now = chrono::Utc::now().timestamp_millis();
         for (id, value) in user_ids.iter().zip(values.into_iter()) {
             let Some(raw) = value else { continue };
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
                 if let (Some(lat), Some(lng)) = (v.get("lat").and_then(|x| x.as_f64()), v.get("lng").and_then(|x| x.as_f64())) {
-                    if lat.is_finite() && lng.is_finite() {
+                    let timestamp = v["timestamp"].as_str()
+                        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                        .map(|dt| dt.timestamp_millis()).or_else(|| v["timestamp"].as_i64());
+                    if lat.is_finite() && lng.is_finite()
+                        && timestamp.is_some_and(|stamp| (now - 120_000..=now + 5_000).contains(&stamp)) {
                         out.insert(id.clone(), (lat, lng));
                     }
                 }
@@ -688,6 +713,7 @@ impl RedisStore {
     }
 
     pub async fn clear_worker_live_state(&self, user_id: &str, skills: &[String]) -> Result<()> {
+        let _ = self.begin_worker_status_update(user_id).await;
         let _ = self.del(&format!("worker:location:{user_id}")).await;
         let _ = self.del(&format!("worker:loc:{user_id}")).await;
         let _ = self.del(&format!("worker:status:{user_id}")).await;

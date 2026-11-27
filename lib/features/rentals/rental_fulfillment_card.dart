@@ -76,6 +76,13 @@ class _RentalFulfillmentCardState extends ConsumerState<RentalFulfillmentCard> {
     final handed = r['ownerHandedOverAt'] != null || r['renterCollectedAt'] != null;
     final returned = r['ownerReturnedAt'] != null && r['renterReturnedAt'] != null;
     final paid = r['ownerPaidAt'] != null || r['renterPaidAt'] != null;
+    final advanceRefund = switch (p['refundStatus']) {
+      'REFUND_REQUIRED' => 'Advance refund queued',
+      'REFUND_PENDING' => 'Advance refund is processing',
+      'REFUNDED' => 'Advance refunded',
+      'REFUND_FAILED' => 'Advance refund needs support review',
+      _ => null,
+    };
     final deposit = num.tryParse('${p['deposit'] ?? 0}') ?? 0;
     final refund = status == 'CANCELLED' && paid ? num.tryParse('${r['totalPrice']}') ?? 0 : returned && paid ? deposit : 0;
     final inWindow = !(DateTime.tryParse('${r['startTime']}')?.isAfter(DateTime.now()) ?? true) &&
@@ -90,9 +97,9 @@ class _RentalFulfillmentCardState extends ConsumerState<RentalFulfillmentCard> {
         Text('Rental ${eventMoney(p['rent'])} · Delivery ${eventMoney(p['delivery'])}'),
         Text('Refundable deposit ${eventMoney(p['deposit'])}'),
         if (r['advanceAmount'] != null) Text('Advance ${eventMoney(r['advanceAmount'])}'),
-        if ('${p['refundStatus'] ?? ''}'.isNotEmpty)
+        if (advanceRefund != null)
           Text(
-            'Advance refund: ${p['refundStatus']}',
+            advanceRefund,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         Text('${p['depositTerms'] ?? ''}'),

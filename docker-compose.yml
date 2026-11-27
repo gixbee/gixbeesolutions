@@ -251,8 +251,6 @@ services:
     volumes:
       - ./nginx/lb.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/.htpasswd:/etc/nginx/infra.htpasswd:ro
-      # Optional TLS material when using nginx/lb.https.conf.
-      - ${GIXBEE_TLS_CERT_DIR:-./nginx/ssl}:/etc/nginx/ssl:ro
       - ${GIXBEE_CERTBOT_WEBROOT:-./nginx/certbot}:/var/www/certbot:ro
       - uploads_data:/app/uploads
     networks:
@@ -263,9 +261,6 @@ services:
       - redis
     ports:
       - "3000:3000"
-      # Uncomment after switching to nginx/lb.https.conf (see HTTPS_ROLLOUT.md):
-      # - "80:80"
-      # - "443:443"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/readyz || exit 1"]
       interval: 30s

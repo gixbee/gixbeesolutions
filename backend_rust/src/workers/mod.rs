@@ -348,7 +348,7 @@ async fn load_nearby_for_dispatch(
 
     let rows = sqlx::query(
         r#"SELECT w."userId", w.skills, w."activeSkills", w.languages, w.rating,
-                  w."serviceRadiusKm", w."lastLat", w."lastLng"
+                  w."serviceRadiusKm"
            FROM worker_profiles w
            JOIN users u ON u.id = w."userId"
            WHERE w."userId" = ANY($1)
@@ -384,29 +384,10 @@ async fn load_nearby_for_dispatch(
         if busy_db.contains(&worker_uuid) {
             continue;
         }
-        let status = status_by_id
-            .get(&worker_id)
-            .map(String::as_str)
-            .unwrap_or("available");
-        if status == "busy" {
+        if status_by_id.get(&worker_id).map(String::as_str) != Some("available") {
             continue;
         }
-        let coords = if let Some(loc) = location_by_id.get(&worker_id).copied() {
-            loc
-        } else {
-            let lat_dec = row
-                .try_get::<Option<rust_decimal::Decimal>, _>("lastLat")
-                .ok()
-                .flatten();
-            let lng_dec = row
-                .try_get::<Option<rust_decimal::Decimal>, _>("lastLng")
-                .ok()
-                .flatten();
-            match (lat_dec, lng_dec) {
-                (Some(la), Some(lo)) => (decimal_f64(la), decimal_f64(lo)),
-                _ => continue,
-            }
-        };
+        let Some(coords) = location_by_id.get(&worker_id).copied() else { continue };
         let distance = haversine_km(lat, lng, coords.0, coords.1);
         if distance > MAX_DISPATCH_RADIUS_KM {
             continue;
@@ -943,25 +924,8 @@ async fn live_toggle(
     let dispatch_skills = dispatchable_skills(&all_skills, &active_skills);
 
     if target {
-        let _ = state
-            .redis
-            .set_worker_status(&user.user_id, "available")
-            .await;
-        let lat = body.lat.or_else(|| {
-            profile
-                .try_get::<Option<rust_decimal::Decimal>, _>("lastLat")
-                .ok()
-                .flatten()
-                .map(decimal_f64)
-        });
-        let lng = body.lng.or_else(|| {
-            profile
-                .try_get::<Option<rust_decimal::Decimal>, _>("lastLng")
-                .ok()
-                .flatten()
-                .map(decimal_f64)
-        });
-        if let (Some(lat), Some(lng)) = (lat, lng) {
+        sync_worker_availability(&state, &user.user_id).await;
+        if let (Some(lat), Some(lng)) = (body.lat, body.lng) {
             let _ = state.redis.update_worker_location(&user.user_id, lat, lng).await;
         }
         let _ = state
@@ -1120,16 +1084,21 @@ async fn update_location(
     Json(body): Json<LocationBody>,
 ) -> AppResult<Json<Value>> {
     let uid = Uuid::parse_str(&user.user_id)?;
-    sqlx::query(r#"UPDATE worker_profiles SET "lastLat" = $1, "lastLng" = $2 WHERE "userId" = $3"#)
+    let live: Option<bool> = sqlx::query_scalar(
+        r#"UPDATE worker_profiles SET "lastLat" = $1, "lastLng" = $2 WHERE "userId" = $3 RETURNING "isActive""#,
+    )
         .bind(body.lat)
         .bind(body.lng)
         .bind(uid)
-        .execute(&state.db)
+        .fetch_optional(&state.db)
         .await?;
-    let _ = state
-        .redis
-        .update_worker_location(&user.user_id, body.lat, body.lng)
-        .await;
+    if live == Some(true) {
+        let _ = state.redis.update_worker_location(&user.user_id, body.lat, body.lng).await;
+        let status = state.redis.get(&format!("worker:status:{}", user.user_id)).await;
+        if matches!(status, Ok(None)) || matches!(status.as_ref(), Ok(Some(value)) if value == "offline") {
+            sync_worker_availability(&state, &user.user_id).await;
+        }
+    }
     Ok(Json(json!({ "message": "Location updated" })))
 }
 
@@ -1337,63 +1306,23 @@ pub async fn force_offline(state: &AppState, user_id: &str) -> AppResult<()> {
     Ok(())
 }
 
-pub async fn set_worker_status(state: &AppState, user_id: &str, status: &str) {
-    let _ = tokio::time::timeout(
-        crate::redis::OPTIONAL_REDIS_TIMEOUT,
-        state.redis.set_worker_status(user_id, status),
-    )
-    .await;
-}
-
-/// Derive Redis availability from current bookings + live eligibility.
-/// Delayed/repeated outbox events cannot free a busy worker or resurrect an offline one.
 pub async fn sync_worker_availability(state: &AppState, user_id: &str) {
-    let Ok(uid) = Uuid::parse_str(user_id) else {
-        return;
+    let Ok(uid) = Uuid::parse_str(user_id) else { return };
+    let update = async {
+        let token = state.redis.begin_worker_status_update(user_id).await?;
+        let status: Option<String> = sqlx::query_scalar(
+            r#"SELECT CASE WHEN NOT w."isActive" THEN 'offline'
+                       WHEN EXISTS (SELECT 1 FROM bookings WHERE "operatorId"=$1
+                           AND status IN ('ACCEPTED','ARRIVED','ACTIVE')) THEN 'busy'
+                       ELSE 'available' END
+               FROM worker_profiles w WHERE w."userId"=$1"#,
+        ).bind(uid).fetch_optional(&state.db).await?;
+        if let Some(status) = status {
+            state.redis.finish_worker_status_update(user_id, &token, &status).await?;
+        }
+        Ok::<(), anyhow::Error>(())
     };
-    let busy = sqlx::query_scalar::<_, bool>(
-        r#"SELECT EXISTS(
-               SELECT 1 FROM bookings
-               WHERE "operatorId" = $1
-                 AND status::text IN ('ACCEPTED','ARRIVED','ACTIVE')
-           )"#,
-    )
-    .bind(uid)
-    .fetch_one(&state.db)
-    .await
-    .unwrap_or(false);
-    if busy {
-        set_worker_status(state, user_id, "busy").await;
-        return;
-    }
-
-    let is_live = sqlx::query_scalar::<_, bool>(
-        r#"SELECT COALESCE(w."isActive", false)
-           FROM worker_profiles w
-           WHERE w."userId" = $1"#,
-    )
-    .bind(uid)
-    .fetch_optional(&state.db)
-    .await
-    .ok()
-    .flatten()
-    .unwrap_or(false);
-    if !is_live {
-        return;
-    }
-
-    let has_presence = tokio::time::timeout(
-        crate::redis::OPTIONAL_REDIS_TIMEOUT,
-        state.redis.get_worker_location(user_id),
-    )
-    .await
-    .ok()
-    .and_then(Result::ok)
-    .flatten()
-    .is_some();
-    if has_presence {
-        set_worker_status(state, user_id, "available").await;
-    }
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(1), update).await;
 }
 
 /// Operators currently on an Instant Help job — used when Redis status is missing/stale.
