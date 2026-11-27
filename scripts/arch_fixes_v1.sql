@@ -15,9 +15,10 @@ ALTER TABLE payment_orders
     ADD COLUMN IF NOT EXISTS "refundFailure" text,
     ADD COLUMN IF NOT EXISTS "refundedAt" timestamptz;
 
+-- Compare enum values directly (casting status::text is not IMMUTABLE for indexes).
 CREATE INDEX IF NOT EXISTS payment_orders_refund_required
     ON payment_orders ("createdAt")
-    WHERE status::text IN ('REFUND_REQUIRED', 'REFUND_PENDING');
+    WHERE status IN ('REFUND_REQUIRED', 'REFUND_PENDING');
 
 -- Durable marker for rentals that cannot receive a late advance capture.
 ALTER TABLE rental_reservations
