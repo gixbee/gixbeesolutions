@@ -14,53 +14,52 @@ if [[ -f "$ROOT/deploy/firebase-service-account.json" ]]; then cp -p "$ROOT/depl
 elif [[ -f "$ROOT/backend/firebase-service-account.json" ]]; then cp -p "$ROOT/backend/firebase-service-account.json" /root/gixbeesolutions_new/deploy/firebase-service-account.json; fi
 if [[ -f "$ROOT/.env" ]]; then cp -p "$ROOT/.env" /root/gixbeesolutions_new/.env; fi
 
-# HTTPS production overlay only when TLS + runtime DB secrets are ready.
-# Otherwise keep HTTP :3000 so MilesWeb stays deployable before cutover.
+# Validate production settings before replacing the live release directory.
 ROOT_ENV_CANDIDATE=/root/gixbeesolutions_new/.env
-use_tls=0
-if [[ -f "$ROOT_ENV_CANDIDATE" ]] \
-  && grep -qE '^GIXBEE_API_HOST=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
-  && grep -qE '^GIXBEE_ADMIN_HOST=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
-  && grep -qE '^GIXBEE_TLS_CERT_DIR=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
-  && grep -qE '^GIXBEE_APP_DATABASE_URL=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
-  && grep -qE '^GIXBEE_APP_DB_PASSWORD=[^[:space:]]+' "$ROOT_ENV_CANDIDATE" \
-  && grep -qE '^GIXBEE_DB_ADMIN_PASSWORD=[^[:space:]]+' "$ROOT_ENV_CANDIDATE"; then
-  cert_dir=$(sed -n 's/^GIXBEE_TLS_CERT_DIR=//p' "$ROOT_ENV_CANDIDATE" | head -1 | tr -d '\r')
-  if [[ "$cert_dir" == /* && -s "$cert_dir/fullchain.pem" && -s "$cert_dir/privkey.pem" ]] \
-    && openssl x509 -in "$cert_dir/fullchain.pem" -checkend 0 -noout; then
-    cert_key=$(openssl x509 -in "$cert_dir/fullchain.pem" -pubkey -noout)
-    private_key=$(openssl pkey -in "$cert_dir/privkey.pem" -pubout)
-    if [[ "$cert_key" == "$private_key" ]]; then
-      use_tls=1
-    fi
-  fi
+if [[ ! -f "$ROOT/.env" ]]; then
+  echo "Production release requires $ROOT/.env with TLS and PostgreSQL settings." >&2
+  exit 1
 fi
 
-if [[ "$use_tls" -eq 1 ]]; then
-  echo "Deploy mode: HTTPS production overlay"
-  staged=(docker compose --project-name gixbeesolutions --env-file "$ROOT_ENV_CANDIDATE"
-    -f /root/gixbeesolutions_new/docker-compose.yml -f /root/gixbeesolutions_new/docker-compose.production.yml)
-  "${staged[@]}" config --quiet
-  if ! grep -q CARGO_BUILD_JOBS /root/gixbeesolutions_new/backend_rust/Dockerfile; then
-    sed -i 's/FROM rust:bookworm AS builder/FROM rust:bookworm AS builder\nENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0/' /root/gixbeesolutions_new/backend_rust/Dockerfile
-  fi
-  docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 \
-    -f - < /root/gixbeesolutions_new/scripts/runtime_database_role.sql
-  "${staged[@]}" build backend_rust admin
-  "${staged[@]}" run --rm --no-deps -T backend_rust /app/gixbee-backend --check-config
-else
-  echo "Deploy mode: HTTP base compose (TLS/DB role env not ready)"
-  docker compose -f /root/gixbeesolutions_new/docker-compose.yml config --quiet
+staged=(docker compose --project-name gixbeesolutions --env-file "$ROOT_ENV_CANDIDATE"
+  -f /root/gixbeesolutions_new/docker-compose.yml -f /root/gixbeesolutions_new/docker-compose.production.yml)
+"${staged[@]}" config --quiet
+tls_settings=$("${staged[@]}" config --environment | grep -E '^GIXBEE_(API_HOST|ADMIN_HOST|TLS_CERT_DIR)=')
+cert_dir=$(sed -n 's/^GIXBEE_TLS_CERT_DIR=//p' <<< "$tls_settings")
+api_host=$(sed -n 's/^GIXBEE_API_HOST=//p' <<< "$tls_settings")
+admin_host=$(sed -n 's/^GIXBEE_ADMIN_HOST=//p' <<< "$tls_settings")
+if [[ "$cert_dir" != /* || ! -s "$cert_dir/fullchain.pem" || ! -s "$cert_dir/privkey.pem" ]]; then
+  echo "Production release requires fullchain.pem and privkey.pem in an absolute TLS directory." >&2
+  exit 1
 fi
+cert_key=$(openssl x509 -in "$cert_dir/fullchain.pem" -pubkey -noout)
+private_key=$(openssl pkey -in "$cert_dir/privkey.pem" -pubout)
+if [[ "$cert_key" != "$private_key" || "$api_host" == "$admin_host" ]]; then
+  echo "Production release requires a matching TLS key and distinct API and admin hostnames." >&2
+  exit 1
+fi
+for host in "$api_host" "$admin_host"; do
+  if [[ ! "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+    echo "Invalid production TLS hostname." >&2
+    exit 1
+  fi
+  openssl verify -purpose sslserver -verify_hostname "$host" \
+    -untrusted "$cert_dir/fullchain.pem" "$cert_dir/fullchain.pem"
+done
+
+if ! grep -q CARGO_BUILD_JOBS /root/gixbeesolutions_new/backend_rust/Dockerfile; then
+  sed -i 's/FROM rust:bookworm AS builder/FROM rust:bookworm AS builder\nENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0/' /root/gixbeesolutions_new/backend_rust/Dockerfile
+fi
+"${staged[@]}" build backend_rust admin
+"${staged[@]}" run --rm --no-deps -T backend_rust /app/gixbee-backend --check-config
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 \
+  -f - < /root/gixbeesolutions_new/scripts/runtime_database_role.sql
 
 if [[ -d "$ROOT" ]]; then mv "$ROOT" "/root/gixbeesolutions.bak.$(date +%s)"; fi
 mv /root/gixbeesolutions_new "$ROOT"
 cd "$ROOT"
-if [[ "$use_tls" -eq 1 ]]; then
-  compose=(docker compose --project-name gixbeesolutions -f docker-compose.yml -f docker-compose.production.yml)
-else
-  compose=(docker compose --project-name gixbeesolutions -f docker-compose.yml)
-fi
+compose=(docker compose --project-name gixbeesolutions --env-file "$ROOT/.env"
+  -f docker-compose.yml -f docker-compose.production.yml)
 
 sed -i 's/\r$//' scripts/milesweb_sync_and_deploy.sh scripts/azure_hiring_migrations.sql scripts/cache_versions.sql scripts/master_data_audit.sql scripts/azure_hall_migrations.sql scripts/availability_intervals.sql scripts/azure_event_quote_milestones.sql scripts/azure_event_delivery_payments.sql scripts/event_catalogue_service_types.sql scripts/v147_gaps.sql 2>/dev/null || true
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/azure_hiring_migrations.sql
@@ -81,51 +80,26 @@ docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/booking_delivery_guards.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/booking_maintenance.sql
 docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/hiring_checkout_expiry.sql
-if [[ "$use_tls" -eq 1 ]]; then
-  docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/runtime_database_role.sql
-fi
+docker exec -i gixbee_postgres psql -U postgres -d gixbee_db -v ON_ERROR_STOP=1 -f - < scripts/runtime_database_role.sql
 echo SCHEMA_OK
 
-if ! grep -q CARGO_BUILD_JOBS "$ROOT/backend_rust/Dockerfile"; then
-  sed -i 's/FROM rust:bookworm AS builder/FROM rust:bookworm AS builder\nENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0/' "$ROOT/backend_rust/Dockerfile"
-fi
-
-if [[ "$use_tls" -ne 1 ]]; then
-  "${compose[@]}" build backend_rust admin
-fi
 "${compose[@]}" up -d --wait --wait-timeout 180 --scale backend_rust=2 backend_rust admin api_balancer
 
-if [[ "$use_tls" -eq 1 ]]; then
-  api_host=$("${compose[@]}" exec -T api_balancer printenv GIXBEE_API_HOST)
-  admin_host=$("${compose[@]}" exec -T api_balancer printenv GIXBEE_ADMIN_HOST)
-  check_https() {
-    local host="$1" path="$2" status attempt
-    for attempt in 1 2 3 4 5; do
-      if status=$(curl --silent --show-error --max-time 10 \
-        --resolve "$host:443:127.0.0.1" --output /dev/null --write-out '%{http_code}' "https://$host$path") &&
-        [[ "$status" == 200 ]]; then
-        return 0
-      fi
-      if [[ "$attempt" != 5 ]]; then sleep 2; fi
-    done
-    echo "HTTPS check failed for $host$path (HTTP $status)" >&2
-    return 1
-  }
-  check_https "$api_host" /readyz
-  check_https "$admin_host" /
-  check_https "$api_host" '/socket.io/?EIO=4&transport=polling'
-else
+check_https() {
+  local host="$1" path="$2" status attempt
   for attempt in 1 2 3 4 5; do
-    if curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
-      http://127.0.0.1:3000/readyz | grep -q '^200$'; then
-      break
+    if status=$(curl --silent --show-error --max-time 10 \
+      --resolve "$host:443:127.0.0.1" --output /dev/null --write-out '%{http_code}' "https://$host$path") &&
+      [[ "$status" == 200 ]]; then
+      return 0
     fi
-    if [[ "$attempt" == 5 ]]; then
-      echo "HTTP /readyz check failed on :3000" >&2
-      exit 1
-    fi
-    sleep 2
+    if [[ "$attempt" != 5 ]]; then sleep 2; fi
   done
-fi
+  echo "HTTPS check failed for $host$path (HTTP $status)" >&2
+  return 1
+}
+check_https "$api_host" /readyz
+check_https "$admin_host" /
+check_https "$api_host" '/socket.io/?EIO=4&transport=polling'
 "${compose[@]}" ps
 echo DEPLOY_OK
