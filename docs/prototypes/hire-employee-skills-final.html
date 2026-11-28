@@ -93,8 +93,8 @@
   .fld[hidden]{display:none!important}
   .pct-in{position:relative;border:1px solid #E5E7EB;border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
   .pct-in:focus-within{border-color:var(--gn);box-shadow:0 0 0 3px #D1FADF}
-  .pct-sym{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;font-weight:800;color:var(--gn2);line-height:1;user-select:none;pointer-events:none;z-index:1}
-  .pct-in input{width:100%!important;border:0!important;box-shadow:none!important;padding:12px 12px 12px 30px!important;background:transparent!important;text-align:left;direction:ltr}
+  .pct-sym{position:absolute;right:12px;left:auto;top:50%;transform:translateY(-50%);font-size:16px;font-weight:800;color:var(--gn2);line-height:1;user-select:none;pointer-events:none;z-index:1}
+  .pct-in input{width:100%!important;border:0!important;box-shadow:none!important;padding:12px 34px 12px 12px!important;background:transparent!important;text-align:left;direction:ltr}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -190,8 +190,8 @@
           <label class="req" for="qualPct">Minimum marks</label>
           <p class="hint" style="margin-top:0">Set the lowest percentage candidates must have scored in this qualification. Matching shows only people <strong>at or above</strong> your number (0 to 100).</p>
           <div class="pct-in">
-            <span class="pct-sym" aria-hidden="true">%</span>
             <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="50 or 75" aria-required="true" autocomplete="off" aria-describedby="qualPctHint">
+            <span class="pct-sym" aria-hidden="true">%</span>
           </div>
           <p class="ok" style="margin:8px 0 0;font-size:12px;line-height:1.45"><strong>Examples:</strong> enter <strong>50</strong> if 50% and above is enough; <strong>75</strong> if your company needs 75% or higher; <strong>0</strong> if any pass mark is acceptable.</p>
           <p class="hint" id="qualPctHint">Up to 2 decimal places (e.g. 72.5).</p>
