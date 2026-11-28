@@ -73,6 +73,8 @@ function newDecorPkgDraft() {
     eventTypes: [],
     traditionTags: ['Hindu'],
     traditionOtherText: '',
+    otherFunctionType: '',
+    otherFunctionOtherText: '',
     ceremonySetup: [],
     styles: [],
     name: '',
@@ -438,7 +440,19 @@ function renderDecorPkgStep1() {
   }).join('');
   host.querySelectorAll('[data-dec-cat]').forEach(function (btn) {
     btn.onclick = function () {
-      decorPkgWizard.draft.packageCategory = btn.getAttribute('data-dec-cat');
+      const id = btn.getAttribute('data-dec-cat');
+      decorPkgWizard.draft.packageCategory = id;
+      if (id === 'other') {
+        decorPkgWizard.draft.traditionTags = [];
+        decorPkgWizard.draft.traditionOtherText = '';
+        if (!decorPkgWizard.draft.otherFunctionType) decorPkgWizard.draft.otherFunctionType = 'baptism';
+      } else {
+        decorPkgWizard.draft.otherFunctionType = '';
+        decorPkgWizard.draft.otherFunctionOtherText = '';
+        if (!(decorPkgWizard.draft.traditionTags || []).length) {
+          decorPkgWizard.draft.traditionTags = ['Hindu'];
+        }
+      }
       renderDecorPkgStep1();
     };
   });
@@ -457,18 +471,44 @@ function decorPkgCategoryMeta(id) {
   };
 }
 
+function decorOtherFunctionMeta(id) {
+  const types = typeof DECORATION_OTHER_FUNCTION_TYPES !== 'undefined' ? DECORATION_OTHER_FUNCTION_TYPES : [];
+  return types.filter(function (t) {
+    return t.id === id;
+  })[0];
+}
+
+function decorOtherFunctionSummary(d) {
+  if (!d || d.packageCategory !== 'other') return '';
+  if (d.otherFunctionType === 'other' && (d.otherFunctionOtherText || '').trim()) {
+    return d.otherFunctionOtherText.trim();
+  }
+  const hit = decorOtherFunctionMeta(d.otherFunctionType);
+  return hit ? hit.label : '';
+}
+
 function syncDecorPkgEventTypesFromCategory(d) {
   if (!d || !d.packageCategory) return;
+  if (d.packageCategory === 'other') {
+    const lbl = decorOtherFunctionSummary(d);
+    d.eventTypes = lbl ? [lbl] : (DECORATION_EVENT_TYPES.other || []).slice();
+    return;
+  }
   d.eventTypes = (DECORATION_EVENT_TYPES[d.packageCategory] || []).slice();
 }
 
 function decorPkgSummaryLine(d) {
   const cat = decorPkgCategoryMeta(d.packageCategory);
-  const comm = decorFormatTraditionTags(d.traditionTags, d.traditionOtherText);
   const parts = [];
   if (d.level) parts.push(d.level);
   if (cat) parts.push(cat.label);
-  if (comm) parts.push(comm);
+  if (d.packageCategory === 'other') {
+    const fn = decorOtherFunctionSummary(d);
+    if (fn) parts.push(fn);
+  } else {
+    const comm = decorFormatTraditionTags(d.traditionTags, d.traditionOtherText);
+    if (comm) parts.push(comm);
+  }
   return parts.join(' · ') || '—';
 }
 
@@ -519,44 +559,96 @@ function renderDecorPkgStep2() {
       : 'Pick a category in step 1 first.';
   }
   const commBlock = el('decCommunityBlock');
+  const fnBlock = el('decOtherFunctionBlock');
   const isWedding = d.packageCategory === 'wedding';
+  const isOther = d.packageCategory === 'other';
   if (commBlock) commBlock.hidden = !isWedding;
+  if (fnBlock) fnBlock.hidden = !isOther;
   if (!isWedding) {
     d.traditionTags = [];
     d.traditionOtherText = '';
-  } else if (!(d.traditionTags || []).length) {
-    d.traditionTags = ['Hindu'];
-  } else if (d.traditionTags.length > 1) {
-    d.traditionTags = [d.traditionTags[0]];
+  } else {
+    d.otherFunctionType = '';
+    d.otherFunctionOtherText = '';
   }
-  const sel = (d.traditionTags || [])[0] || '';
-  el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
-    const on = sel === t;
-    return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-trad="' + esc(t) + '">' + esc(t) + '</button>';
-  }).join('');
+  if (isOther && !d.otherFunctionType) d.otherFunctionType = 'baptism';
+  if (isOther && typeof DECORATION_OTHER_FUNCTION_TYPES !== 'undefined') {
+    const fnSel = d.otherFunctionType || '';
+    el('decOtherFunctionChips').innerHTML = DECORATION_OTHER_FUNCTION_TYPES.map(function (t) {
+      const on = fnSel === t.id;
+      return (
+        '<button type="button" class="dec-chip sm' +
+        (on ? ' on' : '') +
+        '" data-dec-fn="' +
+        esc(t.id) +
+        '">' +
+        esc(t.label) +
+        '</button>'
+      );
+    }).join('');
+    const fnOtherWrap = el('decOtherFunctionOtherWrap');
+    const fnOtherInp = el('decOtherFunctionOther');
+    const fnIsOther = fnSel === 'other';
+    if (fnOtherWrap) fnOtherWrap.hidden = !fnIsOther;
+    if (fnOtherInp) {
+      fnOtherInp.value = d.otherFunctionOtherText || '';
+      fnOtherInp.oninput = function () {
+        decorPkgWizard.draft.otherFunctionOtherText = fnOtherInp.value;
+      };
+    }
+    el('decOtherFunctionChips').querySelectorAll('[data-dec-fn]').forEach(function (btn) {
+      btn.onclick = function () {
+        const val = btn.getAttribute('data-dec-fn');
+        if (decorPkgWizard.draft.otherFunctionType === val) return;
+        decorPkgWizard.draft.otherFunctionType = val;
+        if (val !== 'other') decorPkgWizard.draft.otherFunctionOtherText = '';
+        renderDecorPkgStep2();
+      };
+    });
+  }
+  if (isWedding) {
+    if (!(d.traditionTags || []).length) {
+      d.traditionTags = ['Hindu'];
+    } else if (d.traditionTags.length > 1) {
+      d.traditionTags = [d.traditionTags[0]];
+    }
+    const sel = (d.traditionTags || [])[0] || '';
+    el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
+      const on = sel === t;
+      return (
+        '<button type="button" class="dec-chip sm' +
+        (on ? ' on' : '') +
+        '" data-trad="' +
+        esc(t) +
+        '">' +
+        esc(t) +
+        '</button>'
+      );
+    }).join('');
+    const otherWrap = el('decTraditionOtherWrap');
+    const otherInp = el('decTraditionOther');
+    const hasOthers = decorHasOthersTradition(d.traditionTags);
+    if (otherWrap) otherWrap.hidden = !hasOthers;
+    if (otherInp) {
+      otherInp.value = d.traditionOtherText || '';
+      otherInp.oninput = function () {
+        decorPkgWizard.draft.traditionOtherText = otherInp.value;
+      };
+    }
+    el('decTraditionChips').querySelectorAll('[data-trad]').forEach(function (btn) {
+      btn.onclick = function () {
+        const val = btn.getAttribute('data-trad');
+        if (decorPkgWizard.draft.traditionTags[0] === val) return;
+        decorPkgWizard.draft.traditionTags = [val];
+        if (decorTraditionKey(val) !== 'others') decorPkgWizard.draft.traditionOtherText = '';
+        renderDecorPkgStep2();
+      };
+    });
+  }
   renderDecorPkgTypeSeg(d.level || 'Standard');
   el('decPkgName').value = d.name || '';
   el('decPkgDesc').value = d.description || '';
   updateDecorPkgNamePreview();
-  const otherWrap = el('decTraditionOtherWrap');
-  const otherInp = el('decTraditionOther');
-  const hasOthers = decorHasOthersTradition(d.traditionTags);
-  if (otherWrap) otherWrap.hidden = !hasOthers;
-  if (otherInp) {
-    otherInp.value = d.traditionOtherText || '';
-    otherInp.oninput = function () {
-      decorPkgWizard.draft.traditionOtherText = otherInp.value;
-    };
-  }
-  el('decTraditionChips').querySelectorAll('[data-trad]').forEach(function (btn) {
-    btn.onclick = function () {
-      const val = btn.getAttribute('data-trad');
-      if (decorPkgWizard.draft.traditionTags[0] === val) return;
-      decorPkgWizard.draft.traditionTags = [val];
-      if (decorTraditionKey(val) !== 'others') decorPkgWizard.draft.traditionOtherText = '';
-      renderDecorPkgStep2();
-    };
-  });
   renderDecorPkgImages();
 }
 
@@ -835,10 +927,22 @@ function renderDecorCategoryList(ctx, q) {
       ')</p>' +
       decorRenderCategoryModRows(grouped.community);
   }
+  if (d.packageCategory === 'other' && grouped.function && grouped.function.length) {
+    const fnLbl = decorOtherFunctionSummary(d) || 'this function';
+    html +=
+      '<p class="dec-cat-sec-h">For ' +
+      esc(fnLbl) +
+      ' — stage & themed categories (' +
+      grouped.function.length +
+      ')</p>' +
+      decorRenderCategoryModRows(grouped.function);
+  }
   if (grouped.common.length) {
     html +=
       '<p class="dec-cat-sec-h">' +
-      (d.packageCategory === 'wedding' ? 'Common wedding categories (' + grouped.common.length + ')' : 'Categories (' + grouped.common.length + ')') +
+      (d.packageCategory === 'wedding'
+        ? 'Common wedding categories (' + grouped.common.length + ')'
+        : 'Shared decoration categories (' + grouped.common.length + ')') +
       '</p>' +
       decorRenderCategoryModRows(grouped.common);
   }
@@ -1645,6 +1749,20 @@ function validateDecorPkgStep(step) {
     } else {
       d.traditionTags = [];
       d.traditionOtherText = '';
+      if (el('decOtherFunctionOther')) d.otherFunctionOtherText = el('decOtherFunctionOther').value;
+      if (!d.otherFunctionType) {
+        toast('Select function type (birthday, baptism, etc.)');
+        return false;
+      }
+      if (d.otherFunctionType === 'other' && !(d.otherFunctionOtherText || '').trim()) {
+        toast('Specify function type');
+        return false;
+      }
+      if (d.otherFunctionType === 'other') {
+        d.otherFunctionOtherText = (d.otherFunctionOtherText || '').trim();
+      } else {
+        d.otherFunctionOtherText = '';
+      }
     }
     if (!(d.name || '').trim()) {
       toast('Package name is required');
@@ -1733,6 +1851,7 @@ function bindDecorationPackageUi() {
     decorPkgWizard.draft.name = (el('decPkgName').value || '').trim();
     decorPkgWizard.draft.description = (el('decPkgDesc').value || '').trim();
     if (el('decTraditionOther')) decorPkgWizard.draft.traditionOtherText = el('decTraditionOther').value;
+    if (el('decOtherFunctionOther')) decorPkgWizard.draft.otherFunctionOtherText = el('decOtherFunctionOther').value;
     if (!validateDecorPkgStep(2)) return;
     renderDecorPkgStep3();
     show('decorPkgStep3');

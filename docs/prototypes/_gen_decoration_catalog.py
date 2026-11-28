@@ -126,6 +126,51 @@ CATS = [
         "items": ["Nikah Welcome Board", "Personalised Nikah Signage", "Ceremony Welcome Setup"],
     },
     {
+        "id": "o01",
+        "name": "Stage & Backdrop",
+        "emoji": "🎪",
+        "scope": "function",
+        "traditions": [],
+        "functionTypes": ["all"],
+        "items": ["Function Stage Setup", "Floral Backdrop", "Theme Backdrop"],
+    },
+    {
+        "id": "o02",
+        "name": "Baptism & Christening",
+        "emoji": "⛪",
+        "scope": "function",
+        "traditions": [],
+        "functionTypes": ["baptism"],
+        "items": ["Baptism Altar / Font Florals", "Church or Hall Aisle Decor", "Welcome Arch (Christening)"],
+    },
+    {
+        "id": "o03",
+        "name": "Birthday & Celebration",
+        "emoji": "🎈",
+        "scope": "function",
+        "traditions": [],
+        "functionTypes": ["birthday"],
+        "items": ["Balloon Arch", "Balloon Ceiling / Garland", "Theme Props & Backdrop"],
+    },
+    {
+        "id": "o04",
+        "name": "Housewarming & Traditional",
+        "emoji": "🏠",
+        "scope": "function",
+        "traditions": [],
+        "functionTypes": ["housewarming"],
+        "items": ["Traditional Entrance (Thoranam)", "Pooja / Lamp Corner", "Nilavilakku Setup"],
+    },
+    {
+        "id": "o05",
+        "name": "Corporate & Inauguration",
+        "emoji": "🏢",
+        "scope": "function",
+        "traditions": [],
+        "functionTypes": ["corporate"],
+        "items": ["Brand Backdrop", "Registration Desk Florals", "Podium / Stage Trim"],
+    },
+    {
         "id": "w01",
         "name": "Entrance & Welcome",
         "emoji": "🚪",
@@ -261,12 +306,17 @@ function inferDecorationItemScopes(name) {
   return { pkgScopes: pkgScopes, traditionScopes: traditionScopes };
 }
 
+function decorOtherFunctionKey(ctx) {
+  return String((ctx && ctx.otherFunctionType) || '').toLowerCase();
+}
+
 function decorCatalogContextFromDraft(draft) {
   const d = draft || {};
   const tags = (d.traditionTags || []).slice(0, 1);
   return {
     packageCategory: d.packageCategory || 'wedding',
     traditionTags: tags,
+    otherFunctionType: d.otherFunctionType || '',
   };
 }
 
@@ -275,6 +325,14 @@ function decorModuleVisibleForPackage(mod, ctx) {
   const pkgCat = ctx.packageCategory || 'wedding';
   const scope = mod.moduleScope || 'common';
   if (scope === 'common') return pkgCat === 'wedding' || pkgCat === 'other';
+  if (scope === 'function') {
+    if (pkgCat !== 'other') return false;
+    const ft = decorOtherFunctionKey(ctx);
+    if (!ft) return false;
+    const types = mod.functionTypes || [];
+    if (!types.length || types.indexOf('all') >= 0) return true;
+    return types.indexOf(ft) >= 0;
+  }
   if (pkgCat !== 'wedding') return false;
   const gates = mod.moduleTraditions || [];
   if (!gates.length) return false;
@@ -335,11 +393,14 @@ function decorModulesGroupedForPackage(ctx, searchQ) {
   const rows = decorModulesForPackage(ctx, searchQ);
   const community = [];
   const common = [];
+  const fn = [];
   rows.forEach(function (row) {
-    if ((row.mod.moduleScope || 'common') === 'community') community.push(row);
+    const scope = row.mod.moduleScope || 'common';
+    if (scope === 'community') community.push(row);
+    else if (scope === 'function') fn.push(row);
     else common.push(row);
   });
-  return { community: community, common: common, all: rows };
+  return { community: community, common: common, function: fn, all: rows };
 }
 
 function decorPackageCatalogSummary(ctx) {
@@ -377,6 +438,7 @@ function buildDecorationModules() {
       emoji: m.emoji,
       moduleScope: m.scope || 'common',
       moduleTraditions: m.traditions || [],
+      functionTypes: m.functionTypes || [],
       items: items,
     };
   });
@@ -421,6 +483,13 @@ def main() -> None:
         "  other: ['Other functions'],",
         "};",
         "const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Others'];",
+        "const DECORATION_OTHER_FUNCTION_TYPES = [",
+        "  { id: 'birthday', label: 'Birthday' },",
+        "  { id: 'baptism', label: 'Baptism / Christening' },",
+        "  { id: 'housewarming', label: 'Housewarming' },",
+        "  { id: 'corporate', label: 'Corporate / Inauguration' },",
+        "  { id: 'other', label: 'Other function' },",
+        "];",
         "const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];",
         "const DECORATION_CEREMONY_SETUP = ['Traditional Mandapam','Church Ceremony Setup','Nikah Setup','Reception Stage','Engagement Stage','General Stage','Custom'];",
         "const DECORATION_UNITS = ['Per Event','Per Set','Per Unit','Per Item','Per Hour','Custom Quotation'];",
@@ -435,6 +504,7 @@ def main() -> None:
         lines.append(f'    "emoji": {json.dumps(c["emoji"])},')
         lines.append(f'    "scope": {json.dumps(c["scope"])},')
         lines.append(f'    "traditions": {json.dumps(c["traditions"])},')
+        lines.append(f'    "functionTypes": {json.dumps(c.get("functionTypes", []))},')
         lines.append("    \"items\": " + json.dumps(c["items"], ensure_ascii=False, indent=6).replace("\n", "\n    "))
         lines.append("  },")
     lines.append("];")

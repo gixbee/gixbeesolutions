@@ -1,5 +1,5 @@
 /** Decoration package catalogue — community + common wedding categories. */
-const DECORATION_PACKAGE_MODULE_IDS = ["c01", "c02", "c03", "c04", "c05", "h01", "h02", "h03", "h04", "h05", "m01", "m02", "m03", "m04", "m05", "w01", "w02", "w03", "w04", "w05", "w06", "w07", "w08", "w09", "w10", "w11", "w12"];
+const DECORATION_PACKAGE_MODULE_IDS = ["c01", "c02", "c03", "c04", "c05", "h01", "h02", "h03", "h04", "h05", "m01", "m02", "m03", "m04", "m05", "o01", "o02", "o03", "o04", "o05", "w01", "w02", "w03", "w04", "w05", "w06", "w07", "w08", "w09", "w10", "w11", "w12"];
 const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 const DECORATION_PKG_LEVEL_HINTS = {
   Basic: 'Essential décor for the function',
@@ -15,6 +15,13 @@ const DECORATION_EVENT_TYPES = {
   other: ['Other functions'],
 };
 const DECORATION_TRADITIONS = ['Hindu','Muslim','Christian','Others'];
+const DECORATION_OTHER_FUNCTION_TYPES = [
+  { id: 'birthday', label: 'Birthday' },
+  { id: 'baptism', label: 'Baptism / Christening' },
+  { id: 'housewarming', label: 'Housewarming' },
+  { id: 'corporate', label: 'Corporate / Inauguration' },
+  { id: 'other', label: 'Other function' },
+];
 const DECORATION_STYLES = ['Traditional','Modern','Floral','Royal','Minimal','Luxury','Theme Based','Custom'];
 const DECORATION_CEREMONY_SETUP = ['Traditional Mandapam','Church Ceremony Setup','Nikah Setup','Reception Stage','Engagement Stage','General Stage','Custom'];
 const DECORATION_UNITS = ['Per Event','Per Set','Per Unit','Per Item','Per Hour','Custom Quotation'];
@@ -27,6 +34,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udfaa",
     "scope": "community",
     "traditions": ["hindu"],
+    "functionTypes": [],
     "items": [
           "Traditional Mandapam",
           "Floral Mandapam",
@@ -39,6 +47,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83e\ude94",
     "scope": "community",
     "traditions": ["hindu"],
+    "functionTypes": [],
     "items": [
           "Pooja Area Setup",
           "Homam / Havan Setup",
@@ -51,6 +60,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83e\ude94",
     "scope": "community",
     "traditions": ["hindu"],
+    "functionTypes": [],
     "items": [
           "Brass Nilavilakku",
           "Traditional Lamp Arrangement",
@@ -63,6 +73,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udeaa",
     "scope": "community",
     "traditions": ["hindu"],
+    "functionTypes": [],
     "items": [
           "Banana Stem Decoration",
           "Thoranam",
@@ -75,6 +86,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udf38",
     "scope": "community",
     "traditions": ["hindu"],
+    "functionTypes": [],
     "items": [
           "Pookalam",
           "Floral Rangoli",
@@ -87,6 +99,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udfaa",
     "scope": "community",
     "traditions": ["christian"],
+    "functionTypes": [],
     "items": [
           "Wedding Stage",
           "Floral Stage",
@@ -99,6 +112,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\u26ea",
     "scope": "community",
     "traditions": ["christian"],
+    "functionTypes": [],
     "items": [
           "Altar Floral Decoration",
           "Church Aisle Decoration",
@@ -111,6 +125,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83e\ude91",
     "scope": "community",
     "traditions": ["christian"],
+    "functionTypes": [],
     "items": [
           "Pew / Bench Floral Decoration",
           "Reserved Family Seating",
@@ -123,6 +138,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\u271d\ufe0f",
     "scope": "community",
     "traditions": ["christian"],
+    "functionTypes": [],
     "items": [
           "Ceremony Backdrop",
           "Cross Backdrop (if requested)",
@@ -135,6 +151,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udc90",
     "scope": "community",
     "traditions": ["christian"],
+    "functionTypes": [],
     "items": [
           "White Rose Arrangement",
           "Lily Arrangement",
@@ -147,6 +164,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udfaa",
     "scope": "community",
     "traditions": ["muslim"],
+    "functionTypes": [],
     "items": [
           "Nikah Stage",
           "Floral Nikah Stage",
@@ -159,6 +177,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udcdc",
     "scope": "community",
     "traditions": ["muslim"],
+    "functionTypes": [],
     "items": [
           "Nikah Seating Setup",
           "Nikah Signing Table",
@@ -171,6 +190,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\uddbc\ufe0f",
     "scope": "community",
     "traditions": ["muslim"],
+    "functionTypes": [],
     "items": [
           "Floral Nikah Backdrop",
           "Fabric Backdrop",
@@ -183,6 +203,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83e\ude91",
     "scope": "community",
     "traditions": ["muslim"],
+    "functionTypes": [],
     "items": [
           "Family Seating Setup",
           "Separate Seating Arrangement (if requested)",
@@ -195,10 +216,76 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udeaa",
     "scope": "community",
     "traditions": ["muslim"],
+    "functionTypes": [],
     "items": [
           "Nikah Welcome Board",
           "Personalised Nikah Signage",
           "Ceremony Welcome Setup"
+    ]
+  },
+  {
+    "id": "o01",
+    "name": "Stage & Backdrop",
+    "emoji": "\ud83c\udfaa",
+    "scope": "function",
+    "traditions": [],
+    "functionTypes": ["all"],
+    "items": [
+          "Function Stage Setup",
+          "Floral Backdrop",
+          "Theme Backdrop"
+    ]
+  },
+  {
+    "id": "o02",
+    "name": "Baptism & Christening",
+    "emoji": "\u26ea",
+    "scope": "function",
+    "traditions": [],
+    "functionTypes": ["baptism"],
+    "items": [
+          "Baptism Altar / Font Florals",
+          "Church or Hall Aisle Decor",
+          "Welcome Arch (Christening)"
+    ]
+  },
+  {
+    "id": "o03",
+    "name": "Birthday & Celebration",
+    "emoji": "\ud83c\udf88",
+    "scope": "function",
+    "traditions": [],
+    "functionTypes": ["birthday"],
+    "items": [
+          "Balloon Arch",
+          "Balloon Ceiling / Garland",
+          "Theme Props & Backdrop"
+    ]
+  },
+  {
+    "id": "o04",
+    "name": "Housewarming & Traditional",
+    "emoji": "\ud83c\udfe0",
+    "scope": "function",
+    "traditions": [],
+    "functionTypes": ["housewarming"],
+    "items": [
+          "Traditional Entrance (Thoranam)",
+          "Pooja / Lamp Corner",
+          "Nilavilakku Setup"
+    ]
+  },
+  {
+    "id": "o05",
+    "name": "Corporate & Inauguration",
+    "emoji": "\ud83c\udfe2",
+    "scope": "function",
+    "traditions": [],
+    "functionTypes": ["corporate"],
+    "items": [
+          "Brand Backdrop",
+          "Registration Desk Florals",
+          "Podium / Stage Trim"
     ]
   },
   {
@@ -207,6 +294,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udeaa",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Floral Welcome Arch",
           "Grand Entrance",
@@ -219,6 +307,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udee4\ufe0f",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Floral Pathway",
           "Flower Carpet",
@@ -231,6 +320,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udc90",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Rose Decoration",
           "Jasmine Decoration",
@@ -243,6 +333,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udca1",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Decorative Lighting",
           "Stage Lighting",
@@ -255,6 +346,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83e\ude91",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Couple Sofa",
           "Guest Chairs",
@@ -267,6 +359,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\ude97",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Wedding Car Floral Decoration",
           "Ribbon Decoration",
@@ -279,6 +372,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83d\udcf8",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Couple Photo Display",
           "Family Photo Display",
@@ -291,6 +385,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\u2728",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Flower Shower",
           "Cold Pyro",
@@ -303,6 +398,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udf80",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Floral Ceiling",
           "Hanging Flowers",
@@ -315,6 +411,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udf7d\ufe0f",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Table Centrepieces",
           "Dining Area Decoration",
@@ -327,6 +424,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83e\udd33",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Selfie Booth",
           "Couple Photo Booth",
@@ -339,6 +437,7 @@ const DECORATION_CATALOG_DEFS = [
     "emoji": "\ud83c\udf33",
     "scope": "common",
     "traditions": [],
+    "functionTypes": [],
     "items": [
           "Garden Decoration",
           "Lawn Decoration",
@@ -381,12 +480,17 @@ function inferDecorationItemScopes(name) {
   return { pkgScopes: pkgScopes, traditionScopes: traditionScopes };
 }
 
+function decorOtherFunctionKey(ctx) {
+  return String((ctx && ctx.otherFunctionType) || '').toLowerCase();
+}
+
 function decorCatalogContextFromDraft(draft) {
   const d = draft || {};
   const tags = (d.traditionTags || []).slice(0, 1);
   return {
     packageCategory: d.packageCategory || 'wedding',
     traditionTags: tags,
+    otherFunctionType: d.otherFunctionType || '',
   };
 }
 
@@ -395,6 +499,14 @@ function decorModuleVisibleForPackage(mod, ctx) {
   const pkgCat = ctx.packageCategory || 'wedding';
   const scope = mod.moduleScope || 'common';
   if (scope === 'common') return pkgCat === 'wedding' || pkgCat === 'other';
+  if (scope === 'function') {
+    if (pkgCat !== 'other') return false;
+    const ft = decorOtherFunctionKey(ctx);
+    if (!ft) return false;
+    const types = mod.functionTypes || [];
+    if (!types.length || types.indexOf('all') >= 0) return true;
+    return types.indexOf(ft) >= 0;
+  }
   if (pkgCat !== 'wedding') return false;
   const gates = mod.moduleTraditions || [];
   if (!gates.length) return false;
@@ -455,11 +567,14 @@ function decorModulesGroupedForPackage(ctx, searchQ) {
   const rows = decorModulesForPackage(ctx, searchQ);
   const community = [];
   const common = [];
+  const fn = [];
   rows.forEach(function (row) {
-    if ((row.mod.moduleScope || 'common') === 'community') community.push(row);
+    const scope = row.mod.moduleScope || 'common';
+    if (scope === 'community') community.push(row);
+    else if (scope === 'function') fn.push(row);
     else common.push(row);
   });
-  return { community: community, common: common, all: rows };
+  return { community: community, common: common, function: fn, all: rows };
 }
 
 function decorPackageCatalogSummary(ctx) {
@@ -497,6 +612,7 @@ function buildDecorationModules() {
       emoji: m.emoji,
       moduleScope: m.scope || 'common',
       moduleTraditions: m.traditions || [],
+      functionTypes: m.functionTypes || [],
       items: items,
     };
   });
