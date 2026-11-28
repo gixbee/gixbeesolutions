@@ -101,6 +101,12 @@
   .age-row span{min-width:36px;color:var(--mut)}
   .age-row input[type=range]{flex:1;height:6px;accent-color:var(--gn);cursor:pointer}
   .age-row b{min-width:28px;text-align:right;color:var(--gn2)}
+  .shift-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 4px}
+  .shift-opt{display:block;width:100%;border:1.5px solid #E5E7EB;border-radius:14px;background:#fff;padding:12px 10px;text-align:center;cursor:pointer;font:inherit}
+  .shift-opt.on{border-color:var(--gn);background:#F0FDF4;box-shadow:0 0 0 3px #D1FADF}
+  .shift-opt b{display:block;font-size:12px;font-weight:800;color:#111827;margin-bottom:4px}
+  .shift-opt span{display:block;font-size:10px;line-height:1.35;color:var(--mut)}
+  .shift-opt.on b{color:#065F46}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -263,7 +269,7 @@
         <div class="fld">
           <label class="req">Work schedule</label>
           <p class="hint" style="margin-top:0">Day-time job or shift-based work — helps match the right candidates.</p>
-          <div class="chips" id="shiftChips"></div>
+          <div class="shift-pick" id="shiftChips"></div>
         </div>
         <div class="match match-bottom">
           <div class="pdot">👥</div>
@@ -9209,7 +9215,9 @@ function renderS4(){
   const sEl = document.getElementById('shiftChips');
   if(sEl){
     sEl.innerHTML = WORK_SCHEDULES.map(w =>
-      `<button type="button" class="chip ${state.workSchedule===w.id?'on':''}" data-shift="${w.id}" title="${w.hint}">${w.label}</button>`
+      `<button type="button" class="shift-opt ${state.workSchedule===w.id?'on':''}" data-shift="${w.id}">
+        <b>${w.label}</b><span>${w.hint}</span>
+      </button>`
     ).join('');
   }
   const minEl = document.getElementById('ageMin');
