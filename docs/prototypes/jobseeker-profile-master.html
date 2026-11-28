@@ -181,10 +181,33 @@
   .home-top h1{flex:1;margin:0;text-align:center;font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.02em}
   .home-jobs-pill{display:inline-flex;align-items:center;gap:4px;border-radius:99px;background:var(--soft);border:1px solid #BBF7D0;padding:6px 9px;font-size:10px;font-weight:800;color:var(--gn2);white-space:nowrap}
   .home-scroll{flex:1;overflow:auto;padding:12px 16px 8px}
-  .home-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px}
-  .home-hdr h2{margin:0;font-size:18px;font-weight:800;color:#0F172A}
-  .home-hdr p{margin:4px 0 0;font-size:12px;color:var(--mut);line-height:1.4}
-  .home-free-pill{font-size:10px;font-weight:800;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:6px 9px;line-height:1.25;text-align:center}
+  .home-hdr-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+  .home-kicker-title{margin:0;font-size:11px;font-weight:800;letter-spacing:.14em;color:#6B7280;text-transform:uppercase}
+  .home-used{font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap}
+  .profile-slot{position:relative;border-radius:16px;padding:18px 14px 16px;margin:0 0 12px;text-align:center;background:#fff}
+  .profile-slot.slot-first{border:2px dashed #D1D5DB}
+  .profile-slot.slot-empty:not(.slot-first){border:1.5px solid #E5E7EB}
+  .profile-slot.slot-locked{opacity:.72}
+  .slot-badge{position:absolute;top:10px;left:10px;font-size:10px;font-weight:800;color:#6B7280;background:#F3F4F6;border-radius:99px;padding:4px 9px}
+  .slot-ico{width:52px;height:52px;border-radius:50%;background:#F3F4F6;margin:4px auto 12px;display:grid;place-items:center;font-size:24px;color:#9CA3AF;font-weight:300;line-height:1}
+  .slot-title{font-size:16px;font-weight:800;margin:0 0 8px;color:#111827}
+  .slot-title.green{color:var(--gn2)}
+  .slot-desc{font-size:12px;color:var(--mut);line-height:1.5;margin:0 0 14px;max-width:280px;margin-left:auto;margin-right:auto}
+  .slot-desc .flow{color:#374151;font-weight:600}
+  .slot-cta{width:100%;font-size:14px;padding:12px;border-radius:12px}
+  .slot-cta:disabled{opacity:.42;cursor:not-allowed}
+  .pro-upsell-icons{text-align:center;font-size:16px;font-weight:900;letter-spacing:4px;color:#9CA3AF;margin-bottom:10px}
+  .how-gixbee{margin:18px 0 6px;padding-top:14px;border-top:1px solid #F3F4F6}
+  .how-gixbee h4{margin:0 0 14px;font-size:11px;font-weight:800;letter-spacing:.14em;color:#9CA3AF;text-transform:uppercase}
+  .how-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+  .how-step .num{width:30px;height:30px;border-radius:50%;background:var(--gn);color:#fff;font-size:13px;font-weight:900;display:grid;place-items:center;flex:none}
+  .how-step div b{display:block;font-size:13px;font-weight:800;color:#111827;margin-bottom:3px;line-height:1.3}
+  .how-step div span{font-size:11px;color:var(--mut);line-height:1.4;display:block}
+  .home-upgrade .tier-free{background:#FFFBEB;color:#B45309;border-color:#FDE68A}
+  .home-upgrade .tier-pro{background:#FFFBEB;color:#B45309;border-color:#FDE68A}
+  .home-upgrade .up-divider{border:0;border-top:1px solid #E5E7EB;margin:12px 0 10px}
+  .profile-slot.slot-filled{padding-top:36px;text-align:left;border:1.5px solid #E5E7EB}
+  .profile-slot.slot-filled .career-card{margin:0;box-shadow:none}
   .career-card{background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;margin:0 0 12px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,.04)}
   .career-card.hd{padding:14px 14px 8px;display:flex;gap:10px;align-items:flex-start}
   .career-card .ttl{flex:1;min-width:0}
@@ -241,30 +264,28 @@
 
     <section class="scr on" id="sHome">
       <div class="home-shell">
-        <header class="home-top">
-          <button type="button" class="home-home-btn" aria-label="Home"><span aria-hidden="true">🏠</span> Home</button>
-          <h1>Find a Job</h1>
-          <span class="home-jobs-pill">💼 10K+ jobs</span>
-        </header>
-        <div class="home-scroll">
-          <div class="home-hdr">
-            <div>
-              <h2>My career profiles</h2>
-              <p id="homeSub">Turn profiles on to receive matching job alerts</p>
-            </div>
-            <span class="home-free-pill" id="homeFreePill">Free<br/>0 / 2</span>
+        <div class="home-scroll" style="padding-top:14px">
+          <div class="home-hdr-row">
+            <h2 class="home-kicker-title">My career profiles</h2>
+            <span class="home-used" id="homeFreePill">0 of 2 free used</span>
           </div>
           <div id="homeProfileList"></div>
-          <button type="button" class="home-add" id="homeCreate">+ Create career profile</button>
-          <p id="homeLimitBar" class="home-limit" hidden>Both free profiles are active. Delete one profile to create a new one, or subscribe for unlimited.</p>
           <div class="home-upgrade">
+            <div class="pro-upsell-icons" aria-hidden="true">+ + + ∞</div>
             <h3>Unlimited career profiles</h3>
-            <p>IT, Electrician, Cook, Nurse — manage separate profiles for each career path.</p>
+            <p><strong>IT + Electrician + Cook + Driver + more</strong><br/>All matching at once · More profiles = more opportunities.</p>
             <div class="tier-row">
               <button type="button" class="tier-free">Free: 2 profiles</button>
-              <button type="button" class="tier-pro">Pro: Unlimited</button>
+              <button type="button" class="tier-pro">Pro: Unlimited ∞</button>
             </div>
+            <hr class="up-divider"/>
             <button type="button" class="up-link" id="homeUpgrade">Upgrade to Pro · ₹299/month</button>
+          </div>
+          <div class="how-gixbee">
+            <h4>How Gixbee works</h4>
+            <div class="how-step"><span class="num">1</span><div><b>Build a profile — job type, skills, salary</b><span>Takes less than 2 minutes</span></div></div>
+            <div class="how-step"><span class="num">2</span><div><b>Gixbee matches you to companies</b><span>24/7 automatic · No job searching needed</span></div></div>
+            <div class="how-step"><span class="num">3</span><div><b>You get an alert — Decide to respond</b><span>Resume shared only when you say yes</span></div></div>
           </div>
         </div>
         <nav class="home-bottom" aria-label="Main">
@@ -4548,59 +4569,22 @@ function formatSalShort(pr) {
 function activeProfileCount(list) {
   return (list || loadProfiles()).filter((p) => p.matchingActive !== false).length;
 }
-function seedDemoProfilesIfEmpty() {
-  if (loadProfiles().length) return;
-  const t = new Date().toISOString();
-  saveProfiles([
-    {
-      id: uid(),
-      schemaVersion: 4,
-      savedAt: t,
-      displayName: 'Software Developer',
-      employmentType: { code: 'FT', label: 'Full Time' },
-      sector: { id: 'tech', label: 'IT & Software' },
-      position: { id: 'software-developer', label: 'Software Developer', subtitle: 'Software development' },
-      types: ['Full stack'],
-      qualification: 'Graduate',
-      qualMarks: '78',
-      experienceYears: 3,
-      skills: ['JavaScript', 'React', 'Node.js'],
-      languages: ['English', 'Hindi'],
-      bio: null,
-      locationPriorities: ['Bangalore', 'Delhi NCR', 'Pune', '', ''],
-      salary: { expectedMonthly: 30000, negotiable: true },
-      availableToJoin: { code: 'immediate', label: 'Immediately' },
-      resume: null,
-      matchingActive: true,
-      alertsNew: 5,
-      interestedCount: 2,
-      catalogueVersion: C.version,
-    },
-    {
-      id: uid(),
-      schemaVersion: 4,
-      savedAt: t,
-      displayName: 'Electrician',
-      employmentType: { code: 'GIG', label: 'Gig' },
-      sector: { id: 'electrical', label: 'Electrical & Electronics' },
-      position: { id: 'electrician', label: 'Electrician', subtitle: 'Homes, shops and sites' },
-      types: ['Domestic'],
-      qualification: 'ITI / Diploma',
-      qualMarks: '65',
-      experienceYears: 5,
-      skills: ['Wiring', 'Fault repair', 'Panel board'],
-      languages: ['English', 'Malayalam'],
-      bio: null,
-      locationPriorities: ['Kochi', 'Thrissur', '', '', ''],
-      salary: { expectedMonthly: 18000, negotiable: false },
-      availableToJoin: { code: 'd7', label: 'Within 7 days' },
-      resume: null,
-      matchingActive: true,
-      alertsNew: 3,
-      interestedCount: 1,
-      catalogueVersion: C.version,
-    },
-  ]);
+function emptySlotHtml(slotIndex, profileCount) {
+  const n = slotIndex + 1;
+  const locked = slotIndex === 1 && profileCount < 1;
+  const first = slotIndex === 0;
+  const title = first ? 'Create your first profile' : 'Add second profile';
+  const titleClass = first ? 'slot-title green' : 'slot-title';
+  const desc = first
+    ? '<span class="flow">Choose a job type → Add skills → Set salary</span><br/>Gixbee finds matching jobs automatically.'
+    : 'Different job type · More matching.';
+  return `<article class="profile-slot slot-empty ${first ? 'slot-first' : ''} ${locked ? 'slot-locked' : ''}">
+    <span class="slot-badge">Slot ${n}</span>
+    <div class="slot-ico" aria-hidden="true">+</div>
+    <h3 class="${titleClass}">${title}</h3>
+    <p class="slot-desc">${desc}</p>
+    <button type="button" class="btn slot-cta" data-choose-slot="${n}" ${locked ? 'disabled' : ''}>Choose job type</button>
+  </article>`;
 }
 function homeCardHtml(pr) {
   const str = profileStrength(pr);
@@ -4631,27 +4615,20 @@ function homeCardHtml(pr) {
   </article>`;
 }
 function renderHome() {
-  seedDemoProfilesIfEmpty();
-  const list = loadProfiles();
-  const active = activeProfileCount(list);
-  const freePill = el('homeFreePill');
-  if (freePill) freePill.innerHTML = 'Free<br/>' + active + ' / ' + FREE_PROFILE_LIMIT;
-  const limitBar = el('homeLimitBar');
-  const atCap = list.length >= FREE_PROFILE_LIMIT && active >= FREE_PROFILE_LIMIT;
-  if (limitBar) limitBar.hidden = !atCap;
-  const createBtn = el('homeCreate');
-  if (createBtn) {
-    createBtn.style.opacity = atCap ? '0.5' : '1';
-    createBtn.style.pointerEvents = atCap ? 'none' : 'auto';
-  }
+  const list = loadProfiles().slice(0, FREE_PROFILE_LIMIT);
+  const used = el('homeFreePill');
+  if (used) used.textContent = list.length + ' of ' + FREE_PROFILE_LIMIT + ' free used';
   const root = el('homeProfileList');
   if (!root) return;
-  if (!list.length) {
-    root.innerHTML =
-      '<p class="sub" style="text-align:center;padding:24px 8px;line-height:1.5">No profiles yet.<br>Tap <b style="color:var(--gn2)">Create career profile</b> below.</p>';
-    return;
+  const slots = [];
+  for (let i = 0; i < FREE_PROFILE_LIMIT; i++) {
+    if (list[i]) {
+      slots.push(`<div class="profile-slot slot-filled"><span class="slot-badge">Slot ${i + 1}</span>${homeCardHtml(list[i])}</div>`);
+    } else {
+      slots.push(emptySlotHtml(i, list.length));
+    }
   }
-  root.innerHTML = list.map((pr) => homeCardHtml(pr)).join('');
+  root.innerHTML = slots.join('');
 }
 function startCreateProfile() {
   if (loadProfiles().length >= FREE_PROFILE_LIMIT) {
@@ -5521,12 +5498,22 @@ document.getElementById('s1Back').onclick = () => {
   renderHome();
   show('sHome');
 };
-el('homeCreate')?.addEventListener('click', startCreateProfile);
 el('homeUpgrade')?.addEventListener('click', () => toast('Pro upgrade — demo only.'));
 el('navAlerts')?.addEventListener('click', () => toast('Alerts — demo.'));
 el('navStatus')?.addEventListener('click', () => toast('Status — demo.'));
 el('navSettings')?.addEventListener('click', () => toast('Settings — demo.'));
 el('homeProfileList')?.addEventListener('click', (e) => {
+  const choose = e.target.closest('[data-choose-slot]');
+  if (choose && !choose.disabled) {
+    const slot = +choose.getAttribute('data-choose-slot');
+    const len = loadProfiles().length;
+    if (slot > 1 && len < 1) {
+      toast('Create your first profile in Slot 1.');
+      return;
+    }
+    startCreateProfile();
+    return;
+  }
   const del = e.target.closest('[data-del]');
   if (del) {
     const id = del.getAttribute('data-del');
