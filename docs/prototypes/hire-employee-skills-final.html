@@ -89,6 +89,8 @@
   .ok{background:#ECFDF3;border-radius:12px;padding:12px;font-size:12.5px;color:#065F46;margin:10px 0}
   .chip.lang{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
   .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
+  label.req::after{content:' *';color:#DC2626;font-weight:800}
+  .fld[hidden]{display:none!important}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -170,14 +172,19 @@
           <button class="see" type="button" id="moreTypes" hidden>Show more</button>
         </div>
         <div class="fld">
-          <label>Qualification (optional)</label>
-          <select id="qual">
+          <label class="req" for="qual">Qualification</label>
+          <select id="qual" required aria-required="true">
             <option value="">Select qualification</option>
             <option>10th</option><option>12th</option><option>ITI / Diploma</option>
             <option>Graduate</option><option>Post graduate</option>
             <option>MBBS</option><option>MD / MS</option><option>B.Sc Nursing</option>
             <option>Other</option>
           </select>
+        </div>
+        <div class="fld" id="qualMarksBlock" hidden>
+          <label class="req" for="qualPct">Marks scored (%)</label>
+          <input id="qualPct" type="number" inputmode="decimal" min="1" max="100" step="0.1" placeholder="e.g. 72.5" aria-required="true">
+          <p class="hint">Enter the minimum percentage you require for this qualification.</p>
         </div>
         <div class="fld">
           <label>Minimum experience (years)</label>
@@ -8933,6 +8940,8 @@ const state = {
   skillFull: false,
   languages: ['English', 'Malayalam'],
   langDraft: [],
+  qualification: '',
+  qualMarks: '',
 };
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
@@ -9014,6 +9023,41 @@ function visibleTypes(p){
   if(p.fieldPattern==='specializationMulti') return p.types.slice(0,6);
   return p.types;
 }
+function syncQualUI(){
+  const qualSel = document.getElementById('qual');
+  const q = qualSel ? qualSel.value.trim() : '';
+  state.qualification = q;
+  const block = document.getElementById('qualMarksBlock');
+  const pct = document.getElementById('qualPct');
+  if(block) block.hidden = !q;
+  if(!q){
+    state.qualMarks = '';
+    if(pct) pct.value = '';
+  }
+}
+function readQualMarks(){
+  const raw = (document.getElementById('qualPct')?.value || '').trim();
+  if(!raw) return null;
+  const n = parseFloat(raw);
+  if(Number.isNaN(n) || n < 1 || n > 100) return null;
+  return raw;
+}
+function validateQualification(){
+  syncQualUI();
+  if(!state.qualification){
+    toast('Select a qualification.');
+    return false;
+  }
+  const marks = readQualMarks();
+  if(marks === null){
+    toast('Enter marks scored in percentage (1 to 100).');
+    const el = document.getElementById('qualPct');
+    if(el) el.focus();
+    return false;
+  }
+  state.qualMarks = marks;
+  return true;
+}
 function renderS3(){
   const s=sector(), p=position(); if(!p) return;
   document.getElementById('s3crumb').textContent = s.label+' › '+p.label;
@@ -9036,6 +9080,11 @@ function renderS3(){
     `<span class="chip lang">${l}<button type="button" data-lx="${l}">×</button></span>`
   ).join('');
   document.getElementById('expV').textContent = state.exp;
+  const qualSel = document.getElementById('qual');
+  if(qualSel && state.qualification) qualSel.value = state.qualification;
+  const pctEl = document.getElementById('qualPct');
+  if(pctEl && state.qualMarks) pctEl.value = state.qualMarks;
+  syncQualUI();
 }
 function renderS5(){
   const s=sector(), p=position();
@@ -9048,6 +9097,8 @@ function renderS5(){
     ['Sector', s.label],
     ['Position', p.label + (state.types[0]? ' ('+state.types.join(', ')+')':'')],
     ['Experience', state.exp+'+ years'],
+    ['Qualification', state.qualification || '—'],
+    ['Marks required', state.qualMarks ? state.qualMarks + '%' : '—'],
     ['Skills', state.skills.join(', ')||'—'],
     ['Languages', state.languages.join(', ')||'—'],
     ['Location', loc],
@@ -9166,7 +9217,12 @@ document.getElementById('skillChips').addEventListener('click', e => {
   const x=e.target.dataset.x; if(!x) return;
   state.skills=state.skills.filter(s=>s!==x); renderS3();
 });
+document.getElementById('qual').addEventListener('change', syncQualUI);
+document.getElementById('qualPct').addEventListener('input', () => {
+  state.qualMarks = document.getElementById('qualPct').value.trim();
+});
 document.getElementById('c3').onclick = () => {
+  if(!validateQualification()) return;
   if(!state.languages.length){ toast('Select at least one language.'); return; }
   show('s4'); matchCount();
 };
