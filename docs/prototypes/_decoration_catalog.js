@@ -168,6 +168,22 @@ function decorTraditionKey(tag) {
     .replace(/[^a-z]/g, '');
 }
 
+function decorHasOthersTradition(tags) {
+  return (tags || []).some(function (t) {
+    return decorTraditionKey(t) === 'others';
+  });
+}
+
+function decorFormatTraditionTags(tags, otherText) {
+  const other = (otherText || '').trim();
+  return (tags || [])
+    .map(function (t) {
+      if (decorTraditionKey(t) === 'others' && other) return other;
+      return t;
+    })
+    .join(', ');
+}
+
 function inferDecorationItemScopes(name) {
   const n = String(name || '').toLowerCase();
   const pkgScopes = [];

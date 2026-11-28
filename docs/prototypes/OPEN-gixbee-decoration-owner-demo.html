@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-hub-cat-v27. Do NOT open decoration-owner-flow-shell.html (shell only). -->
+<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-other-community-v28. Do NOT open decoration-owner-flow-shell.html (shell only). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -775,6 +775,10 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-pkg-type-seg" id="decPkgTypeSeg"></div>
   <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🕌</span> Community<span class="req">*</span></p>
   <div class="dec-chip-wrap" id="decTraditionChips"></div>
+  <div class="fld" id="decTraditionOtherWrap" hidden>
+    <label>Specify other community *</label>
+    <input type="text" id="decTraditionOther" placeholder="e.g. Jain, Sikh, interfaith, Indo-western" autocomplete="off" maxlength="80">
+  </div>
   <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
   <p class="sub" id="decPkgTitlePreview">Your package name</p>
   <div class="fld"><label>Description (optional)</label><textarea id="decPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div>
@@ -903,7 +907,11 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-ban"><span>✨</span><b id="decSvcCatBanner">—</b><button type="button" id="decSvcChangeCat">Change</button></div>
   <div class="pad"><div class="fld"><label>Service name *</label><input id="decSvcName" placeholder="Wedding car floral decoration"></div>
   <div class="fld"><label>Short description</label><textarea id="decSvcDesc" rows="2" placeholder="What is included in this service?"></textarea></div>
-  <p class="lbl">COMMUNITY *</p><div class="dec-chip-wrap" id="decSvcCommunityChips"></div></div>
+  <p class="lbl">COMMUNITY *</p><div class="dec-chip-wrap" id="decSvcCommunityChips"></div>
+  <div class="fld" id="decSvcTraditionOtherWrap" hidden>
+    <label>Specify other community *</label>
+    <input type="text" id="decSvcTraditionOther" placeholder="e.g. Jain, Sikh, interfaith" autocomplete="off" maxlength="80">
+  </div></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep2Back">← Back</button><button type="button" class="btn btn-decor" id="decSvcStep2Next">Next →</button></div>
 </section>
 
@@ -2314,6 +2322,22 @@ function decorTraditionKey(tag) {
     .replace(/[^a-z]/g, '');
 }
 
+function decorHasOthersTradition(tags) {
+  return (tags || []).some(function (t) {
+    return decorTraditionKey(t) === 'others';
+  });
+}
+
+function decorFormatTraditionTags(tags, otherText) {
+  const other = (otherText || '').trim();
+  return (tags || [])
+    .map(function (t) {
+      if (decorTraditionKey(t) === 'others' && other) return other;
+      return t;
+    })
+    .join(', ');
+}
+
 function inferDecorationItemScopes(name) {
   const n = String(name || '').toLowerCase();
   const pkgScopes = [];
@@ -2547,6 +2571,7 @@ function newDecorPkgDraft() {
     level: 'Standard',
     eventTypes: [],
     traditionTags: [],
+    traditionOtherText: '',
     ceremonySetup: [],
     styles: [],
     name: '',
@@ -2938,7 +2963,7 @@ function syncDecorPkgEventTypesFromCategory(d) {
 
 function decorPkgSummaryLine(d) {
   const cat = decorPkgCategoryMeta(d.packageCategory);
-  const comm = (d.traditionTags || []).join(', ');
+  const comm = decorFormatTraditionTags(d.traditionTags, d.traditionOtherText);
   const parts = [];
   if (d.level) parts.push(d.level);
   if (cat) parts.push(cat.label);
@@ -3000,20 +3025,29 @@ function renderDecorPkgStep2() {
   el('decPkgName').value = d.name || '';
   el('decPkgDesc').value = d.description || '';
   updateDecorPkgNamePreview();
-  function bindChip(sel, attr, arrKey) {
-    el(sel).querySelectorAll('[data-' + attr + ']').forEach(function (btn) {
-      btn.onclick = function () {
-        const val = btn.getAttribute('data-' + attr);
-        const arr = decorPkgWizard.draft[arrKey] || [];
-        const i = arr.indexOf(val);
-        if (i >= 0) arr.splice(i, 1);
-        else arr.push(val);
-        decorPkgWizard.draft[arrKey] = arr;
-        renderDecorPkgStep2();
-      };
-    });
+  const otherWrap = el('decTraditionOtherWrap');
+  const otherInp = el('decTraditionOther');
+  const hasOthers = decorHasOthersTradition(d.traditionTags);
+  if (otherWrap) otherWrap.hidden = !hasOthers;
+  if (otherInp) {
+    otherInp.value = d.traditionOtherText || '';
+    otherInp.oninput = function () {
+      decorPkgWizard.draft.traditionOtherText = otherInp.value;
+    };
   }
-  bindChip('decTraditionChips', 'trad', 'traditionTags');
+  el('decTraditionChips').querySelectorAll('[data-trad]').forEach(function (btn) {
+    btn.onclick = function () {
+      const val = btn.getAttribute('data-trad');
+      const arr = decorPkgWizard.draft.traditionTags || [];
+      const i = arr.indexOf(val);
+      if (i >= 0) {
+        arr.splice(i, 1);
+        if (decorTraditionKey(val) === 'others') decorPkgWizard.draft.traditionOtherText = '';
+      } else arr.push(val);
+      decorPkgWizard.draft.traditionTags = arr;
+      renderDecorPkgStep2();
+    };
+  });
   renderDecorPkgImages();
 }
 
@@ -4013,6 +4047,15 @@ function validateDecorPkgStep(step) {
       toast('Select at least one community');
       return false;
     }
+    if (decorHasOthersTradition(d.traditionTags) && !(d.traditionOtherText || '').trim()) {
+      toast('Specify other community');
+      return false;
+    }
+    if (decorHasOthersTradition(d.traditionTags)) {
+      d.traditionOtherText = (d.traditionOtherText || '').trim();
+    } else {
+      d.traditionOtherText = '';
+    }
     if (!(d.name || '').trim()) {
       toast('Package name is required');
       return false;
@@ -4099,6 +4142,7 @@ function bindDecorationPackageUi() {
   bindClick('decPkgStep2Next', function () {
     decorPkgWizard.draft.name = (el('decPkgName').value || '').trim();
     decorPkgWizard.draft.description = (el('decPkgDesc').value || '').trim();
+    if (el('decTraditionOther')) decorPkgWizard.draft.traditionOtherText = el('decTraditionOther').value;
     if (!validateDecorPkgStep(2)) return;
     renderDecorPkgStep3();
     show('decorPkgStep3');
@@ -4218,6 +4262,7 @@ function newDecorServiceDraft() {
     name: '',
     description: '',
     traditionTags: [],
+    traditionOtherText: '',
     designs: [{ id: 'dsg-1', name: 'Design 1', note: '' }],
     price: '',
     priceUnit: 'Per Event',
@@ -4374,13 +4419,25 @@ function renderDecorSvcStep2() {
       '</button>'
     );
   }).join('');
+  const svcOtherWrap = el('decSvcTraditionOtherWrap');
+  const svcOtherInp = el('decSvcTraditionOther');
+  const svcHasOthers = decorHasOthersTradition(d.traditionTags);
+  if (svcOtherWrap) svcOtherWrap.hidden = !svcHasOthers;
+  if (svcOtherInp) {
+    svcOtherInp.value = d.traditionOtherText || '';
+    svcOtherInp.oninput = function () {
+      decorSvcWizard.draft.traditionOtherText = svcOtherInp.value;
+    };
+  }
   el('decSvcCommunityChips').querySelectorAll('[data-svc-comm]').forEach(function (btn) {
     btn.onclick = function () {
       const val = btn.getAttribute('data-svc-comm');
       const arr = decorSvcWizard.draft.traditionTags || [];
       const i = arr.indexOf(val);
-      if (i >= 0) arr.splice(i, 1);
-      else arr.push(val);
+      if (i >= 0) {
+        arr.splice(i, 1);
+        if (decorTraditionKey(val) === 'others') decorSvcWizard.draft.traditionOtherText = '';
+      } else arr.push(val);
       decorSvcWizard.draft.traditionTags = arr;
       renderDecorSvcStep2();
     };
@@ -4598,6 +4655,17 @@ function bindDecorationIndividualUi() {
     if (!(decorSvcWizard.draft.traditionTags || []).length) {
       toast('Select at least one community');
       return;
+    }
+    const svcD = decorSvcWizard.draft;
+    if (el('decSvcTraditionOther')) svcD.traditionOtherText = el('decSvcTraditionOther').value;
+    if (decorHasOthersTradition(svcD.traditionTags) && !(svcD.traditionOtherText || '').trim()) {
+      toast('Specify other community');
+      return;
+    }
+    if (decorHasOthersTradition(svcD.traditionTags)) {
+      svcD.traditionOtherText = (svcD.traditionOtherText || '').trim();
+    } else {
+      svcD.traditionOtherText = '';
     }
     renderDecorSvcStep3();
     show('decorSvcStep3');
@@ -5175,7 +5243,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-hub-cat-v27';
+const DECORATION_OWNER_BUILD = 'decoration-owner-other-community-v28';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

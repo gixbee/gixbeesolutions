@@ -11,6 +11,7 @@ function newDecorServiceDraft() {
     name: '',
     description: '',
     traditionTags: [],
+    traditionOtherText: '',
     designs: [{ id: 'dsg-1', name: 'Design 1', note: '' }],
     price: '',
     priceUnit: 'Per Event',
@@ -167,13 +168,25 @@ function renderDecorSvcStep2() {
       '</button>'
     );
   }).join('');
+  const svcOtherWrap = el('decSvcTraditionOtherWrap');
+  const svcOtherInp = el('decSvcTraditionOther');
+  const svcHasOthers = decorHasOthersTradition(d.traditionTags);
+  if (svcOtherWrap) svcOtherWrap.hidden = !svcHasOthers;
+  if (svcOtherInp) {
+    svcOtherInp.value = d.traditionOtherText || '';
+    svcOtherInp.oninput = function () {
+      decorSvcWizard.draft.traditionOtherText = svcOtherInp.value;
+    };
+  }
   el('decSvcCommunityChips').querySelectorAll('[data-svc-comm]').forEach(function (btn) {
     btn.onclick = function () {
       const val = btn.getAttribute('data-svc-comm');
       const arr = decorSvcWizard.draft.traditionTags || [];
       const i = arr.indexOf(val);
-      if (i >= 0) arr.splice(i, 1);
-      else arr.push(val);
+      if (i >= 0) {
+        arr.splice(i, 1);
+        if (decorTraditionKey(val) === 'others') decorSvcWizard.draft.traditionOtherText = '';
+      } else arr.push(val);
       decorSvcWizard.draft.traditionTags = arr;
       renderDecorSvcStep2();
     };
@@ -391,6 +404,17 @@ function bindDecorationIndividualUi() {
     if (!(decorSvcWizard.draft.traditionTags || []).length) {
       toast('Select at least one community');
       return;
+    }
+    const svcD = decorSvcWizard.draft;
+    if (el('decSvcTraditionOther')) svcD.traditionOtherText = el('decSvcTraditionOther').value;
+    if (decorHasOthersTradition(svcD.traditionTags) && !(svcD.traditionOtherText || '').trim()) {
+      toast('Specify other community');
+      return;
+    }
+    if (decorHasOthersTradition(svcD.traditionTags)) {
+      svcD.traditionOtherText = (svcD.traditionOtherText || '').trim();
+    } else {
+      svcD.traditionOtherText = '';
     }
     renderDecorSvcStep3();
     show('decorSvcStep3');

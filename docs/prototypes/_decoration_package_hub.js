@@ -71,6 +71,7 @@ function newDecorPkgDraft() {
     level: 'Standard',
     eventTypes: [],
     traditionTags: [],
+    traditionOtherText: '',
     ceremonySetup: [],
     styles: [],
     name: '',
@@ -462,7 +463,7 @@ function syncDecorPkgEventTypesFromCategory(d) {
 
 function decorPkgSummaryLine(d) {
   const cat = decorPkgCategoryMeta(d.packageCategory);
-  const comm = (d.traditionTags || []).join(', ');
+  const comm = decorFormatTraditionTags(d.traditionTags, d.traditionOtherText);
   const parts = [];
   if (d.level) parts.push(d.level);
   if (cat) parts.push(cat.label);
@@ -524,20 +525,29 @@ function renderDecorPkgStep2() {
   el('decPkgName').value = d.name || '';
   el('decPkgDesc').value = d.description || '';
   updateDecorPkgNamePreview();
-  function bindChip(sel, attr, arrKey) {
-    el(sel).querySelectorAll('[data-' + attr + ']').forEach(function (btn) {
-      btn.onclick = function () {
-        const val = btn.getAttribute('data-' + attr);
-        const arr = decorPkgWizard.draft[arrKey] || [];
-        const i = arr.indexOf(val);
-        if (i >= 0) arr.splice(i, 1);
-        else arr.push(val);
-        decorPkgWizard.draft[arrKey] = arr;
-        renderDecorPkgStep2();
-      };
-    });
+  const otherWrap = el('decTraditionOtherWrap');
+  const otherInp = el('decTraditionOther');
+  const hasOthers = decorHasOthersTradition(d.traditionTags);
+  if (otherWrap) otherWrap.hidden = !hasOthers;
+  if (otherInp) {
+    otherInp.value = d.traditionOtherText || '';
+    otherInp.oninput = function () {
+      decorPkgWizard.draft.traditionOtherText = otherInp.value;
+    };
   }
-  bindChip('decTraditionChips', 'trad', 'traditionTags');
+  el('decTraditionChips').querySelectorAll('[data-trad]').forEach(function (btn) {
+    btn.onclick = function () {
+      const val = btn.getAttribute('data-trad');
+      const arr = decorPkgWizard.draft.traditionTags || [];
+      const i = arr.indexOf(val);
+      if (i >= 0) {
+        arr.splice(i, 1);
+        if (decorTraditionKey(val) === 'others') decorPkgWizard.draft.traditionOtherText = '';
+      } else arr.push(val);
+      decorPkgWizard.draft.traditionTags = arr;
+      renderDecorPkgStep2();
+    };
+  });
   renderDecorPkgImages();
 }
 
@@ -1537,6 +1547,15 @@ function validateDecorPkgStep(step) {
       toast('Select at least one community');
       return false;
     }
+    if (decorHasOthersTradition(d.traditionTags) && !(d.traditionOtherText || '').trim()) {
+      toast('Specify other community');
+      return false;
+    }
+    if (decorHasOthersTradition(d.traditionTags)) {
+      d.traditionOtherText = (d.traditionOtherText || '').trim();
+    } else {
+      d.traditionOtherText = '';
+    }
     if (!(d.name || '').trim()) {
       toast('Package name is required');
       return false;
@@ -1623,6 +1642,7 @@ function bindDecorationPackageUi() {
   bindClick('decPkgStep2Next', function () {
     decorPkgWizard.draft.name = (el('decPkgName').value || '').trim();
     decorPkgWizard.draft.description = (el('decPkgDesc').value || '').trim();
+    if (el('decTraditionOther')) decorPkgWizard.draft.traditionOtherText = el('decTraditionOther').value;
     if (!validateDecorPkgStep(2)) return;
     renderDecorPkgStep3();
     show('decorPkgStep3');
