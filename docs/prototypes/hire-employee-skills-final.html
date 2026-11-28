@@ -107,6 +107,12 @@
   .shift-opt b{display:block;font-size:12px;font-weight:800;color:#111827;margin-bottom:4px}
   .shift-opt span{display:block;font-size:10px;line-height:1.35;color:var(--mut)}
   .shift-opt.on b{color:#065F46}
+  .qual-status{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 4px}
+  .qual-st{display:block;width:100%;border:1.5px solid #E5E7EB;border-radius:14px;background:#fff;padding:12px 10px;text-align:center;cursor:pointer;font:inherit}
+  .qual-st.on{border-color:var(--gn);background:#F0FDF4;box-shadow:0 0 0 3px #D1FADF}
+  .qual-st b{display:block;font-size:12px;font-weight:800;color:#111;margin-bottom:3px}
+  .qual-st span{display:block;font-size:10px;line-height:1.35;color:var(--mut)}
+  .qual-st.on b{color:#065F46}
   /* —— Interested Candidates / packages —— */
   .ic-top{align-items:flex-start;padding-top:10px}
   .ic-top h1{font-size:16px;line-height:1.25;flex:1;min-width:0}
@@ -248,9 +254,17 @@
             <option>Other</option>
           </select>
         </div>
+        <div class="fld" id="qualStatusBlock" hidden>
+          <label class="req">Course status</label>
+          <p class="hint" style="margin-top:0">For internships, tell us if the candidate should already hold this qualification or still be studying.</p>
+          <div class="qual-status" id="qualStatusPick" role="group" aria-label="Course status">
+            <button type="button" class="qual-st" data-qst="PURSUING"><b>Degree in progress</b><span>Still studying; not graduated yet</span></button>
+            <button type="button" class="qual-st" data-qst="COMPLETED"><b>Degree completed</b><span>Already passed this qualification</span></button>
+          </div>
+        </div>
         <div class="fld" id="qualMarksBlock" hidden>
-          <label class="req" for="qualPct">Minimum marks</label>
-          <p class="hint" style="margin-top:0">Set the lowest percentage candidates must have scored in this qualification. Matching shows only people <strong>at or above</strong> your number (0 to 100).</p>
+          <label class="req" for="qualPct" id="qualPctLbl">Minimum marks</label>
+          <p class="hint" style="margin-top:0" id="qualPctHintText">Set the lowest percentage candidates must have scored in this qualification. Matching shows only people <strong>at or above</strong> your number (0 to 100).</p>
           <div class="pct-in">
             <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="50 or 75" aria-required="true" autocomplete="off" aria-describedby="qualPctHint">
             <span class="pct-sym" aria-hidden="true">%</span>
@@ -9079,6 +9093,7 @@ const state = {
   languages: ['English', 'Malayalam'],
   langDraft: [],
   qualification: '',
+  qualStatus: '',
   qualMarks: '',
   genders: ['Male', 'Female'],
   ageMin: 30,
@@ -9236,17 +9251,54 @@ function visibleTypes(p){
   if(p.fieldPattern==='specializationMulti') return p.types.slice(0,6);
   return p.types;
 }
+function isInternHire(){ return state.emp === 'INTERN'; }
 function syncQualUI(){
   const qualSel = document.getElementById('qual');
   const q = qualSel ? qualSel.value.trim() : '';
   state.qualification = q;
-  const block = document.getElementById('qualMarksBlock');
+  const statusBlock = document.getElementById('qualStatusBlock');
+  const marksBlock = document.getElementById('qualMarksBlock');
   const pct = document.getElementById('qualPct');
-  if(block) block.hidden = !q;
+  const intern = isInternHire() && !!q;
+  if(statusBlock){
+    statusBlock.hidden = !intern;
+    statusBlock.querySelectorAll('.qual-st').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.qst === state.qualStatus);
+    });
+  }
   if(!q){
+    state.qualStatus = '';
     state.qualMarks = '';
     if(pct) pct.value = '';
+    if(marksBlock) marksBlock.hidden = true;
+    return;
   }
+  if(intern && !state.qualStatus){
+    if(marksBlock) marksBlock.hidden = true;
+    return;
+  }
+  if(intern && state.qualStatus){
+    updateQualMarksCopy();
+    if(marksBlock) marksBlock.hidden = false;
+    return;
+  }
+  updateQualMarksCopy();
+  if(marksBlock) marksBlock.hidden = false;
+}
+function updateQualMarksCopy(){
+  const lbl = document.getElementById('qualPctLbl');
+  const hint = document.getElementById('qualPctHintText');
+  const pursuing = isInternHire() && state.qualStatus === 'PURSUING';
+  if(lbl){
+    lbl.textContent = pursuing ? 'Latest year marks (minimum %)' : 'Minimum marks';
+  }
+  if(hint){
+    hint.innerHTML = pursuing
+      ? 'Enter the <strong>last completed year or semester</strong> percentage (0 to 100). Example: 2nd-year B.Com at 68% — enter <strong>68</strong>.'
+      : 'Set the lowest percentage candidates must have scored in this qualification. Matching shows only people <strong>at or above</strong> your number (0 to 100).';
+  }
+  const pct = document.getElementById('qualPct');
+  if(pct) pct.placeholder = pursuing ? 'e.g. last year 65' : '50 or 75';
 }
 function readQualMarks(){
   const raw = (document.getElementById('qualPct')?.value || '').trim();
@@ -9302,10 +9354,17 @@ function validateQualification(){
     toast('Select a qualification.');
     return false;
   }
+  if(isInternHire() && !state.qualStatus){
+    toast('Select whether the degree is in progress or completed.');
+    return false;
+  }
   sanitizeQualPctInput();
   const marks = readQualMarks();
   if(marks === null){
-    toast('Enter minimum marks % from 0 to 100 (max 2 decimal places).');
+    const pursuing = isInternHire() && state.qualStatus === 'PURSUING';
+    toast(pursuing
+      ? 'Enter latest year marks % from 0 to 100 (max 2 decimal places).'
+      : 'Enter minimum marks % from 0 to 100 (max 2 decimal places).');
     const el = document.getElementById('qualPct');
     if(el) el.focus();
     return false;
@@ -9409,7 +9468,9 @@ function renderS5(){
     ['Position', p.label + (state.types[0]? ' ('+state.types.join(', ')+')':'')],
     ['Experience', state.exp+'+ years'],
     ['Qualification required', state.qualification || '—'],
-    ['Minimum marks % (at or above)', state.qualMarks !== '' && state.qualMarks != null ? state.qualMarks + '%' : '—'],
+    ...(isInternHire() && state.qualStatus ? [['Course status', state.qualStatus === 'PURSUING' ? 'Degree in progress' : 'Degree completed']] : []),
+    [isInternHire() && state.qualStatus === 'PURSUING' ? 'Latest year marks % (min)' : 'Minimum marks % (at or above)',
+      state.qualMarks !== '' && state.qualMarks != null ? state.qualMarks + '%' : '—'],
     ['Skills', state.skills.join(', ')||'—'],
     ['Languages', state.languages.join(', ')||'—'],
     ['Preferred gender', state.genders.join(', ') || '—'],
