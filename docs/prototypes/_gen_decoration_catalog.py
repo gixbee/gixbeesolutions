@@ -204,7 +204,7 @@ CATS = [
     },
     {
         "id": "w05",
-        "name": "Seating & Furniture",
+        "name": "General Seating & Furniture",
         "emoji": "🪑",
         "scope": "common",
         "traditions": [],
@@ -252,11 +252,11 @@ CATS = [
     },
     {
         "id": "w11",
-        "name": "Photo Booth & Guest Experience",
+        "name": "Photo, Booth & Displays",
         "emoji": "🤳",
         "scope": "common",
         "traditions": [],
-        "items": ["Selfie Booth", "Couple Photo Booth", "Guest Welcome Area"],
+        "items": ["Selfie Booth / Photo Booth", "Couple & Family Photo Display", "Direction & Hashtag Board"],
     },
     {
         "id": "w12",
@@ -320,13 +320,37 @@ function decorCatalogContextFromDraft(draft) {
   };
 }
 
+function decorShouldSuppressCommonModule(mod, ctx) {
+  const pkgCat = ctx.packageCategory || 'wedding';
+  if ((mod.moduleScope || 'common') !== 'common') return false;
+  const key = decorPrimaryCommunityKey(ctx);
+  if (mod.id === 'w05' && pkgCat === 'wedding' && (key === 'christian' || key === 'muslim')) {
+    return true;
+  }
+  if (mod.id === 'w07') {
+    return true;
+  }
+  return false;
+}
+
+function decorShouldSuppressFunctionModule(mod, ctx) {
+  if ((mod.moduleScope || 'common') !== 'function') return false;
+  if (mod.id === 'o01' && decorOtherFunctionKey(ctx) === 'corporate') return true;
+  return false;
+}
+
 function decorModuleVisibleForPackage(mod, ctx) {
   if (!mod || !ctx) return true;
   const pkgCat = ctx.packageCategory || 'wedding';
   const scope = mod.moduleScope || 'common';
-  if (scope === 'common') return pkgCat === 'wedding' || pkgCat === 'other';
+  if (scope === 'common') {
+    if (pkgCat !== 'wedding' && pkgCat !== 'other') return false;
+    if (decorShouldSuppressCommonModule(mod, ctx)) return false;
+    return true;
+  }
   if (scope === 'function') {
     if (pkgCat !== 'other') return false;
+    if (decorShouldSuppressFunctionModule(mod, ctx)) return false;
     const ft = decorOtherFunctionKey(ctx);
     if (!ft) return false;
     const types = mod.functionTypes || [];
