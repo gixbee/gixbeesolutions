@@ -234,7 +234,10 @@
   .home-upgrade{border:1.5px dashed #D1D5DB;border-radius:16px;padding:14px;background:#FAFAFA;margin-bottom:4px}
   .home-upgrade h3{margin:0 0 6px;font-size:15px;font-weight:800;color:#B45309}
   .home-upgrade p{margin:0 0 10px;font-size:12px;line-height:1.45;color:var(--mut)}
-  .tier-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  .tier-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+  .tier-row .tier-pro-plus{background:#FFFBEB;color:#B45309;border-color:#FDE68A}
+  .up-links{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+  .up-links .up-link{text-align:left;line-height:1.45}
   .tier-row button{border-radius:12px;padding:10px 8px;font-size:11px;font-weight:800;cursor:pointer;border:1px solid #E5E7EB;font:inherit}
   .tier-free{background:#fff;color:#374151}
   .tier-pro{background:linear-gradient(135deg,#FCD34D,#F59E0B);color:#78350F;border-color:#FBBF24}
@@ -271,15 +274,19 @@
           </div>
           <div id="homeProfileList"></div>
           <div class="home-upgrade">
-            <div class="pro-upsell-icons" aria-hidden="true">+ + + ∞</div>
-            <h3>Unlimited career profiles</h3>
+            <div class="pro-upsell-icons" aria-hidden="true">+ + + 8</div>
+            <h3>More career profiles</h3>
             <p><strong>IT + Electrician + Cook + Driver + more</strong><br/>All matching at once · More profiles = more opportunities.</p>
             <div class="tier-row">
-              <button type="button" class="tier-free">Free: 2 profiles</button>
-              <button type="button" class="tier-pro">Pro: Unlimited ∞</button>
+              <button type="button" class="tier-free">Free<br/>2 profiles</button>
+              <button type="button" class="tier-pro">Pro<br/>3 profiles</button>
+              <button type="button" class="tier-pro-plus">Pro Plus<br/>8 profiles</button>
             </div>
             <hr class="up-divider"/>
-            <button type="button" class="up-link" id="homeUpgrade">Upgrade to Pro · ₹299/month</button>
+            <div class="up-links">
+              <button type="button" class="up-link" id="homeUpgradePro">Upgrade to Pro · ₹99/month · 3 profiles</button>
+              <button type="button" class="up-link" id="homeUpgradeProPlus">Upgrade to Pro Plus · ₹199/month · 8 profiles</button>
+            </div>
           </div>
           <div class="how-gixbee">
             <h4>How Gixbee works</h4>
@@ -4545,6 +4552,8 @@ function saveProfiles(list) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 const FREE_PROFILE_LIMIT = 2;
+const PRO_PROFILE_LIMIT = 3;
+const PRO_PLUS_PROFILE_LIMIT = 8;
 function profileStrength(pr) {
   let s = 22;
   if (pr.qualification) s += 14;
@@ -5497,7 +5506,8 @@ document.getElementById('s1Back').onclick = () => {
   renderHome();
   show('sHome');
 };
-el('homeUpgrade')?.addEventListener('click', () => toast('Pro upgrade — demo only.'));
+el('homeUpgradePro')?.addEventListener('click', () => toast('Pro — ₹99/month, up to 3 profiles (demo only).'));
+el('homeUpgradeProPlus')?.addEventListener('click', () => toast('Pro Plus — ₹199/month, up to 8 profiles (demo only).'));
 el('navAlerts')?.addEventListener('click', () => toast('Alerts — demo.'));
 el('navStatus')?.addEventListener('click', () => toast('Status — demo.'));
 el('navSettings')?.addEventListener('click', () => toast('Settings — demo.'));
