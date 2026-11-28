@@ -149,8 +149,9 @@
   .qual-st.on b{color:#065F46}
   .ic-info{display:flex;gap:10px;align-items:flex-start;background:#ECFDF3;border-radius:14px;padding:12px;margin:14px 0 4px;font-size:11px;line-height:1.5;color:#065F46}
   .ic-info i{width:24px;height:24px;border-radius:50%;background:#12B76A;color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;flex:none}
-  #s1 .top .req{display:none}
+  #s1 .top{display:none}
   #s1 .prog{display:none}
+  #buildTag{display:none}
   .s1-head{padding:12px 16px 4px}
   .prog-seg{display:flex;gap:6px;margin-bottom:14px}
   .prog-seg i{flex:1;height:5px;border-radius:99px;background:#E5E7EB;display:block}
@@ -192,12 +193,12 @@
       <div class="s1-head pad" style="padding-top:8px">
         <div class="prog-seg" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><i></i></div>
         <p class="step-kicker">Type &amp; sector</p>
-        <h2 class="hero-title">How do you want to work?</h2>
-        <p class="hero-sub">Same categories as employer hiring — pick your job type.</p>
-        <p class="hint" id="buildTag" style="margin-bottom:10px">Loading…</p>
+        <h2 class="hero-title">What type of help do you need?</h2>
+        <p class="hero-sub">Choose how you want to hire.</p>
+        <p class="hint" id="buildTag">Loading…</p>
         <div class="empgrid" id="empTypes"></div>
         <h2 class="sector-title">Select a sector</h2>
-        <p class="sector-sub">Choose the field you work in or want to join.</p>
+        <p class="sector-sub">Choose the type of work you need help with.</p>
         <div class="grid" id="sectors"></div>
       </div>
       <div class="cta"><button class="btn" id="c1" disabled>Continue</button></div>
