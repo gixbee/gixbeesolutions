@@ -1,8 +1,9 @@
 Gixbee Decoration Owner — prototype
 =====================================
 
-PRIMARY DEMO:
+PRIMARY DEMO (download & open offline):
 
+  docs/prototypes/DOWNLOAD-gixbee-decoration-owner.html
   docs/prototypes/GIXBEE-DECORATION-OWNER-FINALFLOW5.html
 
 Flow:
