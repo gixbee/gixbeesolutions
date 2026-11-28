@@ -35,13 +35,13 @@ Competitor payment models are not interchangeable. [Taskrabbit's payment help](h
 
 ## 3. First-city acquisition and activation
 
-1. City lead recruits professionals through local trade networks and direct field onboarding. Record category, working area, languages, availability, tools and indicative rate.
+1. City lead recruits professionals through local trade networks and direct field onboarding. Record category, working area, languages, availability, tools and indicative rate. Pre-launch community structure, WhatsApp cells, waitlist fields and the 10-week sequence are in [PRELAUNCH_WORKER_COMMUNITY.md](./PRELAUNCH_WORKER_COMMUNITY.md). Density in the launch polygon matters more than a national follower count.
 2. Verification operations check identity and category capability, explain charges and cancellation rules, and resolve rejected or incomplete applications. Identity verification alone is not a skill certificate.
 3. Run supervised test bookings with consenting pilot participants. Check location, notification delivery, OTP handoff, bill and both payment confirmations.
 4. Open only the areas/categories that can fulfill requests during staffed operating hours. Use local community partnerships and referrals after successful jobs; keep acquisition channels attributable.
 5. Review demand missed, response time, travel cost, earnings and support cases daily. Recruit supply for a demonstrated coverage gap before increasing paid demand.
 
-No automatic customer notifications, marketing campaigns or account outreach are authorized by this document. Campaign execution is a separate operating action.
+No automatic customer notifications, marketing campaigns or account outreach are authorized by this document. Campaign execution is a separate operating action. The pre-launch worker playbook is operating guidance for city supply leads; it still does not authorize bulk SMS, paid demand ads, or customer push.
 
 ## 4. Customer journey: discovery to repeat use
 

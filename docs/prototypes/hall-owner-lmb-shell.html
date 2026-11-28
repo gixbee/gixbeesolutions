@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Hall Owner (List My Business)</title>
+<style>
+:root{--navy:#1B2559;--ink:#111827;--mut:#6B7280;--line:#E5E7EB;--gn:#12B76A;--gn2:#099250;--soft:#ECFDF3;--shadow:0 8px 28px rgba(15,23,42,.08);--rd:#DC2626}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:20px 10px}
+.phone{width:min(100%,430px);background:#fff;min-height:860px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111}
+.notch{height:28px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
+.scr{display:none;padding:0 0 92px;min-height:800px}
+.scr.on{display:block}
+.top{display:flex;align-items:center;gap:10px;padding:8px 16px 6px}
+.back{width:36px;height:36px;border:0;background:none;font-size:22px;color:var(--navy);cursor:pointer}
+.top h1{margin:0;font-size:18px;color:var(--navy);flex:1}
+.chip-h{padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800}
+.prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+.bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--gn);border-radius:99px}
+.frac{font-size:12px;color:#9CA3AF;font-weight:700}
+.pad{padding:0 16px}
+h2{margin:0 0 6px;font-size:18px}
+.sub{color:var(--mut);font-size:13px;line-height:1.45;margin:0 0 14px}
+.lbl{font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.6px;margin:16px 0 8px}
+.menu{display:flex;flex-direction:column;gap:10px}
+.mrow{text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;cursor:pointer;width:100%}
+.mrow b{display:block;font-size:15px;margin-bottom:4px}
+.mrow span{font-size:12px;color:var(--mut);line-height:1.35}
+.mrow.danger{background:#FEF2F2;border-color:#FECACA}
+.mrow.danger b,.mrow.danger span{color:var(--rd)}
+.mrow .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);margin-left:6px;vertical-align:middle}
+.mrow.green b{color:var(--gn2)}
+.mrow.muted span{color:#9CA3AF}
+.mrow-rich{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.mrow-rich .mrow-text{flex:1;min-width:0;text-align:left}
+.mrow-rich .mrow-text b{margin-bottom:2px;color:var(--navy)}
+.mrow-chev{color:#9CA3AF;font-size:22px;line-height:1;flex-shrink:0;font-weight:300}
+.mico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0;font-weight:800;position:relative}
+.mico-cal{background:#DCFCE7;color:#15803D}
+.mico-pkg{background:#EDE9FE;color:#6D28D9;font-size:22px}
+.mico-req{background:#FEF9C3;color:#A16207}
+.mico-ops{background:#DBEAFE;color:#1D4ED8;font-size:18px}
+.mico-del{background:#FEE2E2;color:var(--rd);font-size:18px}
+.mico-photo{background:#FCE7F3;color:#BE185D;font-size:18px}
+.mico-req .m-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--rd);border:2px solid #FEF9C3}
+.media-cover{height:160px;border-radius:14px;background:linear-gradient(145deg,#64748B,#94A3B8);margin-bottom:12px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.media-cover .cover-lbl{position:absolute;left:10px;bottom:10px;background:rgba(15,23,42,.72);color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.photo-tile{aspect-ratio:1.15;border-radius:12px;background:linear-gradient(145deg,#CBD5E1,#64748B);position:relative;border:1px solid var(--line)}
+.photo-tile .tile-cap{position:absolute;left:8px;right:8px;bottom:8px;font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.photo-tile.add{display:grid;place-items:center;background:#F8FAFC;border:2px dashed #BFDBFE;color:#1D4ED8;font-size:12px;font-weight:800;cursor:pointer}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%) center/cover}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.manage-biz-card .biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;color:#374151;margin:4px 0 12px;cursor:pointer}
+.manage-check-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--gn);flex-shrink:0}
+.manage-name-panel{background:linear-gradient(135deg,#ECFDF3 0%,#D1FAE5 100%);border:1px solid #A7F3D0;border-radius:14px;padding:14px;margin-bottom:8px}
+.manage-name-panel-hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;color:var(--navy);margin-bottom:10px}
+.manage-name-panel-hd .tag-ico{font-size:18px}
+.manage-name-panel input{width:100%;border:1px solid #86EFAC;border-radius:10px;padding:12px 14px;font-weight:700;font-size:15px;color:var(--navy);background:#fff}
+.manage-name-panel input:disabled{background:#F3F4F6;color:#9CA3AF}
+.btn-save-hall{display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-save-hall .save-ico{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28);font-size:14px;font-weight:900}
+.pkg-detail-top .pkg-back-lbl{width:auto;font-size:14px;font-weight:800;padding:0 4px}
+#pkg2 .prog,#pkg2 .steps{display:none}
+.pkg-biz-card{display:flex;gap:12px;padding:14px;background:#F0FDFA;border:1px solid #99F6E4;border-radius:16px;margin-bottom:14px;align-items:flex-start}
+.pkg-biz-thumb{width:72px;height:64px;border-radius:10px;background:linear-gradient(145deg,#64748B,#94A3B8);flex-shrink:0}
+.pkg-biz-card b{display:block;font-size:16px;color:var(--navy);margin-bottom:4px}
+.pkg-biz-loc{font-size:12px;color:#475569;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:6px}
+.pkg-biz-note{font-size:11px;color:#0D9488;font-weight:600;margin:0;line-height:1.4}
+.cap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.cap-field label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:0 0 6px;color:#374151}
+.cap-field .cap-ico{font-size:16px}
+.cap-field input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit;font-weight:700}
+.cap-field.full{grid-column:1/-1}
+.cap-suffix{font-size:11px;color:var(--mut);font-weight:700;margin-top:4px}
+.pkg-section-hd{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:var(--navy);margin:18px 0 10px}
+.fac-rich{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fac-tile{display:flex;align-items:center;gap:8px;padding:10px 10px;border:1px solid var(--line);border-radius:12px;font-size:11px;font-weight:800;cursor:pointer;background:#fff;line-height:1.25}
+.fac-tile input{flex:none;width:18px;height:18px;accent-color:var(--gn)}
+.fac-tile.on{border-color:#86EFAC;background:#F0FDF4}
+.fac-tile .fac-ico{font-size:16px;flex-shrink:0}
+.cater-stack{display:flex;flex-direction:column;gap:12px}
+.cater-q{padding:12px;border:1px solid var(--line);border-radius:14px;background:#FAFAFA}
+.cater-q p{font-weight:800;font-size:13px;margin:0 0 8px;color:#374151}
+.cater-yn{display:flex;gap:8px}
+.cater-yn label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;background:#fff;margin:0}
+.cater-yn label.on{border-color:var(--gn);background:#ECFDF3;color:#065F46}
+.cater-yn input{position:absolute;opacity:0;width:0;height:0}
+.btn-continue::after{content:'→';margin-left:6px;font-weight:900}
+.cta{position:sticky;bottom:0;padding:12px 16px 18px;background:linear-gradient(transparent,#fff 20%)}
+.btn{width:100%;border:0;border-radius:12px;background:var(--gn);color:#fff;font-weight:800;font-size:16px;padding:14px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--gn);border:1.5px solid var(--gn);margin-top:8px}
+.btn.red{background:var(--rd)}
+.fld{margin:0 0 12px}
+.fld label{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+.fld input,.fld select,.fld textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ev{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer}
+.ev.on{border-color:var(--gn);background:#F0FDF4}
+.ev input{flex:none;width:20px;height:20px}
+.fac{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fac label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;font-size:12px;font-weight:700;cursor:pointer}
+.fac label.on{border-color:var(--gn);background:#F0FDF4}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.slot.slot-disabled{opacity:.65}
+.slot h3{margin:0 0 8px;font-size:14px}
+.slot .slot-body{margin-top:6px}
+.slot .ac-usage{margin-top:10px;padding:10px;border-radius:10px;background:#F9FAFB;border:1px solid var(--line)}
+.slot .price-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0;font-size:13px;font-weight:700}
+.slot .price-row input[type=number]{width:120px;font-weight:600}
+.slot .price-block{margin:4px 0 12px}
+.slot .disc-block{margin:4px 0 0 4px;padding:8px 0 4px 12px;border-left:3px solid #A7F3D0}
+.slot .radio-row label.on{font-weight:800;color:#065F46}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:8px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.wait{background:#FEF3C7;color:#B45309}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff}
+.pick.on{border-color:var(--gn);background:#ECFDF3;color:#065F46}
+.info{margin:10px 0;padding:12px;border-radius:12px;font-size:12.5px;line-height:1.45;display:flex;gap:10px;align-items:flex-start}
+.info.gn{background:#ECFDF3;color:#065F46}
+.info.bl{background:#EFF6FF;color:#1D4ED8}
+.sum{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.sum .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sum .hd b{font-size:14px}
+.see{border:0;background:none;color:#2563EB;font-weight:800;font-size:12px;cursor:pointer}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:6px 10px;border-radius:99px;background:#F3F4F6;font-size:11px;font-weight:700}
+.toast{position:absolute;left:16px;right:16px;bottom:88px;background:#111827;color:#fff;padding:12px;border-radius:12px;font-size:13px;display:none;z-index:9}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:10px}
+.home-pill{padding:8px 14px;border-radius:99px;background:var(--gn);color:#fff;font-weight:800;font-size:12px;border:0}
+.biz-title{font-size:17px;font-weight:900;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0;white-space:nowrap}
+.lmb-top .row{align-items:center;gap:8px;flex-wrap:nowrap}
+.home-pill{flex-shrink:0;white-space:nowrap}
+.steps{display:flex;gap:6px;padding:12px 16px;overflow:auto;font-size:10px;color:var(--mut)}
+.step{flex:none;padding:6px 10px;border-radius:10px;background:#F3F4F6;font-weight:700}
+.step.on{background:#ECFDF3;color:#065F46}
+.radio-row{display:flex;gap:12px;align-items:center;margin:8px 0;font-size:13px}
+.cancel-table{width:100%;font-size:12px;border-collapse:collapse}
+.cancel-table td,.cancel-table th{padding:8px 4px;border-bottom:1px solid #F3F4F6}
+.policy-tabs{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 14px}
+.policy-tabs button{flex:1;padding:11px 8px;border:0;background:#F3F4F6;font-weight:800;font-size:12px;color:#374151;cursor:pointer}
+.policy-tabs button.on{background:#2563EB;color:#fff}
+.policy-banner{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:12px;font-size:13px;line-height:1.45;margin-bottom:8px}
+.policy-banner.cancel{background:#EFF6FF;color:#1E3A8A}
+.policy-banner.resched{background:#ECFDF5;color:#065F46}
+.policy-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 0;border-bottom:1px solid #F3F4F6}
+.policy-row-remove{flex-shrink:0;width:36px;height:36px;border:1px solid #FECACA;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:800;cursor:pointer;font-size:14px;line-height:1}
+.policy-days-inp{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px;font-weight:700;font-size:13px;min-width:0}
+.policy-pct-wrap{font-weight:800;font-size:14px;white-space:nowrap}
+.policy-pct-inp{width:64px;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;font-weight:800;margin-right:4px}
+textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;resize:vertical}
+.hall-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.hall-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.hall-card-inactive{border-color:#E5E7EB;background:#FAFAFA}
+.hall-card .hall-sub{font-size:12px;margin:6px 0 10px;line-height:1.45;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hall-sub-kicker{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748B}
+.hall-sub-name{display:inline-block;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;color:#5B21B6;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);border:1px solid rgba(91,33,182,.12);box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
+.hall-card-inactive .hall-sub-name{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB}
+.hall-toggle{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0;margin-top:2px}
+.hall-toggle input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.hall-toggle-ui{width:46px;height:26px;background:#D1D5DB;border-radius:999px;position:relative;transition:background .2s;flex-shrink:0}
+.hall-toggle-ui::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .2s}
+.hall-toggle input:checked + .hall-toggle-ui{background:#2563EB}
+.hall-toggle input:checked + .hall-toggle-ui::after{transform:translateX(20px)}
+.hall-toggle-lbl{min-width:22px;color:#374151}
+.hall-inactive-banner{padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-size:13px;line-height:1.45;margin-bottom:12px}
+.hall-inactive-lock input:not([readonly]):not([data-hall-toggle]),.hall-inactive-lock textarea,.hall-inactive-lock select,.hall-inactive-lock .menu .mrow,.hall-inactive-lock .cta .btn:not(#saveNewHallBtn),.hall-inactive-lock .btn:not(.back):not(#backToBizHalls):not(#saveNewHallBtn),.hall-inactive-lock label.ev,.hall-inactive-lock .policy-row input,.hall-inactive-lock .slot input,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock #manageHallNameInput,.hall-inactive-lock #manageUseHallName{pointer-events:none;opacity:.45}
+.hall-inactive-lock #saveNewHallBtn{pointer-events:auto!important;opacity:1!important}
+.hall-inactive-lock #backToBizHalls,.hall-inactive-lock .top .back{pointer-events:auto!important;opacity:1!important}
+.manage-name-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.manage-name-actions .btn{margin:0}
+.hall-name-display{font-weight:800;font-size:15px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);color:#5B21B6;border:1px solid rgba(91,33,182,.12)}
+.hall-name-display.muted{color:#6B7280;background:#F3F4F6;border-color:#E5E7EB;font-weight:700;font-size:13px}
+#manageRestBlock{transition:opacity .2s}
+.manage-name-editing #manageRestBlock{opacity:.42;pointer-events:none;user-select:none;filter:grayscale(.15);background:#F3F4F6;border-radius:0 0 16px 16px;margin:0 -16px;padding:0 16px 8px}
+#manageHallNameWrap input:disabled{background:#F3F4F6;color:#9CA3AF}
+.venue-hero{display:flex;gap:12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;margin:0 0 12px;align-items:flex-start}
+.venue-thumb{width:88px;height:76px;border-radius:12px;background:linear-gradient(145deg,#94A3B8 0%,#64748B 50%,#CBD5E1 100%);flex-shrink:0}
+.venue-hero h2{margin:0 0 4px;font-size:17px;color:var(--navy);line-height:1.25}
+.venue-hero .venue-meta{font-size:12px;color:#475569;line-height:1.45;margin:0}
+.venue-loc{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:var(--mut);font-weight:600}
+.parking-hub-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:14px;margin-bottom:14px}
+.parking-hub-card .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.parking-hub-card .hd b{font-size:14px;color:var(--navy);line-height:1.35;flex:1}
+.edit-park-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:#DBEAFE;border:0;color:var(--navy);font-weight:800;font-size:12px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.parking-stats{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;font-weight:700;color:#1E3A8A}
+.btn-add-hall{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 16px}
+.btn-add-hall::before{content:'+';font-size:20px;font-weight:900;line-height:1}
+.halls-section-lbl{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px}
+.halls-section-lbl .lbl{margin:0}
+.hall-card-rich{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;background:#fff}
+.hall-card-rich.inactive{background:#FAFAFA;border-color:#E5E7EB}
+.hall-rich-top{display:flex;gap:10px;align-items:flex-start}
+.hall-thumb{width:76px;height:68px;border-radius:10px;background:linear-gradient(145deg,#E2E8F0,#64748B);flex-shrink:0}
+.hall-rich-meta{flex:1;min-width:0}
+.hall-rich-meta b{display:block;font-size:16px;color:var(--navy);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hall-rich-tags{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;font-weight:700;color:var(--mut)}
+.hall-rich-price{font-weight:900;color:var(--navy);font-size:17px;margin-top:8px}
+.hall-rich-price.muted{font-size:13px;color:var(--mut);font-weight:700}
+.hall-rich-toggle{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.hall-rich-toggle .hall-toggle input:checked + .hall-toggle-ui{background:var(--gn)}
+.hall-status-badge{font-size:10px;font-weight:800;padding:4px 10px;border-radius:99px;text-align:center;min-width:64px}
+.hall-status-badge.on{background:#ECFDF3;color:#059669}
+.hall-status-badge.off{background:#F3F4F6;color:#6B7280}
+.hall-actions-rich{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.hall-act-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:52px;padding:8px 4px;border:1.5px solid #BFDBFE;border-radius:12px;background:#F8FAFC;font-size:11px;font-weight:800;color:#1D4ED8;cursor:pointer;width:100%}
+.hall-act-btn:disabled{opacity:.45;cursor:not-allowed}
+.hall-act-btn .ico{font-size:18px;line-height:1}
+.hall-act-btn.manage{flex-direction:row;gap:4px}
+.hall-act-btn.manage .chev{font-size:14px;margin-left:2px}
+.hall-actions.hall-actions-minimal{grid-template-columns:1fr}
+.hall-actions.hall-actions-minimal .pick{grid-column:1/-1}
+.hall-actions .pick{padding:10px 4px;font-size:11px;min-height:40px;display:flex;align-items:center;justify-content:center}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#F3F4F6;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.biz-actions button{border:1px solid var(--line);border-radius:10px;padding:10px 6px;font-size:11px;font-weight:800;background:#fff;cursor:pointer}
+.biz-actions button.mgr-hall{background:var(--gn);color:#fff;border-color:var(--gn)}
+.biz-actions button.mgr-cat{background:#F97316;color:#fff;border-color:#F97316}
+.biz-actions button.mgr-rent{background:#2563EB;color:#fff;border-color:#2563EB}
+.biz-home-disabled{opacity:.45;pointer-events:none;user-select:none}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.cal-tabs .pick{padding:12px 8px}
+.cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
+.cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
+.cal-month-nav b{font-size:16px;color:var(--navy)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:#9CA3AF;text-align:center;margin-bottom:4px}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;text-align:center;margin:0 0 12px}
+.cal-mini .cal-pad{visibility:hidden;pointer-events:none}
+.cal-day-cell{border:0;background:#F9FAFB;border-radius:10px;padding:6px 0 8px;cursor:pointer;font-weight:700;position:relative;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.cal-day-cell.on{background:var(--gn);color:#fff}
+.cal-day-cell.on .cal-dot{opacity:1}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-dot.av{background:var(--gn)}
+.cal-dot.bk{background:var(--rd)}
+.cal-dot.off{background:#F97316}
+.cal-dot.blk{background:#7C3AED}
+.cal-dot.na{background:#2563EB}
+.cal-day-cell.on .cal-dot.av{background:#fff}
+.cal-day-cell.on .cal-dot.bk,.cal-day-cell.on .cal-dot.off,.cal-day-cell.on .cal-dot.blk,.cal-day-cell.on .cal-dot.na{box-shadow:0 0 0 1px rgba(255,255,255,.5)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--mut);margin-bottom:12px}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.cal-month-pick{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:13px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--navy)}
+.cal-date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.cal-date-nav b{font-size:15px;color:var(--navy);flex:1;text-align:center;line-height:1.3}
+.price-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+.price-chip{padding:8px 12px;border-radius:10px;font-size:12px;font-weight:800;border:1px solid var(--line);background:#F9FAFB}
+.price-chip.ac{color:#065F46;border-color:#A7F3D0;background:#ECFDF3}
+.price-chip.noac{color:#1E3A8A;border-color:#BFDBFE;background:#EFF6FF}
+.pill.off{background:#FFEDD5;color:#C2410C}
+.pill.blk{background:#EDE9FE;color:#6D28D9}
+.pill.muted{background:#F3F4F6;color:#6B7280}
+.slot-actions{display:flex;gap:8px;margin-top:8px}
+.slot-actions .btn,.slot-actions .btn.ghost{margin:0;flex:1;font-size:14px;padding:12px}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:20;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.overlay.center{align-items:center;padding:16px}
+.sheet{width:100%;max-height:88%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 24px;overflow:auto;box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:18px;color:var(--navy)}
+.sheet-close{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-slot-sum{padding:12px;border-radius:12px;background:#F9FAFB;border:1px solid var(--line);margin-bottom:14px;font-size:13px;line-height:1.5}
+.sheet-slot-sum b{display:block;font-size:14px;margin-bottom:4px}
+.block-reason{display:block;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.block-reason.on{border-color:var(--gn);background:#F0FDF4}
+.block-reason input{margin-right:8px}
+.block-reason small{display:block;color:var(--mut);font-size:12px;margin-top:4px;font-weight:600}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sheet-actions .btn.ghost{margin:0}
+.modal-card{background:#fff;border-radius:16px;padding:20px 18px;max-width:340px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+.modal-card .modal-ico{font-size:36px;margin-bottom:8px}
+.modal-card h3{margin:0 0 10px;font-size:17px;color:var(--navy)}
+.modal-card p{font-size:13px;color:var(--mut);line-height:1.5;margin:0 0 18px;text-align:left}
+.modal-card .sheet-actions{margin-top:0}
+.pkg-required-modal{text-align:center;padding:24px 20px 20px}
+.pkg-required-modal .pkg-required-ico{width:56px;height:56px;margin:0 auto 14px;border-radius:16px;background:linear-gradient(135deg,#EDE9FE 0%,#D1FAE5 100%);display:grid;place-items:center;font-size:28px;font-weight:900;color:#5B21B6;line-height:1}
+.pkg-required-modal h3{font-size:18px;margin:0 0 10px}
+.pkg-required-modal .pkg-required-body{font-size:14px;color:#475569;line-height:1.55;margin:0 0 20px;text-align:center}
+.pkg-required-modal .pkg-required-body b{color:var(--navy)}
+.pkg-required-modal #pkgRequiredOk{width:100%;margin:0}
+.venue-edit-modal{text-align:left;max-width:360px;padding:20px 18px 18px}
+.venue-edit-modal h3{margin:0 0 6px;font-size:18px;color:var(--navy)}
+.venue-edit-step[hidden]{display:none!important}
+.venue-edit-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.venue-edit-actions .btn{margin:0}
+.month-list{max-height:320px;overflow:auto;margin:0 -4px}
+.month-list button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:#fff;padding:14px 12px;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
+.month-list button.on{background:#EFF6FF;color:#1D4ED8}
+.op-remove{border:0;background:none;color:var(--rd);font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
+.op-owner-tag{color:var(--gn2);font-weight:800;font-size:13px;padding:8px 4px}
+.op-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.op-meta{flex:1;min-width:0}
+.op-meta b{display:block;font-size:15px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.op-meta span{font-size:12px;color:var(--mut);line-height:1.4;display:block;word-break:break-word}
+.op-actions{flex-shrink:0;align-self:center}
+.op-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:17px;color:#fff;flex-shrink:0}
+.op-avatar.a0{background:#12B76A}
+.op-avatar.a1{background:#2563EB}
+.op-avatar.a2{background:#7C3AED}
+.op-avatar.a3{background:#EA580C}
+.operators-info{background:#F3F4F6;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:#374151;margin:12px 0 4px;border:1px solid var(--line)}
+.phone{display:flex;flex-direction:column}
+.scr.on{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.overlay{z-index:30}
+.toast.on{display:block}
+</style>
+</head>
+<body>
+<noscript><div style="padding:24px;font:16px sans-serif;color:#b91c1c"><b>JavaScript is off.</b> Turn it on, then reopen this file. Or serve via <code>python3 -m http.server 8765</code> in the prototypes folder.</div></noscript>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif;overflow:auto"></div>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmbDashboard">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="hint" id="buildTag" style="margin:8px 0 0;font-size:11px">Single-file demo — all JavaScript is inside this .html</p>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <div class="biz-dash-card">
+      <div class="biz-row">
+        <div class="biz-ico">🏛️</div>
+        <div style="flex:1">
+          <p class="biz-name">Vijaya Convention Center</p>
+          <p class="biz-type">Marriage Hall</p>
+          <p class="biz-meta"><span class="pill ok" style="margin:0">Verified</span> · MG Road, Kottayam</p>
+          <div class="biz-badges"><span>2 new requests</span><span class="gy">Rs 1.8L this month</span></div>
+          <div class="biz-actions">
+            <button type="button">Calendar</button>
+            <button type="button">Requests</button>
+            <button type="button" class="mgr-hall" id="dashHallManage">Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="biz-dash-card">
+      <div class="biz-row">
+        <div class="biz-ico">🍽️</div>
+        <div style="flex:1">
+          <p class="biz-name">Thilaka Catering</p>
+          <p class="biz-type">Catering Service</p>
+          <p class="biz-meta"><span class="pill ok" style="margin:0">Verified</span> · Sakthan Nagar, Thrissur</p>
+          <div class="biz-badges"><span>4 new requests</span><span class="gy">Rs 3.2L this month</span></div>
+          <div class="biz-actions">
+            <button type="button">Calendar</button>
+            <button type="button">Requests</button>
+            <button type="button" class="mgr-cat" id="dashCatManage">Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="biz-dash-card">
+      <div class="biz-row">
+        <div class="biz-ico">⚡</div>
+        <div style="flex:1">
+          <p class="biz-name">Rajan Power Rentals</p>
+          <p class="biz-type">Rental Business</p>
+          <p class="biz-meta"><span class="pill ok" style="margin:0">Verified</span> · Sakthan Nagar, Thrissur</p>
+          <div class="biz-badges"><span class="gy">Rs 48K this month</span></div>
+          <div class="biz-actions">
+            <button type="button">Items</button>
+            <button type="button">Requests</button>
+            <button type="button" class="mgr-rent" id="dashRentManage">Manage</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="scr" id="hallSetup">
+  <div class="top"><button type="button" class="back" id="setupBackDash">←</button><h1>Hall setup</h1></div>
+  <div class="pad">
+    <h2 id="setupBizTitle">Vijaya Convention Center</h2>
+    <p class="sub" id="setupIntroSub">Enter how many halls, then tap OK.</p>
+    <div id="setupHallCountBlock">
+      <div class="fld"><label>Number of halls</label><input type="number" id="hallCountInput" min="1" max="20" value="2"><small class="sub">Example: 1 hall, or 2–3 halls under one convention center.</small></div>
+      <button type="button" class="btn" id="hallCountOk" style="margin-top:8px">OK</button>
+    </div>
+    <div id="setupParkingSection" hidden style="margin-top:16px">
+      <p class="lbl" id="setupParkingLbl">COMMON PARKING</p>
+      <p class="sub" id="setupParkingHint">Shared car and bike capacity for all halls.</p>
+      <div class="two">
+        <div class="fld"><label>Car parking</label><input type="number" id="setupParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bike parking</label><input type="number" id="setupParkBike" min="0" value="120"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cta two" id="setupActionsWrap" hidden style="display:none;grid-template-columns:1fr 1fr;gap:10px;padding-top:0">
+    <button type="button" class="btn ghost" id="setupCancel">Cancel</button>
+    <button type="button" class="btn" id="setupSave">Save</button>
+  </div>
+</section>
+
+<section class="scr" id="hallBizHome">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="bizHomeToDash">🏠 Home</button>
+      <div class="biz-title" id="bizHomeTitle">Vijaya Convention Center</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="hint" id="buildTagHub" style="margin:8px 0 0;font-size:11px">Halls hub — add halls, then Manage each hall</p>
+  </div>
+  <div class="pad" id="hallBizBody">
+    <div class="venue-hero">
+      <div class="venue-thumb" aria-hidden="true"></div>
+      <div style="min-width:0;flex:1">
+        <h2 id="venueHeroTitle">Vijaya Convention Center</h2>
+        <p class="venue-meta">Marriage Hall · Service · Hall</p>
+        <p class="venue-loc"><span aria-hidden="true">📍</span> <span id="venueHeroLoc">Kottayam, Kerala</span></p>
+      </div>
+    </div>
+    <div id="parkingBlockWrap">
+    <div class="parking-hub-card" id="parkingSummaryBox">
+      <div class="hd">
+        <b id="parkingSummaryTitle">Parking</b>
+        <button type="button" class="edit-park-btn" id="editParkingBtn">✎ Edit</button>
+      </div>
+      <div class="parking-stats" id="parkingSummaryText"><span>🚗 Cars: 80</span><span>🏍 Bikes: 120</span></div>
+    </div>
+    </div>
+    <div id="hallBizDisabledZone">
+    <button type="button" class="btn btn-add-hall" id="addHallBtn">Add Hall</button>
+    <div class="halls-section-lbl">
+      <p class="lbl">YOUR HALLS</p>
+      <span class="sub" id="hallCountLbl" style="margin:0;font-weight:800">(0)</span>
+    </div>
+    <div id="hallListCards"></div>
+    </div>
+  </div>
+</section>
+
+<section class="scr" id="manage">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="back" id="backToBizHalls" style="width:auto;padding:0 8px;font-size:13px;font-weight:800">← Halls</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="sub" style="margin:8px 0 0" id="manageSubLine">Vijaya Convention Center · Hall: Tiffle · Service · Hall</p>
+    <p class="hint" id="buildTagManage" style="margin:8px 0 0;font-size:11px">Hall manage — pricing, calendar, requests</p>
+  </div>
+  <div class="pad" style="padding-top:4px">
+    <div id="hallInactiveBanner" hidden class="hall-inactive-banner">This hall is <b>Off</b> on your Halls list. Turn the toggle <b>On</b> on the hall card to edit names, pricing, and calendar again.</div>
+    <div class="manage-biz-card">
+      <div class="manage-biz-photo" aria-hidden="true"></div>
+      <p class="manage-field-lbl">Business name</p>
+      <p class="biz-ro-display" id="manageBizNameDisplay">Vijaya Convention Center</p>
+      <input id="bizNameRo" type="text" readonly hidden value="Vijaya Convention Center">
+      <p class="sub" style="margin:0;font-size:12px">Set when you listed on Gixbee — cannot be changed here. Shown on search cards.</p>
+    </div>
+    <div id="manageNameCheckboxRow">
+      <label class="manage-check-row"><input type="checkbox" id="manageUseHallName"> This hall has its own name (optional)</label>
+    </div>
+    <div id="manageHallNamePanel" class="manage-name-panel" hidden>
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
+      <input id="manageHallNameInput" type="text" value="" placeholder="e.g. Koinonia">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
+    </div>
+  </div>
+  <div id="manageRestBlock">
+  <div class="pad">
+    <p class="lbl">MANAGE</p>
+    <div class="menu" id="manageMenu"><p class="sub" id="jsWait">Loading menu…</p></div>
+  </div>
+  <div class="cta" id="manageSaveFooter">
+    <button type="button" class="btn btn-save-hall" id="saveNewHallBtn"><span class="save-ico" aria-hidden="true">✓</span> Save hall</button>
+  </div>
+  </div>
+</section>
+
+<section class="scr" id="pkg1">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">1/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:20%"></i></div><span class="frac">1/5</span></div>
+  <div class="steps" id="pkgSteps"></div>
+  <div class="pad"><h2>Event Categories</h2><p class="sub">Select the functions you accept at your hall.</p><div id="eventCats"></div></div>
+  <div class="cta"><button class="btn" type="button" id="pkg1Next">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg2">
+  <div class="top pkg-detail-top"><button class="back pkg-back-lbl" type="button" data-to="pkg1">← Back</button><h1>Hall Details</h1><span class="chip-h">2/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:40%"></i></div><span class="frac">2/5</span></div>
+  <div class="pad pkg2-pad">
+    <div class="pkg-biz-card">
+      <div class="pkg-biz-thumb" aria-hidden="true"></div>
+      <div style="min-width:0;flex:1">
+        <b id="pkg2BizTitle">Vijaya Convention Center</b>
+        <p class="pkg-biz-loc"><span aria-hidden="true">📍</span> <span id="pkg2BizLoc">Kottayam, Kerala</span></p>
+        <p class="pkg-biz-note">Cannot be changed — from List My Business.</p>
+        <input id="bizNamePkg" type="text" readonly hidden value="Vijaya Convention Center">
+      </div>
+    </div>
+    <label class="manage-check-row"><input type="checkbox" id="useHallNamePkg" checked> This hall has its own name (optional)</label>
+    <div id="hallNamePkgWrap" class="manage-name-panel">
+      <div class="manage-name-panel-hd"><span class="tag-ico" aria-hidden="true">🏷</span> Hall name</div>
+      <input id="hallNameInput" type="text" placeholder="e.g. Koinonia">
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Shown when customers book this hall.</p>
+    </div>
+    <div class="cap-grid">
+      <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">👥</span> Seating Capacity</label><input id="seatCap" type="number" min="0" value="700"><span class="cap-suffix">guests</span></div>
+      <div class="cap-field"><label><span class="cap-ico" aria-hidden="true">🍽</span> Dining Capacity</label><input id="dineCap" type="number" min="0" value="550"><span class="cap-suffix">guests</span></div>
+      <div class="cap-field full"><label><span class="cap-ico" aria-hidden="true">🚪</span> Private / Changing Room</label><input id="rooms" type="number" min="0" value="2"><span class="cap-suffix">rooms</span></div>
+    </div>
+    <p class="pkg-section-hd"><span aria-hidden="true">⚙</span> Facilities (select available)</p>
+    <div class="fac fac-rich" id="facGrid"></div>
+    <p class="pkg-section-hd"><span aria-hidden="true">🍴</span> Catering &amp; Decoration (for customers)</p>
+    <div class="cater-stack" id="caterDec"></div>
+  </div>
+  <div class="cta"><button class="btn btn-continue" type="button" data-to="pkg3">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg3">
+  <div class="top"><button class="back" type="button" data-to="pkg2">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">3/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
+  <div class="pad"><h2>Pricing &amp; Time Slots</h2><p class="sub">Turn each slot on or off, set your hall hours (from–to), choose whether customers see Without AC and/or With AC pricing, and define AC usage hours when AC is not for the full booking window.</p><div id="slotPricing"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg4">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg4">
+  <div class="top"><button class="back" type="button" data-to="pkg3">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">4/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
+  <div class="pad"><h2>Payment &amp; Policies</h2><p class="sub">Advance, full payment due date, and editable cancellation / rescheduling rules (deducted from advance).</p><div id="payPolicy"></div></div>
+  <div class="cta"><button class="btn" type="button" data-to="pkg5">Continue</button></div>
+</section>
+
+<section class="scr" id="pkg5">
+  <div class="top"><button class="back" type="button" data-to="pkg4">←</button><h1>Pricing &amp; Packages</h1><span class="chip-h">5/5</span></div>
+  <div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="frac">5/5</span></div>
+  <div class="pad"><h2>Review &amp; Save</h2><p class="sub">Check your package details and save.</p><div id="pkgReview"></div></div>
+  <div class="cta"><button class="btn" type="button" id="savePkg">Save Package</button></div>
+</section>
+
+<section class="scr" id="calendar">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Calendar &amp; Availability</h1></div>
+  <div class="pad">
+    <div class="cal-tabs">
+      <button type="button" class="pick on" id="tabCalMain">Calendar</button>
+      <button type="button" class="pick" id="tabBookSettings">Booking Settings</button>
+    </div>
+    <div class="cal-month-nav">
+      <button type="button" id="calPrevMonth" aria-label="Previous month">‹</button>
+      <b id="calMonthLabel">December 2026</b>
+      <button type="button" id="calNextMonth" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="cal-mini" id="calGrid"></div>
+    <div class="cal-legend">
+      <span><i class="cal-dot av"></i> Available</span>
+      <span><i class="cal-dot bk"></i> Booked</span>
+      <span><i class="cal-dot off"></i> Offline Booked</span>
+      <span><i class="cal-dot blk"></i> Blocked</span>
+      <span><i class="cal-dot na"></i> Not Available</span>
+    </div>
+    <button type="button" class="cal-month-pick" id="openMonthPicker">📅 Month: <span id="calMonthPickLabel">December 2026</span> ▾</button>
+  </div>
+</section>
+
+<section class="scr" id="calDay">
+  <div class="top"><button class="back" type="button" id="backFromCalDay">←</button><h1>Select Date</h1></div>
+  <div class="pad">
+    <div class="cal-date-nav">
+      <button type="button" id="calPrevDay" aria-label="Previous day">‹</button>
+      <b id="calDayTitle">25 Dec 2026, Friday</b>
+      <button type="button" id="calNextDay" aria-label="Next day">›</button>
+    </div>
+    <div id="daySlots"></div>
+  </div>
+</section>
+
+<section class="scr" id="bookSettings">
+  <div class="top"><button class="back" type="button" data-to="calendar">←</button><h1>Booking Settings</h1></div>
+  <div class="pad">
+    <h2>Customer Booking Window</h2><p class="sub">How far in advance can customers book?</p>
+    <div class="grid3" id="bookWindow"></div>
+    <div class="info gn" id="windowInfo"></div>
+    <h2 style="margin-top:20px">Minimum Booking Notice</h2><p class="sub">How soon can customers book?</p>
+    <div class="grid3" id="minNotice"></div>
+    <div class="info bl" id="noticeInfo"></div>
+  </div>
+  <div class="cta"><button class="btn" type="button" id="saveBookSettings">Save Settings</button></div>
+</section>
+
+<section class="scr" id="ownerReq">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1>Booking Request</h1><span class="pill wait">New</span></div>
+  <div class="pad" id="ownerReqBody"></div>
+  <div class="cta two" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <button class="btn ghost red" type="button" id="rejectReq">Reject</button>
+    <button class="btn" type="button" id="acceptReq">Accept Request</button>
+  </div>
+</section>
+
+<section class="scr" id="operators">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="backFromOperators" style="font-size:12px">← Back</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Operators</h2>
+    <p class="sub" id="operatorsSub" style="margin-top:0">Who can manage this business</p>
+    <div class="operators-info">Operators can manage bookings and calendar but cannot delete the business or change billing.</div>
+    <p class="lbl" style="margin-top:16px">CURRENT OPERATORS</p>
+    <div id="operatorsList"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn" id="addOperatorBtn">Add Operator</button></div>
+</section>
+
+<section class="scr" id="hallMedia">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="backFromHallMedia" style="font-size:12px">← Back</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+    <p class="sub" style="margin:8px 0 0" id="hallMediaSub">Hall photos</p>
+  </div>
+  <div class="pad" style="padding-top:8px">
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--navy)">Photos</h2>
+    <p class="lbl" style="margin-top:12px">COVER PHOTO</p>
+    <div class="media-cover" id="hallCoverPhoto"><span class="cover-lbl">Cover</span></div>
+    <button type="button" class="btn ghost" id="changeCoverBtn" style="margin-bottom:4px">Change cover</button>
+    <p class="lbl">GALLERY</p>
+    <p class="sub" style="margin-top:-4px">Shown on your hall profile and search cards.</p>
+    <div class="photo-grid" id="hallPhotoGrid"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn" id="hallMediaAddBtn">Add photo</button></div>
+</section>
+
+<section class="scr" id="placeholder" hidden style="display:none!important">
+  <div class="top"><button class="back" type="button" data-to="manage">←</button><h1 id="phTitle">Coming soon</h1></div>
+  <div class="pad"><p class="sub" id="phBody"></p></div>
+</section>
+
+<div class="overlay center" id="removeOperatorOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">👤</div>
+    <h3>Remove operator?</h3>
+    <p id="removeOperatorBody">This person will no longer be able to manage bookings or calendar for this hall.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelRemoveOperator">Cancel</button>
+      <button type="button" class="btn red" id="confirmRemoveOperator">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="addOperatorOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Add Operator</h2><button type="button" class="sheet-close" id="closeAddOperator">×</button></div>
+    <p class="sub" style="margin-top:0">They can manage calendar and booking requests for this hall.</p>
+    <div class="fld"><label>Full name</label><input id="addOpName" type="text" placeholder="e.g. John Kurian" autocomplete="name"></div>
+    <div class="fld"><label>Mobile number</label><input id="addOpPhone" type="tel" placeholder="e.g. +91 98765 43210" autocomplete="tel"></div>
+    <div class="fld"><label>Role</label>
+      <select id="addOpRole">
+        <option value="manager">Manager</option>
+        <option value="staff">Staff</option>
+      </select>
+      <small class="sub">Owner is set when you list on Gixbee — add managers or staff here.</small>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelAddOperator">Cancel</button>
+      <button type="button" class="btn" id="saveAddOperator">Add Operator</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="monthPickerOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Month</h2><button type="button" class="sheet-close" id="closeMonthPicker">×</button></div>
+    <p class="sub" style="margin-top:0">Easy navigation — pick a month</p>
+    <div class="month-list" id="monthPickerList"></div>
+    <button type="button" class="btn ghost" id="cancelMonthPicker" style="margin-top:12px">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="blockSheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Block Slot</h2><button type="button" class="sheet-close" id="closeBlockSheet">×</button></div>
+    <div class="sheet-slot-sum" id="blockSheetSummary"></div>
+    <p class="lbl" style="margin-top:0">Select reason</p>
+    <label class="block-reason on" data-block-reason="offline"><input type="radio" name="blockReason" value="offline" checked> <b>Offline Booking</b><small>e.g. direct customer, phone enquiry</small></label>
+    <label class="block-reason" data-block-reason="temp"><input type="radio" name="blockReason" value="temp"> <b>Temporary Block</b><small>e.g. maintenance, private use</small></label>
+    <label class="block-reason" data-block-reason="other"><input type="radio" name="blockReason" value="other"> <b>Other</b></label>
+    <div class="fld" style="margin-top:12px"><label>Notes (optional)</label><textarea id="blockNotes" rows="2" placeholder="Customer name, phone, etc."></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelBlockSheet">Cancel</button>
+      <button type="button" class="btn" id="submitBlockSheet">Block Slot</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="confirmBlockOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">📅</div>
+    <h3 id="confirmBlockTitle">Block Morning Slot?</h3>
+    <p id="confirmBlockBody">This will mark the Morning slot as Offline Booking and it will be unavailable for customers. Full Day slot will also become unavailable automatically.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelConfirmBlock">Cancel</button>
+      <button type="button" class="btn" id="doConfirmBlock">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="unblockOverlay" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-ico">🔓</div>
+    <h3>Unblock Slot</h3>
+    <p class="sub" id="unblockSlotSum" style="text-align:center;margin-bottom:8px"></p>
+    <p id="unblockBody">This will make the slot available to customers again.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="cancelUnblock">Cancel</button>
+      <button type="button" class="btn" id="doUnblock">Unblock Slot</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay center" id="packageRequiredOverlay" aria-hidden="true">
+  <div class="modal-card pkg-required-modal">
+    <div class="pkg-required-ico" aria-hidden="true">₹</div>
+    <h3>Add pricing &amp; packages first</h3>
+    <p class="pkg-required-body">Open <b>Price &amp; packages</b> from Manage, complete all 5 steps, and tap <b>Save Package</b> on Review. Then Calendar, Operators, and Booking requests will unlock for this hall.</p>
+    <button type="button" class="btn" id="pkgRequiredOk">OK</button>
+  </div>
+</div>
+
+<div class="overlay center" id="venueEditOverlay" aria-hidden="true">
+  <div class="modal-card venue-edit-modal">
+    <div class="venue-edit-step" id="venueEditStep1">
+      <h3>Venue setup</h3>
+      <p class="sub" style="margin:0 0 14px">Step 1 of 2 — how many halls at this venue?</p>
+      <div class="fld"><label>Number of halls</label><input type="number" id="editHallCountInput" min="1" max="20" value="1"></div>
+      <p class="sub" id="editHallCountHint" style="margin-top:8px"></p>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditStep1Ok">OK</button>
+        <button type="button" class="btn ghost" id="venueEditCancel1">Cancel</button>
+      </div>
+    </div>
+    <div class="venue-edit-step" id="venueEditStep2" hidden>
+      <h3 id="editParkingStepTitle">Parking</h3>
+      <p class="sub" id="editParkingHint" style="margin:0 0 14px"></p>
+      <div class="two">
+        <div class="fld"><label>Car parking</label><input type="number" id="editParkCar" min="0" value="80"></div>
+        <div class="fld"><label>Bike parking</label><input type="number" id="editParkBike" min="0" value="120"></div>
+      </div>
+      <div class="venue-edit-actions">
+        <button type="button" class="btn" id="venueEditSave">Save</button>
+        <button type="button" class="btn ghost" id="venueEditBack">Back</button>
+        <button type="button" class="btn ghost" id="venueEditCancel2">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<div id="shellOnlyNotice" style="margin:16px;padding:20px;border:2px solid #DC2626;border-radius:12px;background:#FEE2E2;font:15px sans-serif">
+  <p style="margin:0 0 8px;font-weight:800;color:#991B1B">This is not the working demo file.</p>
+  <p style="margin:0 0 12px;line-height:1.5">Open the single-file demo (JavaScript is inside that file only):</p>
+  <p style="margin:0"><a href="DOWNLOAD-gixbee-hall-owner.html" style="font-weight:800;color:#1D4ED8">DOWNLOAD-gixbee-hall-owner.html</a></p>
+</div>
+<!-- APP_END -->
+<!-- SHELL_ONLY_START -->
+<script>
+(function () {
+  var dl = 'DOWNLOAD-gixbee-hall-owner.html';
+  var box = document.getElementById('bootError');
+  if (box) {
+    box.hidden = false;
+    box.innerHTML =
+      '<h1 style="color:#DC2626">Wrong file</h1><p>Open <b>' +
+      dl +
+      '</b> or <b>OPEN-gixbee-hall-owner-demo.html</b> (same demo).</p>';
+  }
+})();
+</script>
+<!-- SHELL_ONLY_END -->
+</body>
+</html>

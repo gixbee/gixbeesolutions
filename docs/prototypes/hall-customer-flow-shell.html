@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Halls &amp; Venues (Customer)</title>
+
+<style>
+:root{--navy:#0F1B4C;--blue:#1A237E;--ink:#111827;--mut:#64748B;--line:#D1D5DB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--shadow:0 10px 32px rgba(15,23,42,.1);--rd:#DC2626;--lav:#EEF2FF;--ico:24px;--ico-lg:28px;--ico-sm:20px}
+.flow-ico{width:var(--ico);height:var(--ico);display:inline-block;vertical-align:middle;flex-shrink:0}
+.flow-ico.flow-ico-xs{width:16px;height:16px}
+.flow-ico.flow-ico-sm{width:var(--ico-sm);height:var(--ico-sm)}
+.flow-ico.flow-ico-lg{width:var(--ico-lg);height:var(--ico-lg)}
+.sel-box .flow-ico{width:26px;height:26px}
+.fld label .flow-ico{width:22px;height:22px;margin-right:2px}
+.hd-icons .flow-ico{width:26px;height:26px}
+.bottom-nav .flow-ico{width:28px;height:28px;margin-bottom:2px}
+.brand-ico .flow-ico{width:30px;height:30px}
+.detail-hero .fab .flow-ico{width:22px;height:22px}
+.fac-cell .ic .flow-ico{width:28px;height:28px;display:block;margin:0 auto}
+.pill .flow-ico{width:20px;height:20px}
+.cap2 .flow-ico,.hall-row-bd .loc .flow-ico,.title-block .meta .flow-ico{width:20px;height:20px}
+.slot-ico .flow-ico{width:26px;height:26px}
+.ac-tile .tile-ico .flow-ico{width:36px;height:36px}
+.date-ico-wrap .flow-ico{width:28px;height:28px}
+.date-row #dateChev .flow-ico{width:24px;height:24px}
+.ev-list .kv span .flow-ico{width:22px;height:22px}
+.slots-sec-hd .gst .flow-ico{width:20px;height:20px}
+.btn .flow-ico{width:24px;height:24px}
+.seg .flow-ico{width:20px;height:20px}
+.hall-row-img .save .flow-ico{width:22px;height:22px}
+.vb .flow-ico{width:14px;height:14px}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;position:relative;border:8px solid #111;display:flex;flex-direction:column}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 72px}
+.scr.on{display:block}
+.app-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px;background:#fff}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-ico{width:38px;height:38px;border-radius:50%;background:var(--soft);display:grid;place-items:center;flex-shrink:0}
+.brand b{display:block;font-size:17px;color:var(--blue);line-height:1.15;font-weight:900}
+.brand span{font-size:11px;color:#2563EB;font-weight:700}
+.hd-icons{display:flex;gap:10px;align-items:center;color:var(--navy)}
+.hd-icons .dot{position:relative}
+.hd-icons .dot::after{content:'';position:absolute;top:0;right:0;width:7px;height:7px;background:#EF4444;border-radius:50%;border:2px solid #fff}
+.top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.back{border:0;background:none;font-size:22px;color:var(--blue);cursor:pointer;width:36px;height:36px;line-height:1}
+.top h1{margin:0;font-size:17px;flex:1;text-align:center;color:var(--blue);font-weight:800}
+.pad{padding:0 16px}
+.hero-home{position:relative;padding:22px 16px 20px;background:#E8EDF5 center/cover;color:var(--blue);min-height:168px}
+.hero-home h2{margin:0 0 8px;font-size:21px;line-height:1.25;font-weight:900;letter-spacing:-.02em;text-transform:uppercase}
+.hero-home h2 em{font-style:normal;color:var(--blue)}
+.hero-home p{margin:0;font-size:12px;color:#2563EB;font-weight:600;line-height:1.45}
+.search-card{margin:-10px 16px 0;padding:16px 14px 14px;background:#fff;border-radius:18px;border:1px solid #E5E7EB;box-shadow:var(--shadow);position:relative;z-index:2}
+.fld{margin:0 0 14px}
+.fld label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:0 0 6px;color:var(--blue)}
+.sel-box{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1.5px solid #BFDBFE;border-radius:12px;background:#fff;font:inherit;width:100%}
+.sel-box select,.sel-box input{border:0;background:transparent;flex:1;font:inherit;font-weight:700;color:var(--blue);outline:none;min-width:0}
+.sel-box .ico{flex-shrink:0;display:grid;place-items:center}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;border:1px solid #BFDBFE;border-radius:999px;padding:9px 6px;font-weight:800;font-size:11px;background:var(--lav);cursor:pointer;color:var(--blue);display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.seg button.on{background:var(--gn2);color:#fff;border-color:var(--gn2)}
+.range-row{margin:8px 0 4px}
+.range-row input[type=range]{width:100%;accent-color:var(--gn2)}
+.range-labels{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:var(--blue)}
+.cta{padding:10px 16px 8px}
+.btn{width:100%;border:0;border-radius:999px;background:var(--gn2);color:#fff;font-weight:800;font-size:16px;padding:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 14px rgba(4,120,87,.35)}
+.btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line);box-shadow:none}
+.loc-bar{display:flex;align-items:center;gap:6px;padding:8px 16px 4px;font-size:13px;font-weight:800;color:var(--blue)}
+.filter-row{display:flex;gap:8px;overflow:auto;padding:6px 16px 10px;background:#fff}
+.fchip{flex:none;padding:8px 12px;border-radius:99px;border:1.5px solid #BFDBFE;font-size:11px;font-weight:800;background:#fff;color:var(--blue);display:inline-flex;align-items:center;gap:4px}
+.res-meta{display:flex;justify-content:space-between;padding:4px 16px 10px;font-size:13px;font-weight:800;color:var(--blue)}
+.res-meta .clear{color:var(--gn2);background:none;border:0;font:inherit;cursor:pointer;font-weight:800}
+.hall-row{display:flex;gap:10px;border:2px solid #86EFAC;border-radius:16px;padding:10px;margin:0 16px 14px;background:#fff;cursor:pointer;text-align:left;width:calc(100% - 32px);font:inherit;color:inherit}
+.hall-row-img{width:118px;min-height:132px;border-radius:12px;position:relative;flex-shrink:0;overflow:hidden;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
+.hall-row-img .vb{position:absolute;top:6px;left:6px;font-size:8px;font-weight:800;background:#ECFDF3;color:#047857;padding:3px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:3px;border:1px solid #A7F3D0}
+.hall-row-img .save{position:absolute;top:6px;right:6px;width:34px;height:34px;border-radius:50%;border:0;background:#fff;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
+.hall-row-img .cnt{position:absolute;bottom:6px;right:6px;font-size:9px;font-weight:800;background:rgba(0,0,0,.6);color:#fff;padding:3px 7px;border-radius:99px}
+.hall-row-bd{flex:1;min-width:0}
+.hall-row-titles{display:block;margin-bottom:2px}
+.hall-row-biz{display:block;font-size:12.5px;color:var(--blue);line-height:1.3;font-weight:900}
+.hall-row-hall{display:block;font-size:11px;font-weight:800;color:#2563EB;line-height:1.25;margin-top:2px}
+.hall-row-bd b{font-size:12.5px;color:var(--blue);line-height:1.35;display:block;font-weight:900}
+.hall-row-bd .loc{font-size:10px;color:var(--mut);margin:4px 0;display:flex;align-items:center;gap:5px}
+.pills{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}
+.pill{font-size:10px;font-weight:800;padding:5px 8px;border-radius:8px;display:flex;align-items:center;gap:5px;line-height:1.2}
+.pill.indoor{background:#DCFCE7;color:#166534}
+.pill.outdoor{background:#DCFCE7;color:#166534}
+.pill.ac{background:#DBEAFE;color:#1D4ED8}
+.pill.noac{background:#DBEAFE;color:#1D4ED8}
+.cap2{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;font-weight:800;color:var(--blue);margin-top:4px}
+.cap2 span{display:flex;align-items:center;gap:6px}
+.cap2 .flow-ico{width:24px;height:24px;flex-shrink:0}
+.hall-row-bd .from{margin-top:6px;font-size:12px;font-weight:900;color:var(--blue)}
+.hall-row-bd .from small{font-size:9px;font-weight:600;color:var(--mut)}
+.detail-hero{height:240px;position:relative;background:linear-gradient(145deg,#64748B,#94A3B8)}
+.detail-hero .fab{position:absolute;top:12px;width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.95);display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.detail-hero .fab.back{left:12px;color:var(--blue);font-size:18px}
+.detail-hero .fab.r{right:12px}
+.detail-hero .fab.r2{right:56px}
+.detail-hero .gal{position:absolute;right:12px;bottom:12px;font-size:10px;font-weight:800;background:rgba(0,0,0,.55);color:#fff;padding:4px 9px;border-radius:99px}
+.title-block{padding:14px 16px 0}
+.title-block .biz{font-size:20px;font-weight:900;color:var(--blue);line-height:1.2}
+.title-block .hall{font-size:15px;font-weight:800;color:#2563EB;margin-top:2px}
+.title-block .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12px;font-weight:700;color:#2563EB;align-items:center}
+.thumbs{display:flex;gap:8px;padding:12px 16px;overflow:auto}
+.thumb{flex:none;width:76px;height:58px;border-radius:10px;font-size:8px;font-weight:800;display:grid;place-items:center;text-align:center;padding:4px;color:#fff;background:linear-gradient(145deg,#64748B,#475569)}
+.thumb span{text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.sec-hd{font-size:15px;font-weight:900;color:var(--blue);margin:16px 0 10px;display:flex;justify-content:space-between;align-items:center}
+.sec-hd .see{font-size:12px;color:var(--gn2);background:none;border:0;font-weight:800;cursor:pointer}
+.cap-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.cap-cell{border:1px solid #BFDBFE;border-radius:12px;padding:12px 8px;text-align:center;font-size:11px;font-weight:800;color:var(--blue);background:#F0F9FF;line-height:1.25}
+.cap-cell .ic{display:grid;place-items:center;margin:0 auto 8px;min-height:36px}
+.cap-cell .ic .flow-ico{width:34px;height:34px}
+.cap-num{display:block;font-size:17px;font-weight:900;color:var(--blue);margin-bottom:2px}
+.cap-lbl{display:block;font-size:10px;font-weight:800;color:#2563EB;line-height:1.2}
+.fac-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:4px}
+.fac-cell{text-align:center;font-size:11px;font-weight:800;color:var(--blue);line-height:1.3;padding:6px 4px}
+.fac-cell .ic{width:56px;height:56px;border-radius:50%;background:#F1F5F9;display:grid;place-items:center;margin:0 auto 8px;font-size:26px;line-height:1}
+.rooms-row{display:flex;align-items:center;gap:12px;text-align:left;padding:14px;margin-bottom:12px;border:1px solid #BFDBFE;border-radius:12px;background:#F0F9FF;font-size:13px;font-weight:700;color:var(--blue);line-height:1.35}
+.rooms-row .rooms-ico{font-size:28px;line-height:1;flex-shrink:0;width:52px;height:52px;border-radius:50%;background:#fff;border:1px solid #BFDBFE;display:grid;place-items:center}
+.rooms-row b{font-size:18px;font-weight:900;margin-right:4px}
+.venue-panel{margin:0 16px 12px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+.venue-panel .hero-img{height:100px;background:linear-gradient(145deg,#CBD5E1,#94A3B8)}
+.ph-photo{background:linear-gradient(145deg,#CBD5E1,#94A3B8)!important}
+.ev-card .thumb.ph-photo{width:72px;height:72px;border-radius:10px;flex-shrink:0;min-height:72px}
+.venue-panel .bd{padding:10px 12px}
+.venue-panel .cap-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px;border-top:1px solid var(--line);background:#F8FAFC}
+.venue-panel .cap-strip-item{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;border-radius:12px;background:#fff;border:1px solid #E2E8F0;text-align:center}
+.venue-panel .cap-strip .flow-ico{width:34px;height:34px}
+.venue-panel .cap-strip .cap-num{font-size:17px;font-weight:900;color:var(--blue);line-height:1.1}
+.venue-panel .cap-strip .cap-lbl{font-size:10px;font-weight:800;color:#2563EB;line-height:1.25}
+.date-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid #BFDBFE;margin:0 16px 14px;border-radius:14px;cursor:pointer;background:#fff}
+.date-ico-wrap{width:48px;height:48px;border-radius:12px;background:#ECFDF3;display:grid;place-items:center;flex-shrink:0;color:var(--gn2)}
+.date-txt{flex:1;min-width:0}
+.date-txt .sub{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:2px}
+.date-txt b{font-size:14px;font-weight:800;color:#64748B}
+.slots-sec-hd{display:flex;justify-content:space-between;align-items:center;padding:0 16px 10px;margin-top:4px}
+.slots-sec-hd b{font-size:15px;color:var(--blue)}
+.slots-sec-hd .gst{font-size:10px;font-weight:800;color:var(--gn2);display:flex;align-items:center;gap:4px}
+.slot-block{border:1.5px solid #E5E7EB;border-radius:14px;margin:0 16px 12px;padding:12px 12px 14px;background:#fff}
+.slot-block.slot-picked{border-color:#86EFAC}
+.slot-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px}
+.slot-title{display:flex;align-items:flex-start;gap:8px}
+.slot-name{font-size:14px;font-weight:900;color:var(--blue);line-height:1.2}
+.slot-time{font-size:11px;font-weight:600;color:var(--mut);margin-top:3px}
+.slot-ico{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;flex-shrink:0}
+.slot-ico.sun{background:#FEF9C3}
+.slot-ico.moon{background:#FEE2E2}
+.disc-badge{display:none!important}
+.ac-tile{position:relative}
+.ac-tile .tile-disc-badge{position:absolute;top:6px;left:6px;font-size:9px;font-weight:800;background:#FBCFE8;color:#BE185D;padding:4px 8px;border-radius:99px;white-space:nowrap;z-index:1;line-height:1.2}
+.ac-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ac-tile{border:1.5px solid #E5E7EB;border-radius:12px;padding:12px 8px 10px;cursor:pointer;text-align:center;background:#fff;min-height:118px;display:flex;flex-direction:column;align-items:center}
+.ac-tile.on{border-color:#22C55E;background:#F0FDF4;box-shadow:inset 0 0 0 1px #22C55E}
+.ac-tile .radio{width:18px;height:18px;border-radius:50%;border:2px solid #CBD5E1;margin:0 0 8px;display:grid;place-items:center;flex-shrink:0}
+.ac-tile.on .radio{border-color:#2563EB}
+.ac-tile.on .radio::after{content:'';width:9px;height:9px;border-radius:50%;background:#2563EB}
+.ac-tile .tile-ico{margin-bottom:6px;height:36px;display:grid;place-items:center}
+.ac-tile .tile-lbl{font-size:11px;font-weight:800;color:var(--blue)}
+.ac-tile .ac-inc{font-size:9px;font-weight:600;color:var(--mut);margin:3px 0 6px;line-height:1.2}
+.ac-tile .strike{text-decoration:line-through;color:#9CA3AF;font-size:11px;font-weight:700;margin-top:4px}
+.ac-tile .price-main{font-size:15px;font-weight:900;color:var(--blue);margin-top:2px;line-height:1.2}
+.ac-tile .disc-note{margin-top:6px;font-size:9px;font-weight:800;color:var(--gn2);line-height:1.2}
+.extra-card{margin:8px 16px 16px;border-radius:14px;border:1px solid #FDE68A;background:#FFFBEB;padding:12px}
+.extra-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.extra-hd b{font-size:12px;color:var(--blue);flex:1}
+.extra-clock{font-size:18px;color:#DC2626}
+.extra-info{display:grid;place-items:center}
+.extra-split{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px;font-weight:700;text-align:center;color:var(--blue);line-height:1.45}
+.extra-split strong{font-size:12px;font-weight:900;display:block;margin-top:4px}
+.extra-split>div{border-right:1px solid #FDE68A;padding:4px}
+.extra-split>div:last-child{border:0}
+.sticky-foot{padding:12px 16px;background:#fff;border-top:1px solid var(--line)}
+.ev-card{display:flex;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;align-items:flex-start}
+.ev-card .thumb{width:72px;height:72px;border-radius:10px;overflow:hidden;flex-shrink:0}
+.ev-card .thumb img{width:100%;height:100%;object-fit:cover}
+.ev-card .subname{font-size:13px;color:#2563EB;font-weight:800}
+#slotsVenue{padding:8px 16px 4px}
+#slotsVenue .hall-book-card{margin-bottom:0}
+#enquiryBody .hall-book-card{margin-bottom:12px}
+.ev-list .kv{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F3F4F6;font-size:13px;align-items:center}
+.ev-list .kv span{color:var(--mut);display:flex;align-items:center;gap:6px;font-weight:600}
+.ev-list .kv b{color:var(--blue);font-weight:800;text-align:right;max-width:58%}
+.charge-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:14px;background:var(--soft);margin:12px 0;font-weight:800;color:#065F46}
+.charge-bar b{font-size:22px;color:#047857;font-weight:900}
+.charge-bar .charge-amt{text-align:right}
+.charge-bar .charge-was{display:block;text-decoration:line-through;color:#9CA3AF;font-size:14px;font-weight:700;margin-bottom:2px}
+.box-adv{background:#FEF2F2;border:1px solid #FECACA;border-radius:14px;padding:12px;margin:10px 0;font-size:11px;line-height:1.5;color:#1E3A8A;display:flex;gap:10px}
+.box-adv .rupee{flex-shrink:0;width:36px;height:36px;border-radius:50%;background:var(--rd);color:#fff;display:grid;place-items:center;font-weight:900;font-size:16px}
+.box-full{background:#F5F3FF;border:1px solid #DDD6FE;border-radius:14px;padding:12px;margin:10px 0;font-size:11px;line-height:1.5;color:var(--blue);display:flex;gap:10px;align-items:flex-start}
+.acc{border-radius:12px;margin:8px 0;overflow:hidden;border:1px solid var(--line)}
+.acc-cancel .acc-hd{background:#FEF9C3}
+.acc-resched .acc-hd{background:#CCFBF1}
+.acc-hd{width:100%;border:0;padding:12px;font-weight:800;font-size:13px;text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;color:var(--ink)}
+.acc-bd{display:none;padding:0 12px 12px;font-size:11px;color:var(--mut);line-height:1.5;background:#fff}
+.acc.open .acc-bd{display:block}
+.flow-hd{background:#EFF6FF;padding:12px 16px;font-weight:900;color:var(--blue);font-size:14px;margin:12px -16px 12px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;font-size:8px;font-weight:700;color:var(--blue);margin-bottom:12px}
+.step-n{width:24px;height:24px;border-radius:50%;background:var(--gn);color:#fff;display:grid;place-items:center;margin:0 auto 4px;font-size:11px;font-weight:900}
+.step-ico{font-size:16px;margin:2px 0}
+.bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 10px;position:absolute;left:0;right:0;bottom:0;z-index:5}
+.bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bottom-nav button.on{color:var(--gn2)}
+.bottom-nav button.on svg{stroke:var(--gn2)}
+.sub{font-size:12px;color:var(--mut);line-height:1.4}
+.toast{position:absolute;left:16px;right:16px;bottom:80px;background:#111;color:#fff;padding:12px;border-radius:12px;display:none;z-index:9;font-size:13px}
+#buildTag{font-size:10px;color:var(--mut);padding:6px 16px 0;text-align:center}
+.cal-overlay{position:absolute;top:0;left:0;right:0;bottom:56px;background:rgba(15,23,42,.45);z-index:80;display:none;pointer-events:none}
+.cal-overlay.on{display:block;pointer-events:auto}
+.cal-sheet{position:absolute;top:0;left:0;right:0;width:100%;background:#fff;border-radius:0 0 16px 16px;padding:12px 16px 20px;max-height:min(420px,72vh);overflow:auto;box-shadow:0 12px 32px rgba(15,23,42,.2)}
+.cal-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:800;color:var(--blue)}
+.cal-bar button{border:0;background:none;font:inherit;font-weight:800;cursor:pointer}
+.cal-bar .done{color:var(--gn2)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:12px}
+.cal-grid .d{padding:8px 0;border-radius:8px;cursor:pointer;font-weight:700;color:var(--blue)}
+.cal-grid .d.off{color:#CBD5E1;pointer-events:none}
+.cal-grid .d.on{background:var(--gn2);color:#fff}
+.fac-overlay{position:absolute;top:0;left:0;right:0;bottom:56px;background:rgba(15,23,42,.45);z-index:90;display:none;pointer-events:none}
+.fac-overlay.on{display:block;pointer-events:auto}
+.fac-sheet{position:absolute;bottom:0;left:0;right:0;max-height:88%;background:#fff;border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(15,23,42,.2);z-index:1}
+.fac-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--blue);flex-shrink:0;background:#fff;position:relative;z-index:2}
+.fac-bar button{border:0;background:none;font:inherit;font-weight:800;color:var(--gn2);cursor:pointer;padding:8px 4px;min-width:48px;text-align:left}
+.fac-all-body{overflow:auto;padding:12px 16px 20px;-webkit-overflow-scrolling:touch}
+.fac-all-sec{margin-bottom:18px}
+.fac-all-hd{font-size:14px;font-weight:900;color:var(--blue);margin-bottom:10px}
+.fac-all-list{list-style:none;margin:0;padding:0}
+.fac-all-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:700;color:var(--ink);line-height:1.35}
+.fac-all-list li:last-child{border-bottom:0}
+.fac-all-ico{width:32px;height:32px;flex-shrink:0;display:grid;place-items:center;font-size:20px;border-radius:50%;background:#F1F5F9}
+.fac-all-ico .flow-ico{width:22px;height:22px}
+.fac-svc-yes{display:block;font-size:12px;font-weight:800;color:#047857;margin-top:2px}
+.fac-svc-no{display:block;font-size:12px;font-weight:800;color:#B45309;margin-top:2px}
+.fac-all-note{font-size:11px;color:var(--mut);line-height:1.45;margin-top:4px;padding:10px 12px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0}
+.fac-grid.fac-grid-all{margin-bottom:0}
+.map-row{display:flex;gap:10px;align-items:flex-start;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:15px sans-serif"></div>
+<div class="stage"><div class="phone">
+
+<section class="scr on" id="home">
+  <div class="app-hd">
+    <div class="brand"><span class="brand-ico" id="brandLogo"></span><div><b>Gixbee</b><span>Halls &amp; Venues</span></div></div>
+    <div class="hd-icons"><span class="dot" id="hdBell"></span><span id="hdMenu"></span></div>
+  </div>
+  <div class="hero-home">
+    <h2>Find the perfect <em>Hall for Your Special Event</em></h2>
+    <p>Weddings, Receptions, Birthdays, Baptisms and more.</p>
+  </div>
+  <div class="search-card">
+    <div class="fld"><label id="lblLoc">Location</label><div class="sel-box"><span class="ico" id="icoLoc"></span><select id="fLoc"><option>Kottayam, Kerala</option><option>Kochi, Kerala</option></select><span id="chevLoc"></span></div></div>
+    <div class="fld"><label id="lblEvent">Event Type</label><div class="sel-box"><span class="ico" id="icoEvent"></span><select id="fEvent"><option>Baptism</option><option>Wedding</option><option>Reception</option><option>Birthday</option></select></div></div>
+    <div class="fld"><label id="lblDate">Event Date</label><div class="sel-box"><span class="ico" id="icoDateHome"></span><input type="text" id="fDateDisplay" readonly value="25 Dec 2026 (Sat)"><input type="date" id="fDate" value="2026-12-25" hidden></div></div>
+    <div class="fld"><label id="lblGuests">Number of Guests</label><div class="sel-box"><span class="ico" id="icoGuests"></span><select id="fGuests"><option>200</option><option>300</option><option>500</option><option>700</option></select></div></div>
+    <div class="fld"><label id="lblAc">AC Preference</label><div class="seg" id="fAc"><button type="button" class="on" data-ac="any">Any</button><button type="button" data-ac="ac">With AC</button><button type="button" data-ac="noac">Without AC</button></div></div>
+    <div class="fld"><label id="lblVenue">Venue Type</label><div class="seg" id="fVenue"><button type="button" class="on" data-venue="any">Any</button><button type="button" data-venue="indoor"><span class="seg-ico-indoor"></span> Indoor</button><button type="button" data-venue="outdoor"><span class="seg-ico-outdoor"></span> Outdoor</button></div></div>
+    <div class="fld"><label id="lblPrice">Price Range (per time slot)</label><div class="range-row"><input type="range" id="fPriceMax" min="0" max="200000" step="5000" value="200000"></div><div class="range-labels"><span>₹0</span><span id="priceMaxLbl">₹2,00,000+</span></div></div>
+  </div>
+  <p id="buildTag">Customer flow prototype</p>
+  <div class="cta"><button class="btn" type="button" id="goSearch"><span id="icoSearchBtn"></span> Search Halls <span>→</span></button></div>
+</section>
+
+<section class="scr" id="results">
+  <div class="app-hd"><div class="brand"><span class="brand-ico" id="brandLogo2"></span><div><b>Gixbee</b><span>Halls &amp; Venues</span></div></div><div class="hd-icons"><span id="hdSearch"></span><span id="hdHeart"></span><span class="dot" id="hdBell2"></span></div></div>
+  <div class="loc-bar" id="resLocBar"><span id="resLocIco"></span> <span id="resLocTxt">Kottayam, Kerala</span> ▾</div>
+  <div class="filter-row"><span class="fchip">⇅ Sort ▾</span><span class="fchip">Indoor / Outdoor ▾</span><span class="fchip">Price ▾</span><span class="fchip">☰ More</span></div>
+  <div class="res-meta"><span id="resCount">0 halls found</span><button type="button" class="clear" data-to="home">Clear All</button></div>
+  <div id="resList"></div>
+</section>
+
+<section class="scr" id="detail">
+  <div class="detail-hero"><button type="button" class="fab back" data-to="results">←</button><button type="button" class="fab r2" id="fabHeart"></button><button type="button" class="fab r" id="fabShare"></button><span class="gal">1/12</span></div>
+  <div class="title-block"><div class="biz" id="detailTitle">Hall</div><div class="hall" id="detailHallLine"></div><div class="meta" id="detailMeta"></div></div>
+  <div class="thumbs" id="detailThumbs"></div>
+  <div class="pad" id="detailBody"></div>
+  <div class="sticky-foot"><button class="btn" type="button" data-to="slots">Continue <span>→</span></button></div>
+</section>
+
+<section class="scr" id="slots">
+  <div class="top"><button class="back" type="button" data-to="detail">←</button><h1>Select Date &amp; Time</h1><span style="width:36px"></span></div>
+  <div id="slotsVenue"></div>
+  <div class="date-row" id="dateRow"><div class="date-ico-wrap" id="dateIcoWrap"></div><div class="date-txt"><div class="sub">Select Date</div><b id="dateRowVal">Select a date</b></div><span id="dateChev"></span></div>
+  <input type="date" id="fDateSlots" value="2026-12-25" hidden>
+  <div class="slots-sec-hd"><b>Select Time Slot</b><span class="gst"><span id="gstInfo"></span> Prices include GST</span></div>
+  <div id="slotPick"></div>
+  <div id="extraHours"></div>
+  <div class="sticky-foot"><button class="btn" type="button" data-to="enquiry">Continue <span>→</span></button></div>
+</section>
+
+<section class="scr" id="enquiry">
+  <div class="top"><button class="back" type="button" data-to="slots">←</button><h1>Booking Details</h1><span style="width:36px"></span></div>
+  <div class="pad" id="enquiryBody"></div>
+  <div class="sticky-foot"><button class="btn" type="button" id="reqBook"><span id="icoPlane"></span> Request to Book</button><p class="sub" style="text-align:center;margin:8px 0 0;color:#2563EB">We will notify the hall owner of your request.</p></div>
+</section>
+
+<section class="scr" id="sent">
+  <div class="pad" style="padding-top:48px;text-align:center"><div style="font-size:48px">✅</div><h2>Request sent</h2><p class="sub">The hall owner has 90 seconds (demo) to accept. You will then have 24 hours to pay advance directly to the hall.</p><button class="btn" type="button" data-to="home" style="margin-top:20px">Back to search</button></div>
+</section>
+
+<div class="cal-overlay" id="calOverlay" hidden aria-hidden="true">
+  <div class="cal-sheet">
+    <div class="cal-bar"><button type="button" id="calCancel">Cancel</button><b>Select Date</b><button type="button" class="done" id="calDone">Done</button></div>
+    <div style="text-align:center;font-weight:900;color:var(--blue);margin-bottom:8px" id="calMonth">December 2026</div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<div class="fac-overlay" id="facOverlay" aria-hidden="true">
+  <div class="fac-sheet">
+    <div class="fac-bar"><button type="button" id="facClose">Close</button><b>All facilities &amp; services</b><span style="width:48px"></span></div>
+    <div class="fac-all-body" id="facAllBody"></div>
+  </div>
+</div>
+
+<nav class="bottom-nav" id="bottomNav" aria-label="Main">
+  <button type="button" class="on" data-nav="home"><span id="navSearch"></span>Search</button>
+  <button type="button" data-nav="saved"><span id="navSaved"></span>Saved</button>
+  <button type="button" data-nav="bookings"><span id="navBook"></span>Bookings</button>
+  <button type="button" data-nav="profile"><span id="navProfile"></span>Profile</button>
+</nav>
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<div id="shellOnlyNotice" style="margin:16px;padding:20px;border:2px solid #DC2626;border-radius:12px;background:#FEE2E2;font:15px sans-serif">
+  <p style="margin:0 0 8px;font-weight:800;color:#991B1B">This is not the working demo file.</p>
+  <p style="margin:0"><a href="GIXBEE-HALL-CUSTOMER-FlowHtml.html" style="font-weight:800;color:#1D4ED8">GIXBEE-HALL-CUSTOMER-FlowHtml.html</a></p>
+</div>
+<!-- APP_END -->
+</body>
+</html>
