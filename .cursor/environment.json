@@ -1,0 +1,19 @@
+{
+  "name": "Gixbee (NestJS backend + Angular admin + Flutter)",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "backend",
+      "command": "cd backend && npm run start:dev",
+      "description": "NestJS API on http://localhost:3000 (hot reload). Requires Postgres + Redis from start.sh."
+    }
+  ],
+  "ports": [
+    {
+      "name": "backend api",
+      "port": 3000
+    }
+  ]
+}
