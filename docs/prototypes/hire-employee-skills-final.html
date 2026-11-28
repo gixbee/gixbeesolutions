@@ -275,6 +275,12 @@
       <div class="pad">
         <h2>Review &amp; Publish</h2>
         <p class="sub">Check your job details and choose a matching package to get interested candidates.</p>
+        <h2 style="margin:0 0 6px;font-size:17px">Employee benefits <span style="font-size:12px;font-weight:600;color:#9CA3AF">(optional)</span></h2>
+        <p class="hint" style="margin:0 0 10px">Tick only if your company provides these to the employee.</p>
+        <div class="sum" style="margin-bottom:16px;padding:12px 14px">
+          <label class="ck" style="border:0;padding:10px 0"><input type="checkbox" id="benAccom"> Providing accommodation</label>
+          <label class="ck" style="border:0;padding:10px 0;margin:0;border-top:1px solid #F3F4F6"><input type="checkbox" id="benFood"> Providing food</label>
+        </div>
         <div class="sum">
           <div style="display:flex;justify-content:space-between"><b>Job Summary</b><button class="see" type="button" data-to="s3">Edit</button></div>
           <div id="summary"></div>
@@ -8973,6 +8979,8 @@ const state = {
   genders: ['Male', 'Female'],
   ageMin: 30,
   ageMax: 50,
+  benefitAccommodation: false,
+  benefitFood: false,
 };
 const GENDERS = ['Male', 'Female', 'Transgender'];
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
@@ -9192,7 +9200,20 @@ function renderS4(){
   syncAgeUI();
   matchCount();
 }
+function benefitsSummary(){
+  const parts = [];
+  if(state.benefitAccommodation) parts.push('Accommodation');
+  if(state.benefitFood) parts.push('Food');
+  return parts.length ? parts.join(', ') : '—';
+}
+function syncBenefitUI(){
+  const a = document.getElementById('benAccom');
+  const f = document.getElementById('benFood');
+  if(a) a.checked = !!state.benefitAccommodation;
+  if(f) f.checked = !!state.benefitFood;
+}
 function renderS5(){
+  syncBenefitUI();
   const s=sector(), p=position();
   const emp = C.employmentTypes.find(e=>e.code===state.emp)?.label;
   const salMin = document.getElementById('smin').value;
@@ -9212,6 +9233,7 @@ function renderS5(){
     ['Location', loc],
     ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
     ['Vacancies', state.vac],
+    ['Employee benefits', benefitsSummary()],
   ].map(([k,v])=>`<div class="line"><span>${k}</span><b>${v}</b></div>`).join('');
   const due = Math.max(0, state.pkg.p-10);
   document.getElementById('pkP').textContent = '₹'+state.pkg.p;
@@ -9360,6 +9382,14 @@ document.getElementById('c4').onclick = () => {
   if(!state.genders.length){ toast('Select at least one preferred gender.'); return; }
   show('s5'); renderS5();
 };
+document.getElementById('benAccom').addEventListener('change', function(){
+  state.benefitAccommodation = this.checked;
+  renderS5();
+});
+document.getElementById('benFood').addEventListener('change', function(){
+  state.benefitFood = this.checked;
+  renderS5();
+});
 document.querySelectorAll('.pk').forEach(pk => pk.onclick = () => {
   document.querySelectorAll('.pk').forEach(x=>x.classList.remove('on'));
   pk.classList.add('on');
