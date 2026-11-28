@@ -95,6 +95,12 @@
   .pct-in:focus-within{border-color:var(--gn);box-shadow:0 0 0 3px #D1FADF}
   .pct-sym{position:absolute;right:12px;left:auto;top:50%;transform:translateY(-50%);font-size:16px;font-weight:800;color:var(--gn2);line-height:1;user-select:none;pointer-events:none;z-index:1}
   .pct-in input{width:100%!important;border:0!important;box-shadow:none!important;padding:12px 34px 12px 12px!important;background:transparent!important;text-align:left;direction:ltr}
+  .match-top{margin:0 0 18px}
+  .age-range-lbl{text-align:center;margin:4px 0 14px;font-size:18px;font-weight:800;color:var(--navy)}
+  .age-row{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;font-weight:700;color:#374151}
+  .age-row span{min-width:36px;color:var(--mut)}
+  .age-row input[type=range]{flex:1;height:6px;accent-color:var(--gn);cursor:pointer}
+  .age-row b{min-width:28px;text-align:right;color:var(--gn2)}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -226,6 +232,22 @@
       <div class="pad">
         <h2>Location &amp; Compensation</h2>
         <p class="sub">Set your work location and salary to find the best matching candidates.</p>
+        <div class="match match-top">
+          <div class="pdot">👥</div>
+          <div><div class="n" id="matchN">42</div><div class="s">candidates match your requirement</div></div>
+        </div>
+        <div class="fld">
+          <label class="req">Preferred gender</label>
+          <p class="hint" style="margin-top:0">Select who you prefer to hire for this role. You can choose more than one.</p>
+          <div class="chips" id="genderChips"></div>
+        </div>
+        <div class="fld">
+          <label class="req">Age limit</label>
+          <p class="hint" style="margin-top:0">Set the age range for matching (e.g. 30 to 50).</p>
+          <div class="age-range-lbl" id="ageRangeLbl">30 – 50 years</div>
+          <div class="age-row"><span>From</span><input type="range" id="ageMin" min="18" max="65" value="30" aria-label="Minimum age"><b id="ageMinV">30</b></div>
+          <div class="age-row"><span>To</span><input type="range" id="ageMax" min="18" max="65" value="50" aria-label="Maximum age"><b id="ageMaxV">50</b></div>
+        </div>
         <div class="fld">
           <label>Work Location</label>
           <div class="loc">📍 <input id="loc" value="Kochi, Kerala"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
@@ -241,10 +263,6 @@
         <div class="fld">
           <label>Number of vacancies</label>
           <div class="stepper"><button type="button" id="vacM">−</button><b id="vacV">1</b><button type="button" id="vacP">+</button></div>
-        </div>
-        <div class="match">
-          <div class="pdot">👥</div>
-          <div><div class="n" id="matchN">42</div><div class="s">candidates match your requirement</div></div>
         </div>
         <p class="sub">You’ll start receiving interested candidates shortly after publishing.</p>
       </div>
@@ -8952,7 +8970,11 @@ const state = {
   langDraft: [],
   qualification: '',
   qualMarks: '',
+  genders: ['Male', 'Female'],
+  ageMin: 30,
+  ageMax: 50,
 };
+const GENDERS = ['Male', 'Female', 'Transgender'];
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
   'English', 'Malayalam', 'Hindi', 'Tamil', 'Kannada', 'Telugu', 'Marathi', 'Bengali',
@@ -9138,6 +9160,38 @@ function renderS3(){
   if(pctEl && state.qualMarks) pctEl.value = state.qualMarks;
   syncQualUI();
 }
+function syncAgeUI(){
+  const minEl = document.getElementById('ageMin');
+  const maxEl = document.getElementById('ageMax');
+  if(!minEl || !maxEl) return;
+  let lo = +minEl.value;
+  let hi = +maxEl.value;
+  if(lo > hi){ lo = hi; minEl.value = lo; }
+  if(hi < lo){ hi = lo; maxEl.value = hi; }
+  state.ageMin = lo;
+  state.ageMax = hi;
+  const lbl = document.getElementById('ageRangeLbl');
+  const loV = document.getElementById('ageMinV');
+  const hiV = document.getElementById('ageMaxV');
+  if(lbl) lbl.textContent = lo + ' – ' + hi + ' years';
+  if(loV) loV.textContent = lo;
+  if(hiV) hiV.textContent = hi;
+  matchCount();
+}
+function renderS4(){
+  const gEl = document.getElementById('genderChips');
+  if(gEl){
+    gEl.innerHTML = GENDERS.map(g =>
+      `<button type="button" class="chip ${state.genders.includes(g)?'on':''}" data-g="${g}">${g}</button>`
+    ).join('');
+  }
+  const minEl = document.getElementById('ageMin');
+  const maxEl = document.getElementById('ageMax');
+  if(minEl) minEl.value = state.ageMin;
+  if(maxEl) maxEl.value = state.ageMax;
+  syncAgeUI();
+  matchCount();
+}
 function renderS5(){
   const s=sector(), p=position();
   const emp = C.employmentTypes.find(e=>e.code===state.emp)?.label;
@@ -9153,6 +9207,8 @@ function renderS5(){
     ['Minimum marks % (at or above)', state.qualMarks !== '' && state.qualMarks != null ? state.qualMarks + '%' : '—'],
     ['Skills', state.skills.join(', ')||'—'],
     ['Languages', state.languages.join(', ')||'—'],
+    ['Preferred gender', state.genders.join(', ') || '—'],
+    ['Age range', state.ageMin + ' – ' + state.ageMax + ' years'],
     ['Location', loc],
     ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
     ['Vacancies', state.vac],
@@ -9164,8 +9220,14 @@ function renderS5(){
 }
 function matchCount(){
   const loc = document.getElementById('loc').value.length;
-  const n = 12 + (state.skills.length*3) + (state.types.length*2) + (state.languages.length*2) + Math.min(20, loc);
-  document.getElementById('matchN').textContent = n;
+  const span = Math.max(1, (state.ageMax - state.ageMin) + 1);
+  const genderF = Math.max(1, state.genders.length);
+  const n = Math.max(5, Math.round(
+    (12 + (state.skills.length*3) + (state.types.length*2) + (state.languages.length*2) + Math.min(20, loc))
+    * (span / 20) * (genderF / 3)
+  ));
+  const el = document.getElementById('matchN');
+  if(el) el.textContent = n;
 }
 
 function openSkills(){
@@ -9274,15 +9336,30 @@ document.getElementById('qualPct').addEventListener('input', sanitizeQualPctInpu
 document.getElementById('c3').onclick = () => {
   if(!validateQualification()) return;
   if(!state.languages.length){ toast('Select at least one language.'); return; }
-  show('s4'); matchCount();
+  show('s4'); renderS4();
 };
+document.getElementById('genderChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-g]');
+  if(!b) return;
+  const g = b.dataset.g;
+  if(state.genders.includes(g)){
+    if(state.genders.length === 1){ toast('Select at least one preferred gender.'); return; }
+    state.genders = state.genders.filter(x => x !== g);
+  } else state.genders = [...state.genders, g];
+  renderS4();
+});
+document.getElementById('ageMin').addEventListener('input', syncAgeUI);
+document.getElementById('ageMax').addEventListener('input', syncAgeUI);
 document.getElementById('expV');
 document.getElementById('vacM').onclick = () => { state.vac=Math.max(1,state.vac-1); document.getElementById('vacV').textContent=state.vac; matchCount(); };
 document.getElementById('vacP').onclick = () => { state.vac=Math.min(20,state.vac+1); document.getElementById('vacV').textContent=state.vac; matchCount(); };
 document.getElementById('neg').onclick = function(){ state.neg=!state.neg; this.classList.toggle('on', state.neg); };
 document.getElementById('clrLoc').onclick = () => { document.getElementById('loc').value=''; matchCount(); };
 ['loc','smin','smax'].forEach(id => document.getElementById(id).addEventListener('input', matchCount));
-document.getElementById('c4').onclick = () => { show('s5'); renderS5(); };
+document.getElementById('c4').onclick = () => {
+  if(!state.genders.length){ toast('Select at least one preferred gender.'); return; }
+  show('s5'); renderS5();
+};
 document.querySelectorAll('.pk').forEach(pk => pk.onclick = () => {
   document.querySelectorAll('.pk').forEach(x=>x.classList.remove('on'));
   pk.classList.add('on');
@@ -9340,6 +9417,7 @@ document.querySelectorAll('[data-to]').forEach(b => b.addEventListener('click', 
   if(id==='s1') renderS1();
   if(id==='s2') renderS2();
   if(id==='s3') renderS3();
+  if(id==='s4') renderS4();
 }));
 document.getElementById('myReq').onclick = () => toast('My requests is a prototype stub.');
 renderS1();
