@@ -149,7 +149,6 @@
   .qual-st.on b{color:#065F46}
   .ic-info{display:flex;gap:10px;align-items:flex-start;background:#ECFDF3;border-radius:14px;padding:12px;margin:14px 0 4px;font-size:11px;line-height:1.5;color:#065F46}
   .ic-info i{width:24px;height:24px;border-radius:50%;background:#12B76A;color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;flex:none}
-  #s1 .top{display:none}
   #s1 .prog{display:none}
   #buildTag{display:none}
   .s1-head{padding:12px 16px 4px}
@@ -173,6 +172,64 @@
   .tile{padding:14px 6px 12px;min-height:118px;border-radius:14px}
   .tile b{font-size:10px;line-height:1.3}
   .ico{border-radius:12px}
+  /* —— Home: My career profiles (dark) —— */
+  #sHome{background:#0c1017;color:#e8eaed;padding:0 0 0;min-height:800px}
+  #sHome.scr{padding-bottom:0}
+  .home-shell{display:flex;flex-direction:column;min-height:800px;background:linear-gradient(180deg,#0f1419 0%,#0a0d12 100%)}
+  .home-top{display:flex;align-items:center;gap:8px;padding:10px 12px 8px;border-bottom:1px solid #1e2633}
+  .home-home-btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;background:#14532d;color:#bbf7d0;font-size:12px;font-weight:800;padding:8px 10px;cursor:pointer}
+  .home-top h1{flex:1;margin:0;text-align:center;font-size:17px;font-weight:800;color:#fff;letter-spacing:-.02em}
+  .home-jobs-pill{display:inline-flex;align-items:center;gap:5px;border-radius:99px;background:#1a2332;border:1px solid #2d3748;padding:6px 10px;font-size:10px;font-weight:800;color:#86efac;white-space:nowrap}
+  .home-tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 10px 10px;border-bottom:1px solid #1e2633;-webkit-overflow-scrolling:touch}
+  .home-tabs button{border:0;background:none;color:#64748b;font-size:11px;font-weight:700;padding:6px 8px;white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent}
+  .home-tabs button.on{color:#4ade80;border-bottom-color:#4ade80}
+  .home-scroll{flex:1;overflow:auto;padding:12px 12px 8px}
+  .home-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .home-hdr h2{margin:0;font-size:16px;font-weight:800;color:#fff}
+  .home-hdr p{margin:4px 0 0;font-size:11px;color:#94a3b8}
+  .home-free-pill{font-size:10px;font-weight:800;color:#fbbf24;background:#422006;border:1px solid #78350f;border-radius:99px;padding:5px 8px;line-height:1.2;text-align:right}
+  .career-card{background:#141b26;border:1px solid #243044;border-radius:16px;margin:0 0 12px;overflow:hidden}
+  .career-card.hd{padding:12px 12px 8px;display:flex;gap:10px;align-items:flex-start}
+  .career-card .ttl{flex:1;min-width:0}
+  .career-card .ttl b{display:block;font-size:15px;color:#fff;font-weight:800;line-height:1.25}
+  .career-card .ttl span{font-size:11px;color:#94a3b8;margin-top:2px;display:block}
+  .career-card .sw-sm{width:40px;height:24px;border-radius:99px;background:#334155;border:0;position:relative;cursor:pointer;flex:none}
+  .career-card .sw-sm.on{background:#16a34a}
+  .career-card .sw-sm i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+  .career-card .sw-sm.on i{left:18px}
+  .career-badges{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
+  .cb{border-radius:99px;padding:4px 8px;font-size:10px;font-weight:800}
+  .cb.live{background:#052e16;color:#86efac;border:1px solid #166534}
+  .cb.alerts{background:#1c1917;color:#fdba74}
+  .cb.interest{background:#052e16;color:#6ee7b7}
+  .career-meta{padding:0 12px 10px;font-size:11px;line-height:1.45;color:#cbd5e1}
+  .career-meta .sal{float:right;color:#4ade80;font-weight:800;font-size:12px}
+  .career-meta .sal.warn{color:#fb923c}
+  .career-strength{padding:0 12px 12px}
+  .career-strength .bar{height:5px;background:#1e293b;border-radius:99px;overflow:hidden;margin-bottom:4px}
+  .career-strength .bar i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#4ade80);border-radius:99px}
+  .career-strength span{font-size:10px;color:#94a3b8;font-weight:700}
+  .career-acts{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #243044}
+  .career-acts button{border:0;background:#10151d;padding:11px;font-size:13px;font-weight:800;cursor:pointer}
+  .career-acts button:first-child{color:#4ade80;border-right:1px solid #243044}
+  .career-acts button.del{color:#f87171}
+  .home-limit{background:#141b26;border:1px solid #243044;border-radius:12px;padding:10px 12px;font-size:11px;line-height:1.45;color:#94a3b8;margin:4px 0 12px}
+  .home-upgrade{border:1.5px dashed #78350f;border-radius:16px;padding:14px 12px;background:#1a1208;margin-bottom:8px}
+  .home-upgrade h3{margin:0 0 6px;font-size:14px;font-weight:900;color:#fdba74}
+  .home-upgrade p{margin:0 0 10px;font-size:11px;line-height:1.45;color:#d6d3d1}
+  .tier-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  .tier-row button{border-radius:10px;padding:10px 8px;font-size:11px;font-weight:800;cursor:pointer;border:1px solid #44403c}
+  .tier-free{background:#292524;color:#e7e5e4}
+  .tier-pro{background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border-color:#f97316}
+  .home-upgrade .up-link{border:0;background:none;color:#fb923c;font-size:12px;font-weight:800;cursor:pointer;padding:0;text-decoration:underline}
+  .home-add{width:100%;border:1.5px dashed #334155;border-radius:14px;background:#141b26;color:#4ade80;font-weight:800;font-size:14px;padding:14px;cursor:pointer;margin-bottom:12px}
+  .home-bottom{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:8px 6px 14px;border-top:1px solid #1e2633;background:#0c1017}
+  .home-bottom button{border:0;background:none;color:#64748b;font-size:10px;font-weight:700;padding:6px 4px;cursor:pointer;position:relative}
+  .home-bottom button.on{color:#4ade80}
+  .home-bottom .badge{position:absolute;top:2px;right:14px;min-width:16px;height:16px;border-radius:99px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;display:grid;place-items:center;padding:0 4px}
+  #s1 .top{display:flex}
+  #s1 .top .back{display:block}
+  #s1 .top h1{font-size:17px}
 </style>
 </head>
 <body>
@@ -187,7 +244,52 @@
   <div class="phone" id="phone">
     <div class="notch"><span>9:41</span><span>●●●</span></div>
 
-    <section class="scr on" id="s1">
+    <section class="scr on" id="sHome">
+      <div class="home-shell">
+        <header class="home-top">
+          <button type="button" class="home-home-btn" aria-label="Home"><span aria-hidden="true">🏠</span> Home</button>
+          <h1>Find a Job</h1>
+          <span class="home-jobs-pill">💼 10K+ jobs</span>
+        </header>
+        <nav class="home-tabs" aria-label="Profile wizard steps">
+          <button type="button" class="on" data-nav="home">Home</button>
+          <button type="button" data-nav="s1">Choose Job</button>
+          <button type="button" data-nav="s3">Skills</button>
+          <button type="button" data-nav="s4">Salary &amp; Location</button>
+          <button type="button" data-nav="s5">Profile Live ✓</button>
+          <button type="button" data-nav="alerts">Alerts</button>
+        </nav>
+        <div class="home-scroll">
+          <div class="home-hdr">
+            <div>
+              <h2>My career profiles</h2>
+              <p id="homeSub">Turn profiles on to receive matching job alerts</p>
+            </div>
+            <span class="home-free-pill" id="homeFreePill">Free<br/>0 / 2</span>
+          </div>
+          <div id="homeProfileList"></div>
+          <button type="button" class="home-add" id="homeCreate">+ Create career profile</button>
+          <p id="homeLimitBar" class="home-limit" hidden>Both free profiles are active. Delete one profile to create a new one, or subscribe for unlimited.</p>
+          <div class="home-upgrade">
+            <h3>Unlimited career profiles</h3>
+            <p>IT, Electrician, Cook, Nurse — manage separate profiles for each career path.</p>
+            <div class="tier-row">
+              <button type="button" class="tier-free">Free: 2 profiles</button>
+              <button type="button" class="tier-pro">Pro: Unlimited</button>
+            </div>
+            <button type="button" class="up-link" id="homeUpgrade">Upgrade to Pro · ₹299/month</button>
+          </div>
+        </div>
+        <nav class="home-bottom" aria-label="Main">
+          <button type="button" class="on">👤<br/>Profiles</button>
+          <button type="button" id="navAlerts">🔔<br/>Alerts <span class="badge">7</span></button>
+          <button type="button" id="navStatus">📊<br/>Status</button>
+          <button type="button" id="navSettings">⚙️<br/>Settings</button>
+        </nav>
+      </div>
+    </section>
+
+    <section class="scr" id="s1">
       <div class="top"><button class="back" type="button" id="s1Back">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles">My profiles</button></div>
       <div class="prog"><div class="bar"><i id="p1"></i></div><span class="frac">1/5</span></div>
       <div class="s1-head pad" style="padding-top:8px">
@@ -4435,6 +4537,144 @@ function loadProfiles() {
 function saveProfiles(list) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
+const FREE_PROFILE_LIMIT = 2;
+function profileStrength(pr) {
+  let s = 22;
+  if (pr.qualification) s += 14;
+  if (pr.qualMarks) s += 10;
+  if (pr.skills?.length) s += Math.min(22, pr.skills.length * 4);
+  if (pr.languages?.length) s += 8;
+  const locs = (pr.locationPriorities || migrateLegacyLocations(pr)).filter(Boolean).length;
+  if (locs) s += Math.min(15, locs * 5);
+  if (pr.resume?.fileName) s += 12;
+  if (pr.bio) s += 6;
+  if (pr.experienceYears != null) s += 4;
+  return Math.min(99, Math.max(35, s));
+}
+function formatSalShort(pr) {
+  if (pr.salary?.unpaidOk || pr.internStipend === 'UNPAID') return 'Unpaid OK';
+  const sal = pr.salary?.expectedMonthly;
+  if (!sal) return '—';
+  if (sal >= 1000) return '₹' + Math.round(sal / 1000) + 'K/mo';
+  return '₹' + sal + '/mo';
+}
+function activeProfileCount(list) {
+  return (list || loadProfiles()).filter((p) => p.matchingActive !== false).length;
+}
+function seedDemoProfilesIfEmpty() {
+  if (loadProfiles().length) return;
+  const t = new Date().toISOString();
+  saveProfiles([
+    {
+      id: uid(),
+      schemaVersion: 4,
+      savedAt: t,
+      displayName: 'Software Developer',
+      employmentType: { code: 'FT', label: 'Full Time' },
+      sector: { id: 'tech', label: 'IT & Software' },
+      position: { id: 'software-developer', label: 'Software Developer', subtitle: 'Software development' },
+      types: ['Full stack'],
+      qualification: 'Graduate',
+      qualMarks: '78',
+      experienceYears: 3,
+      skills: ['JavaScript', 'React', 'Node.js'],
+      languages: ['English', 'Hindi'],
+      bio: null,
+      locationPriorities: ['Bangalore', 'Delhi NCR', 'Pune', '', ''],
+      salary: { expectedMonthly: 30000, negotiable: true },
+      availableToJoin: { code: 'immediate', label: 'Immediately' },
+      resume: null,
+      matchingActive: true,
+      alertsNew: 5,
+      interestedCount: 2,
+      catalogueVersion: C.version,
+    },
+    {
+      id: uid(),
+      schemaVersion: 4,
+      savedAt: t,
+      displayName: 'Electrician',
+      employmentType: { code: 'GIG', label: 'Gig' },
+      sector: { id: 'electrical', label: 'Electrical & Electronics' },
+      position: { id: 'electrician', label: 'Electrician', subtitle: 'Homes, shops and sites' },
+      types: ['Domestic'],
+      qualification: 'ITI / Diploma',
+      qualMarks: '65',
+      experienceYears: 5,
+      skills: ['Wiring', 'Fault repair', 'Panel board'],
+      languages: ['English', 'Malayalam'],
+      bio: null,
+      locationPriorities: ['Kochi', 'Thrissur', '', '', ''],
+      salary: { expectedMonthly: 18000, negotiable: false },
+      availableToJoin: { code: 'd7', label: 'Within 7 days' },
+      resume: null,
+      matchingActive: true,
+      alertsNew: 3,
+      interestedCount: 1,
+      catalogueVersion: C.version,
+    },
+  ]);
+}
+function homeCardHtml(pr) {
+  const str = profileStrength(pr);
+  const on = pr.matchingActive !== false;
+  const locs = (pr.locationPriorities || migrateLegacyLocations(pr)).filter(Boolean).slice(0, 3).join(' · ') || '—';
+  const skills = (pr.skills || []).slice(0, 4).join(' · ');
+  const salClass = formatSalShort(pr) === 'Unpaid OK' ? 'sal warn' : 'sal';
+  const alerts = pr.alertsNew != null ? pr.alertsNew : 3 + (str % 5);
+  const interested = pr.interestedCount != null ? pr.interestedCount : 1 + (str % 3);
+  const title = escapeHtml(pr.position?.label || pr.displayName || 'Profile');
+  const sector = escapeHtml(pr.sector?.label || '');
+  return `<article class="career-card" data-id="${pr.id}">
+    <div class="career-card hd">
+      <div class="ttl"><b>${title}</b><span>${sector}</span></div>
+      <button type="button" class="sw-sm ${on ? 'on' : ''}" data-match="${pr.id}" aria-label="Matching on/off"><i></i></button>
+    </div>
+    <div class="career-badges">
+      <span class="cb live">${on ? '● Matching active' : '○ Matching paused'}</span>
+      <span class="cb alerts">${alerts} new alerts →</span>
+      <span class="cb interest">${interested} interested →</span>
+    </div>
+    <div class="career-meta"><span class="${salClass}">${escapeHtml(formatSalShort(pr))}</span>${escapeHtml(locs)}${skills ? '<br/>' + escapeHtml(skills) : ''}</div>
+    <div class="career-strength"><div class="bar"><i style="width:${str}%"></i></div><span>${str}% profile strength</span></div>
+    <div class="career-acts">
+      <button type="button" data-edit="${pr.id}">Edit profile</button>
+      <button type="button" class="del" data-del="${pr.id}">Delete</button>
+    </div>
+  </article>`;
+}
+function renderHome() {
+  seedDemoProfilesIfEmpty();
+  const list = loadProfiles();
+  const active = activeProfileCount(list);
+  const freePill = el('homeFreePill');
+  if (freePill) freePill.innerHTML = 'Free<br/>' + active + ' / ' + FREE_PROFILE_LIMIT;
+  const limitBar = el('homeLimitBar');
+  const atCap = list.length >= FREE_PROFILE_LIMIT && active >= FREE_PROFILE_LIMIT;
+  if (limitBar) limitBar.hidden = !atCap;
+  const createBtn = el('homeCreate');
+  if (createBtn) {
+    createBtn.style.opacity = atCap ? '0.5' : '1';
+    createBtn.style.pointerEvents = atCap ? 'none' : 'auto';
+  }
+  const root = el('homeProfileList');
+  if (!root) return;
+  if (!list.length) {
+    root.innerHTML =
+      '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:24px 8px;line-height:1.5">No profiles yet.<br>Tap <b style="color:#4ade80">Create career profile</b> below.</p>';
+    return;
+  }
+  root.innerHTML = list.map((pr) => homeCardHtml(pr)).join('');
+}
+function startCreateProfile() {
+  if (loadProfiles().length >= FREE_PROFILE_LIMIT) {
+    toast('Free plan: delete a profile or upgrade for unlimited.');
+    return;
+  }
+  resetWizard(false);
+  show('s1');
+  renderS1();
+}
 function show(id) {
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
 }
@@ -4603,6 +4843,9 @@ function buildPayload() {
     },
     availableToJoin: { code: joinCode, label: joinLabel(joinCode) },
     resume: resumeOut,
+    matchingActive: true,
+    alertsNew: state.alertsNew ?? 0,
+    interestedCount: state.interestedCount ?? 0,
     catalogueVersion: C.version,
   };
 }
@@ -4994,23 +5237,25 @@ function persistProfile() {
   }
   const list = loadProfiles();
   const idx = list.findIndex((x) => x.id === payload.id);
-  if (idx >= 0) list[idx] = payload;
-  else list.push(payload);
+  if (idx >= 0) {
+    const prev = list[idx];
+    payload.matchingActive = prev.matchingActive !== false;
+    payload.alertsNew = prev.alertsNew;
+    payload.interestedCount = prev.interestedCount;
+    list[idx] = payload;
+  } else {
+  if (list.length >= FREE_PROFILE_LIMIT) {
+    toast('Free plan allows 2 profiles. Delete one or upgrade.');
+    return;
+  }
+    list.push(payload);
+  }
   saveProfiles(list);
   state.editId = payload.id;
   const sal = payload.salary?.expectedMonthly;
-  document.getElementById('doneTxt').textContent =
-    'Saved “' +
-    payload.displayName +
-    '” · ' +
-    payload.position.label +
-    ' in ' +
-    payload.sector.label +
-    (sal ? ' · ₹' + sal + '/mo expected' : '') +
-    (payload.availableToJoin?.label ? ' · Join: ' + payload.availableToJoin.label : '') +
-    (payload.resume?.fileName ? ' · Resume: ' + payload.resume.fileName : '') +
-    '.';
-  show('s6');
+  toast('Profile saved — matching is on.');
+  renderHome();
+  show('sHome');
 }
 
 function openSkills() {
@@ -5081,8 +5326,8 @@ function toggleLang(l) {
 }
 
 function openMyProfiles() {
-  renderProfiles();
-  show('s7');
+  renderHome();
+  show('sHome');
 }
 
 document.getElementById('empTypes').addEventListener('click', (e) => {
@@ -5270,6 +5515,7 @@ document.querySelectorAll('[data-to]').forEach((b) =>
   b.addEventListener('click', () => {
     const id = b.getAttribute('data-to');
     show(id);
+    if (id === 'sHome') renderHome();
     if (id === 's1') renderS1();
     if (id === 's2') renderS2();
     if (id === 's3') renderS3();
@@ -5283,13 +5529,87 @@ document.querySelectorAll('[data-to]').forEach((b) =>
   if (el) el.onclick = openMyProfiles;
 });
 document.getElementById('viewSaved').onclick = openMyProfiles;
-document.getElementById('another').onclick = () => {
-  resetWizard(true);
-  show('s1');
-  renderS1();
+document.getElementById('another').onclick = () => startCreateProfile();
+document.getElementById('s1Back').onclick = () => {
+  renderHome();
+  show('sHome');
 };
-document.getElementById('s1Back').onclick = () => toast('In the app this returns to Home / Jobs tab.');
-document.getElementById('profileList').addEventListener('click', (e) => {
+el('homeCreate')?.addEventListener('click', startCreateProfile);
+el('homeUpgrade')?.addEventListener('click', () => toast('Pro upgrade — demo only.'));
+el('navAlerts')?.addEventListener('click', () => toast('Alerts — demo.'));
+el('navStatus')?.addEventListener('click', () => toast('Status — demo.'));
+el('navSettings')?.addEventListener('click', () => toast('Settings — demo.'));
+document.querySelectorAll('.home-tabs [data-nav]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const nav = btn.getAttribute('data-nav');
+    if (nav === 'home') {
+      renderHome();
+      show('sHome');
+      return;
+    }
+    if (nav === 'alerts') {
+      toast('Alerts — demo.');
+      return;
+    }
+    if (nav === 's1') {
+      if (!state.sectorId) {
+        startCreateProfile();
+        return;
+      }
+      show('s1');
+      renderS1();
+      return;
+    }
+    if (nav === 's3' && state.positionId) {
+      show('s3');
+      renderS3();
+      return;
+    }
+    if (nav === 's4' && state.positionId) {
+      renderS4();
+      show('s4');
+      return;
+    }
+    if (nav === 's5' && state.positionId) {
+      renderS5();
+      show('s5');
+      return;
+    }
+    toast('Complete Choose Job first.');
+  });
+});
+el('homeProfileList')?.addEventListener('click', (e) => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    const id = del.getAttribute('data-del');
+    saveProfiles(loadProfiles().filter((x) => x.id !== id));
+    renderHome();
+    toast('Profile deleted.');
+    return;
+  }
+  const edit = e.target.closest('[data-edit]');
+  if (edit) {
+    const pr = loadProfiles().find((x) => x.id === edit.getAttribute('data-edit'));
+    if (!pr) return;
+    applyPayload(pr);
+    show('s1');
+    renderS1();
+    toast('Editing profile — walk through or save to update.');
+    return;
+  }
+  const match = e.target.closest('[data-match]');
+  if (match) {
+    const id = match.getAttribute('data-match');
+    const list = loadProfiles();
+    const idx = list.findIndex((x) => x.id === id);
+    if (idx < 0) return;
+    list[idx].matchingActive = list[idx].matchingActive === false;
+    saveProfiles(list);
+    renderHome();
+    toast(list[idx].matchingActive !== false ? 'Matching turned on.' : 'Matching paused.');
+  }
+});
+document.getElementById('profileList')?.addEventListener('click', (e) => {
   const del = e.target.closest('[data-del]');
   if (del) {
     const id = del.getAttribute('data-del');
@@ -5358,6 +5678,8 @@ function boot() {
           ' (full generated file). Shell-only HTML has empty scripts until you run _gen_seeker_profile_html.py',
       );
     }
+    renderHome();
+    show('sHome');
     renderS1();
     renderS4();
     const tag = el('buildTag');
