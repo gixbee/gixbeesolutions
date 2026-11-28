@@ -184,9 +184,10 @@
         </div>
         <div class="fld" id="qualMarksBlock" hidden>
           <label class="req" for="qualPct">Minimum marks (%)</label>
-          <p class="hint" style="margin-top:0">Percentage range you require for this qualification (0 to 100).</p>
-          <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="e.g. 55 or 72.5" aria-required="true" autocomplete="off">
-          <p class="hint">Up to 2 decimal places. Employers set the floor — matching uses this minimum only.</p>
+          <p class="hint" style="margin-top:0">Set the lowest percentage candidates must have scored in this qualification. Matching shows only people <strong>at or above</strong> your number (0 to 100).</p>
+          <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="e.g. 50 or 75" aria-required="true" autocomplete="off">
+          <p class="ok" style="margin:8px 0 0;font-size:12px;line-height:1.45"><strong>Examples:</strong> enter <strong>50</strong> if 50% and above is enough; <strong>75</strong> if your company needs 75% or higher; <strong>0</strong> if any pass mark is acceptable.</p>
+          <p class="hint">Up to 2 decimal places (e.g. 72.5).</p>
         </div>
         <div class="fld">
           <label>Minimum experience (years)</label>
@@ -9142,7 +9143,7 @@ function renderS5(){
     ['Position', p.label + (state.types[0]? ' ('+state.types.join(', ')+')':'')],
     ['Experience', state.exp+'+ years'],
     ['Qualification required', state.qualification || '—'],
-    ['Minimum marks %', state.qualMarks !== '' && state.qualMarks != null ? state.qualMarks + '%' : '—'],
+    ['Minimum marks % (at or above)', state.qualMarks !== '' && state.qualMarks != null ? state.qualMarks + '%' : '—'],
     ['Skills', state.skills.join(', ')||'—'],
     ['Languages', state.languages.join(', ')||'—'],
     ['Location', loc],
