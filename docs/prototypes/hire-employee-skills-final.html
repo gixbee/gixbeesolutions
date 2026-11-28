@@ -91,6 +91,10 @@
   .hint{font-size:12px;color:#9CA3AF;margin:-6px 0 10px;line-height:1.4}
   label.req::after{content:' *';color:#DC2626;font-weight:800}
   .fld[hidden]{display:none!important}
+  .pct-in{display:flex;align-items:center;gap:6px;border:1px solid #E5E7EB;border-radius:12px;background:#fff;padding:0 12px;transition:border-color .15s,box-shadow .15s}
+  .pct-in:focus-within{border-color:var(--gn);box-shadow:0 0 0 3px #D1FADF}
+  .pct-sym{font-size:16px;font-weight:800;color:var(--gn2);flex:none;line-height:1;user-select:none}
+  .pct-in input{border:0!important;box-shadow:none!important;padding:12px 0!important;background:transparent!important;min-width:0}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -185,9 +189,12 @@
         <div class="fld" id="qualMarksBlock" hidden>
           <label class="req" for="qualPct">Minimum marks (%)</label>
           <p class="hint" style="margin-top:0">Set the lowest percentage candidates must have scored in this qualification. Matching shows only people <strong>at or above</strong> your number (0 to 100).</p>
-          <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="e.g. 50 or 75" aria-required="true" autocomplete="off">
+          <div class="pct-in">
+            <span class="pct-sym" aria-hidden="true">%</span>
+            <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="50 or 75" aria-required="true" autocomplete="off" aria-describedby="qualPctHint">
+          </div>
           <p class="ok" style="margin:8px 0 0;font-size:12px;line-height:1.45"><strong>Examples:</strong> enter <strong>50</strong> if 50% and above is enough; <strong>75</strong> if your company needs 75% or higher; <strong>0</strong> if any pass mark is acceptable.</p>
-          <p class="hint">Up to 2 decimal places (e.g. 72.5).</p>
+          <p class="hint" id="qualPctHint">Up to 2 decimal places (e.g. 72.5).</p>
         </div>
         <div class="fld">
           <label>Minimum experience (years)</label>
