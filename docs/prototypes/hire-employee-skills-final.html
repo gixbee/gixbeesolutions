@@ -140,6 +140,23 @@
   .ic-info i{width:24px;height:24px;border-radius:50%;background:#12B76A;color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;flex:none}
   #cPkgStart{font-size:15px;letter-spacing:-.01em}
   #sPkg .ck{border:0;padding:10px 0;font-size:11px;line-height:1.45;color:#6B7280}
+  /* —— Payment gateway —— */
+  #sPay .sub-pay{margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9CA3AF}
+  .pay-gate-hero{text-align:center;border:1px solid #E5E7EB;border-radius:18px;padding:22px 16px 18px;margin:10px 0 6px;background:#FAFAFA}
+  .pay-gate-hero>span{display:block;font-size:13px;font-weight:700;color:var(--gn2);margin-bottom:8px}
+  .pay-gate-amt{font-size:40px;font-weight:900;color:#1B2559;line-height:1.1;letter-spacing:-.02em}
+  .pay-gate-wal{font-size:12px;color:#6B7280;margin:10px 0 0;font-weight:600}
+  .pay-gate-wal:empty{display:none}
+  .pay-gate-lbl{font-size:15px;font-weight:800;color:#1B2559;margin:18px 0 10px}
+  .pay-opt{display:flex;align-items:center;gap:12px;width:100%;border:1.5px solid #E5E7EB;border-radius:14px;padding:14px 12px;margin:0 0 10px;background:#fff;font:inherit;text-align:left;cursor:pointer}
+  .pay-opt.on{border-color:var(--gn);background:#F0FDF4;box-shadow:0 0 0 3px #D1FADF}
+  .pay-opt .rad{width:18px;height:18px;border-radius:50%;border:2px solid #D1D5DB;flex:none;position:relative}
+  .pay-opt.on .rad{border-color:var(--gn)}
+  .pay-opt.on .rad::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--gn)}
+  .pay-opt b{display:block;font-size:14px;color:#111}
+  .pay-opt small{display:block;font-size:11px;color:var(--mut);margin-top:2px}
+  .pay-rzp{display:flex;align-items:center;justify-content:center;gap:8px;margin:14px 0 4px;font-size:11px;color:#6B7280;font-weight:700}
+  .pay-rzp img{height:18px;opacity:.85}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -359,7 +376,32 @@
           <div><b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Wallet balance completely covers this transaction. No external payment required.</div>
         </div>
       </div>
-      <div class="cta"><button class="btn" id="cPkgStart" type="button">Use 40 Coins &amp; Start Matching →</button></div>
+      <div class="cta"><button class="btn" id="cPkgStart" type="button">Pay ₹10 and start matching →</button></div>
+    </section>
+
+    <section class="scr" id="sPay">
+      <div class="top"><button class="back" type="button" data-to="sPkg">←</button><h1>Secure payment</h1><button class="req" type="button" style="visibility:hidden" aria-hidden="true">·</button></div>
+      <div class="pad" style="padding-top:16px">
+        <p class="sub-pay">Payment gateway</p>
+        <h2 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#1B2559">Pay and start matching</h2>
+        <div class="pay-gate-hero">
+          <span id="payGateSub">Up to 5 interested candidates</span>
+          <div class="pay-gate-amt" id="payGateAmt">₹10</div>
+          <p class="pay-gate-wal" id="payGateWallet">Wallet applied: −₹30</p>
+        </div>
+        <p class="pay-gate-lbl">Payment method</p>
+        <button type="button" class="pay-opt on" data-paym="upi" aria-pressed="true">
+          <span class="rad" aria-hidden="true"></span>
+          <span><b>UPI</b><small>GPay, PhonePe, Paytm, or any UPI app</small></span>
+        </button>
+        <button type="button" class="pay-opt" data-paym="card" aria-pressed="false">
+          <span class="rad" aria-hidden="true"></span>
+          <span><b>Card / Netbanking</b><small>Credit, debit, or net banking via Razorpay</small></span>
+        </button>
+        <div class="ok" style="margin-top:12px">Matching starts only after payment is confirmed. Unused candidate value returns to your Gixbee wallet.</div>
+        <p class="pay-rzp"><span aria-hidden="true">🔒</span> Secured by Razorpay (demo)</p>
+      </div>
+      <div class="cta"><button class="btn" id="cPayConfirm" type="button">Pay ₹10 and start matching</button></div>
     </section>
 
     <section class="scr" id="s6">
@@ -9056,6 +9098,29 @@ const PKG_OPTIONS = [
   {id:'p15', n:15, coins:90, per:6, stacks:[0,0,4]},
 ];
 function selectedPkg(){ return PKG_OPTIONS.find(p => p.id === state.pkgId) || PKG_OPTIONS[0]; }
+function pkgTotals(){
+  const p = selectedPkg();
+  const use = Math.min(state.walletCoins, p.coins);
+  const pay = Math.max(0, p.coins - state.walletCoins);
+  return { p, use, pay, rem: state.walletCoins - use };
+}
+function beginMatchingFromPkg(){
+  const { p, use } = pkgTotals();
+  state.walletCoins -= use;
+  document.getElementById('doneTxt').textContent =
+    'Posted '+position().label+' in '+sector().label+' · up to '+p.n+' interested candidates · matching live.';
+  show('s6');
+}
+function renderPayGate(){
+  const { p, use, pay } = pkgTotals();
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  set('payGateAmt', '₹' + pay);
+  set('payGateSub', 'Up to ' + p.n + ' interested candidates · balance due');
+  const wal = document.getElementById('payGateWallet');
+  if(wal) wal.textContent = use > 0 ? ('Wallet applied: −₹' + use + ' (coins)') : '';
+  const btn = document.getElementById('cPayConfirm');
+  if(btn) btn.textContent = 'Pay ₹' + pay + ' and start matching';
+}
 function coinStackHtml(stacks){
   return stacks.map((y,i) => `<span style="--y:${y}px">🪙</span>`).join('');
 }
@@ -9071,10 +9136,7 @@ function renderPkg(){
       <div class="per-cap">₹${p.per} per candidate</div>
     </button>`
   ).join('');
-  const p = selectedPkg();
-  const use = Math.min(state.walletCoins, p.coins);
-  const pay = Math.max(0, p.coins - state.walletCoins);
-  const rem = state.walletCoins - use;
+  const { p, use, pay, rem } = pkgTotals();
   const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
   set('pkgPriceLine', p.coins + ' Coins (₹' + p.coins + ')');
   set('pkgWalletLine', '− ' + use + ' Coins (₹' + use + ')');
@@ -9084,8 +9146,8 @@ function renderPkg(){
   const btn = document.getElementById('cPkgStart');
   if(btn){
     btn.textContent = pay > 0
-      ? ('Pay ₹' + pay + ' & Start Matching →')
-      : ('Use ' + use + ' Coins & Start Matching →');
+      ? ('Pay ₹' + pay + ' and start matching →')
+      : ('Use ' + use + ' Coins and start matching →');
   }
   const info = document.querySelector('#sPkg .ic-info div');
   if(info){
@@ -9526,13 +9588,30 @@ document.getElementById('icPkgGrid').addEventListener('click', e => {
 document.getElementById('cPkgStart').onclick = () => {
   const agree = document.getElementById('pkgAgree');
   if(agree && !agree.checked){ toast('Please confirm the wallet credit terms.'); return; }
-  const p = selectedPkg();
-  const use = Math.min(state.walletCoins, p.coins);
-  state.walletCoins -= use;
-  document.getElementById('doneTxt').textContent =
-    'Posted '+position().label+' in '+sector().label+' · up to '+p.n+' interested candidates · matching live.';
-  show('s6');
+  const { pay } = pkgTotals();
+  if(pay > 0){
+    renderPayGate();
+    show('sPay');
+    return;
+  }
+  beginMatchingFromPkg();
+  toast('Matching started — no payment needed.');
 };
+document.getElementById('cPayConfirm').onclick = () => {
+  const btn = document.getElementById('cPayConfirm');
+  if(btn){ btn.disabled = true; btn.textContent = 'Processing…'; }
+  setTimeout(() => {
+    if(btn){ btn.disabled = false; }
+    beginMatchingFromPkg();
+  }, 700);
+};
+document.querySelectorAll('#sPay .pay-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('#sPay .pay-opt').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); });
+    el.classList.add('on');
+    el.setAttribute('aria-pressed', 'true');
+  });
+});
 document.getElementById('skMore').onclick = () => { state.skillFull=true; drawSkills(); };
 document.getElementById('skSearch').oninput = drawSkills;
 document.getElementById('skList').addEventListener('change', e => {
@@ -9580,6 +9659,7 @@ document.querySelectorAll('[data-to]').forEach(b => b.addEventListener('click', 
   if(id==='s3') renderS3();
   if(id==='s4') renderS4();
   if(id==='sPkg') renderPkg();
+  if(id==='sPay') renderPayGate();
 }));
 document.getElementById('myReq').onclick = () => toast('My requests is a prototype stub.');
 renderS1();
