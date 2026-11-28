@@ -9637,6 +9637,14 @@ document.getElementById('internPayPick').addEventListener('click', e => {
   const b = e.target.closest('[data-ipay]');
   if(!b) return;
   state.internStipend = b.dataset.ipay;
+  if(state.internStipend === 'PAID'){
+    const smin = document.getElementById('smin');
+    const smax = document.getElementById('smax');
+    if(smin && +smin.value >= 15000){
+      smin.value = '5000';
+      if(smax) smax.value = '8000';
+    }
+  }
   syncCompUI();
   matchCount();
 });
@@ -9659,7 +9667,11 @@ document.getElementById('posList').addEventListener('click', e => {
 });
 document.getElementById('posSearch').oninput = () => { state.posLimit=99; renderS2(); };
 document.getElementById('morePos').onclick = () => { state.posLimit=99; renderS2(); };
-document.getElementById('c2').onclick = () => { show('s3'); renderS3(); };
+document.getElementById('c2').onclick = () => {
+  if(isInternHire() && state.exp > 1) state.exp = 0;
+  show('s3');
+  renderS3();
+};
 document.getElementById('typeChips').addEventListener('click', e => {
   const b=e.target.closest('[data-t]'); if(!b) return;
   const t=b.getAttribute('data-t');
