@@ -95,7 +95,7 @@
   .pct-in:focus-within{border-color:var(--gn);box-shadow:0 0 0 3px #D1FADF}
   .pct-sym{position:absolute;right:12px;left:auto;top:50%;transform:translateY(-50%);font-size:16px;font-weight:800;color:var(--gn2);line-height:1;user-select:none;pointer-events:none;z-index:1}
   .pct-in input{width:100%!important;border:0!important;box-shadow:none!important;padding:12px 34px 12px 12px!important;background:transparent!important;text-align:left;direction:ltr}
-  .match-top{margin:0 0 18px}
+  .match-bottom{margin:18px 0 8px}
   .age-range-lbl{text-align:center;margin:4px 0 14px;font-size:18px;font-weight:800;color:var(--navy)}
   .age-row{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;font-weight:700;color:#374151}
   .age-row span{min-width:36px;color:var(--mut)}
@@ -232,22 +232,6 @@
       <div class="pad">
         <h2>Location &amp; Compensation</h2>
         <p class="sub">Set your work location and salary to find the best matching candidates.</p>
-        <div class="match match-top">
-          <div class="pdot">👥</div>
-          <div><div class="n" id="matchN">42</div><div class="s">candidates match your requirement</div></div>
-        </div>
-        <div class="fld">
-          <label class="req">Preferred gender</label>
-          <p class="hint" style="margin-top:0">Select who you prefer to hire for this role. You can choose more than one.</p>
-          <div class="chips" id="genderChips"></div>
-        </div>
-        <div class="fld">
-          <label class="req">Age limit</label>
-          <p class="hint" style="margin-top:0">Set the age range for matching (e.g. 30 to 50).</p>
-          <div class="age-range-lbl" id="ageRangeLbl">30 – 50 years</div>
-          <div class="age-row"><span>From</span><input type="range" id="ageMin" min="18" max="65" value="30" aria-label="Minimum age"><b id="ageMinV">30</b></div>
-          <div class="age-row"><span>To</span><input type="range" id="ageMax" min="18" max="65" value="50" aria-label="Maximum age"><b id="ageMaxV">50</b></div>
-        </div>
         <div class="fld">
           <label>Work Location</label>
           <div class="loc">📍 <input id="loc" value="Kochi, Kerala"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
@@ -263,6 +247,22 @@
         <div class="fld">
           <label>Number of vacancies</label>
           <div class="stepper"><button type="button" id="vacM">−</button><b id="vacV">1</b><button type="button" id="vacP">+</button></div>
+        </div>
+        <div class="fld">
+          <label class="req">Preferred gender</label>
+          <p class="hint" style="margin-top:0">Select who you prefer to hire for this role. You can choose more than one.</p>
+          <div class="chips" id="genderChips"></div>
+        </div>
+        <div class="fld">
+          <label class="req">Age limit</label>
+          <p class="hint" style="margin-top:0">Set the age range for matching (e.g. 30 to 50).</p>
+          <div class="age-range-lbl" id="ageRangeLbl">30 – 50 years</div>
+          <div class="age-row"><span>From</span><input type="range" id="ageMin" min="18" max="65" value="30" aria-label="Minimum age"><b id="ageMinV">30</b></div>
+          <div class="age-row"><span>To</span><input type="range" id="ageMax" min="18" max="65" value="50" aria-label="Maximum age"><b id="ageMaxV">50</b></div>
+        </div>
+        <div class="match match-bottom">
+          <div class="pdot">👥</div>
+          <div><div class="n" id="matchN">42</div><div class="s">available candidates match your requirement</div></div>
         </div>
         <p class="sub">You’ll start receiving interested candidates shortly after publishing.</p>
       </div>
