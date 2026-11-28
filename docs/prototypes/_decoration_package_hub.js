@@ -10,6 +10,7 @@ function ensureDecorationStore() {
   if (!store.decorationMenu) store.decorationMenu = defaultDecorationStore();
   if (!store.decorationMenu.catPackages) store.decorationMenu.catPackages = [];
   if (!store.decorationMenu.individualServices) store.decorationMenu.individualServices = [];
+  if (!store.decorationMenu.pkgCategoryFilter) store.decorationMenu.pkgCategoryFilter = 'wedding';
 }
 
 function decorLevelClass(level) {
@@ -156,8 +157,50 @@ function renderDecorationHub() {
   if (head) head.innerHTML = '<em>Gixbee</em><span>|</span>Packages &amp; Services';
   if (tab === 'packages') {
     renderDecorPkgFilters();
+    renderDecorPkgCategoryFilters();
     renderDecorPackageList();
   } else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
+}
+
+function renderDecorPkgCategoryFilters() {
+  const row = el('decPkgCategoryFilters');
+  if (!row) return;
+  const sel = store.decorationMenu.pkgCategoryFilter || 'wedding';
+  const ids = ['wedding', 'other'];
+  row.innerHTML =
+    '<div class="dec-pkg-ev-grid dec-hub-cat-row">' +
+    ids
+      .map(function (id) {
+        const ui = decorEventCatUi(id);
+        const on = sel === id;
+        return (
+          '<button type="button" class="dec-pkg-ev-card' +
+          (on ? ' on' : '') +
+          '" data-dec-ev="' +
+          esc(id) +
+          '"><span class="dec-pkg-ev-chk" aria-hidden="true">' +
+          (on ? '✓' : '') +
+          '</span><span class="dec-pkg-ev-ico" aria-hidden="true">' +
+          ui.icon +
+          '</span><b>' +
+          esc(ui.title) +
+          '</b><small>' +
+          esc(ui.sub) +
+          '</small></button>'
+        );
+      })
+      .join('') +
+    '</div>';
+  row.querySelectorAll('[data-dec-ev]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-dec-ev');
+      const cur = store.decorationMenu.pkgCategoryFilter || 'all';
+      store.decorationMenu.pkgCategoryFilter = cur === id ? 'all' : id;
+      saveStore();
+      renderDecorPkgCategoryFilters();
+      renderDecorPackageList();
+    };
+  });
 }
 
 function renderDecorPkgFilters() {
@@ -200,10 +243,16 @@ function renderDecorPkgFilters() {
 function renderDecorPackageList() {
   const q = (el('decPkgSearch').value || '').trim().toLowerCase();
   const filter = store.decorationMenu.pkgFilter || 'all';
+  const ev = store.decorationMenu.pkgCategoryFilter || 'all';
   let list = (store.decorationMenu.catPackages || []).slice();
   if (filter !== 'all') {
     list = list.filter(function (p) {
       return decorLevelClass(p.level) === filter;
+    });
+  }
+  if (ev !== 'all') {
+    list = list.filter(function (p) {
+      return (p.packageCategory || 'wedding') === ev;
     });
   }
   if (q) {
@@ -217,8 +266,15 @@ function renderDecorPackageList() {
   if (!host) return;
   el('decHubStat').textContent = list.length + ' package' + (list.length === 1 ? '' : 's');
   if (!list.length) {
+    const filtered = filter !== 'all' || ev !== 'all' || q;
     host.innerHTML =
-      '<div class="dec-empty"><div class="dec-empty-ico">🎀</div><b>No packages yet</b><p class="sub">Create your first decoration package and start getting enquiries.</p></div>';
+      '<div class="dec-empty"><div class="dec-empty-ico">🎀</div><b>' +
+      (filtered ? 'No packages match these filters' : 'No packages yet') +
+      '</b><p class="sub">' +
+      (filtered
+        ? 'Try another tier or category, or clear filters.'
+        : 'Create your first decoration package and start getting enquiries.') +
+      '</p></div>';
     return;
   }
   host.innerHTML = list

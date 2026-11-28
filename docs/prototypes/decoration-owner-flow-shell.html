@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-cat-grid-v26. Do NOT open decoration-owner-flow-shell.html (shell only). -->
+<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-hub-cat-v27. Do NOT open decoration-owner-flow-shell.html (shell only). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -108,6 +108,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-pkg-ev-ico{font-size:32px;margin:8px 0 10px;line-height:1}
 .dec-pkg-ev-card b{font-size:12px;font-weight:900;line-height:1.35;display:block;margin-bottom:6px;color:var(--decor-navy)}
 .dec-pkg-ev-card small{font-size:10px;font-weight:600;color:var(--mut);line-height:1.35;display:block}
+#decorHub .dec-hub-cat-row{padding-top:4px;padding-bottom:10px}
+#decorHub .dec-hub-cat-row .dec-pkg-ev-card{min-height:152px}
+#decorHub .dec-hub-cat-row .dec-pkg-ev-card:not(.on) .dec-pkg-ev-chk{display:none}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
 .dec-offer-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1.5px solid #FBCFE8}
@@ -739,6 +742,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div id="decHubPkgPanel">
     <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages" autocomplete="off"></div>
     <div class="dec-filters" id="decPkgFilters"></div>
+    <div id="decPkgCategoryFilters" aria-label="Package category filters"></div>
     <p class="sub pad" id="decHubStat">0 packages</p>
     <div id="decPkgList"></div>
     <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decAddPackageBtn">+ Create Package</button></div>

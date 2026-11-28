@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-cat-grid-v26. Do NOT open decoration-owner-flow-shell.html (shell only). -->
+<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-hub-cat-v27. Do NOT open decoration-owner-flow-shell.html (shell only). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -108,6 +108,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-pkg-ev-ico{font-size:32px;margin:8px 0 10px;line-height:1}
 .dec-pkg-ev-card b{font-size:12px;font-weight:900;line-height:1.35;display:block;margin-bottom:6px;color:var(--decor-navy)}
 .dec-pkg-ev-card small{font-size:10px;font-weight:600;color:var(--mut);line-height:1.35;display:block}
+#decorHub .dec-hub-cat-row{padding-top:4px;padding-bottom:10px}
+#decorHub .dec-hub-cat-row .dec-pkg-ev-card{min-height:152px}
+#decorHub .dec-hub-cat-row .dec-pkg-ev-card:not(.on) .dec-pkg-ev-chk{display:none}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
 .dec-offer-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1.5px solid #FBCFE8}
@@ -739,6 +742,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div id="decHubPkgPanel">
     <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages" autocomplete="off"></div>
     <div class="dec-filters" id="decPkgFilters"></div>
+    <div id="decPkgCategoryFilters" aria-label="Package category filters"></div>
     <p class="sub pad" id="decHubStat">0 packages</p>
     <div id="decPkgList"></div>
     <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decAddPackageBtn">+ Create Package</button></div>
@@ -2482,6 +2486,7 @@ function ensureDecorationStore() {
   if (!store.decorationMenu) store.decorationMenu = defaultDecorationStore();
   if (!store.decorationMenu.catPackages) store.decorationMenu.catPackages = [];
   if (!store.decorationMenu.individualServices) store.decorationMenu.individualServices = [];
+  if (!store.decorationMenu.pkgCategoryFilter) store.decorationMenu.pkgCategoryFilter = 'wedding';
 }
 
 function decorLevelClass(level) {
@@ -2628,8 +2633,50 @@ function renderDecorationHub() {
   if (head) head.innerHTML = '<em>Gixbee</em><span>|</span>Packages &amp; Services';
   if (tab === 'packages') {
     renderDecorPkgFilters();
+    renderDecorPkgCategoryFilters();
     renderDecorPackageList();
   } else if (typeof renderDecorIndividualList === 'function') renderDecorIndividualList();
+}
+
+function renderDecorPkgCategoryFilters() {
+  const row = el('decPkgCategoryFilters');
+  if (!row) return;
+  const sel = store.decorationMenu.pkgCategoryFilter || 'wedding';
+  const ids = ['wedding', 'other'];
+  row.innerHTML =
+    '<div class="dec-pkg-ev-grid dec-hub-cat-row">' +
+    ids
+      .map(function (id) {
+        const ui = decorEventCatUi(id);
+        const on = sel === id;
+        return (
+          '<button type="button" class="dec-pkg-ev-card' +
+          (on ? ' on' : '') +
+          '" data-dec-ev="' +
+          esc(id) +
+          '"><span class="dec-pkg-ev-chk" aria-hidden="true">' +
+          (on ? '✓' : '') +
+          '</span><span class="dec-pkg-ev-ico" aria-hidden="true">' +
+          ui.icon +
+          '</span><b>' +
+          esc(ui.title) +
+          '</b><small>' +
+          esc(ui.sub) +
+          '</small></button>'
+        );
+      })
+      .join('') +
+    '</div>';
+  row.querySelectorAll('[data-dec-ev]').forEach(function (btn) {
+    btn.onclick = function () {
+      const id = btn.getAttribute('data-dec-ev');
+      const cur = store.decorationMenu.pkgCategoryFilter || 'all';
+      store.decorationMenu.pkgCategoryFilter = cur === id ? 'all' : id;
+      saveStore();
+      renderDecorPkgCategoryFilters();
+      renderDecorPackageList();
+    };
+  });
 }
 
 function renderDecorPkgFilters() {
@@ -2672,10 +2719,16 @@ function renderDecorPkgFilters() {
 function renderDecorPackageList() {
   const q = (el('decPkgSearch').value || '').trim().toLowerCase();
   const filter = store.decorationMenu.pkgFilter || 'all';
+  const ev = store.decorationMenu.pkgCategoryFilter || 'all';
   let list = (store.decorationMenu.catPackages || []).slice();
   if (filter !== 'all') {
     list = list.filter(function (p) {
       return decorLevelClass(p.level) === filter;
+    });
+  }
+  if (ev !== 'all') {
+    list = list.filter(function (p) {
+      return (p.packageCategory || 'wedding') === ev;
     });
   }
   if (q) {
@@ -2689,8 +2742,15 @@ function renderDecorPackageList() {
   if (!host) return;
   el('decHubStat').textContent = list.length + ' package' + (list.length === 1 ? '' : 's');
   if (!list.length) {
+    const filtered = filter !== 'all' || ev !== 'all' || q;
     host.innerHTML =
-      '<div class="dec-empty"><div class="dec-empty-ico">🎀</div><b>No packages yet</b><p class="sub">Create your first decoration package and start getting enquiries.</p></div>';
+      '<div class="dec-empty"><div class="dec-empty-ico">🎀</div><b>' +
+      (filtered ? 'No packages match these filters' : 'No packages yet') +
+      '</b><p class="sub">' +
+      (filtered
+        ? 'Try another tier or category, or clear filters.'
+        : 'Create your first decoration package and start getting enquiries.') +
+      '</p></div>';
     return;
   }
   host.innerHTML = list
@@ -5115,7 +5175,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-cat-grid-v26';
+const DECORATION_OWNER_BUILD = 'decoration-owner-hub-cat-v27';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {
