@@ -329,6 +329,31 @@ function setDecorWizProgress(step) {
   if (lab) lab.textContent = 'Step ' + step + ' of 5';
 }
 
+const DECORATION_EVENT_CAT_UI = {
+  wedding: {
+    icon: '💍',
+    title: 'Wedding & Related',
+    sub: 'Wedding, Engagement, Reception',
+  },
+  other: {
+    icon: '📅',
+    title: 'Other Functions',
+    sub: 'Birthday, Noolukettu, Baptism, etc.',
+  },
+};
+
+function decorEventCatUi(id) {
+  const c = DECORATION_EVENT_CATEGORIES.filter(function (x) {
+    return x.id === id;
+  })[0];
+  const ui = DECORATION_EVENT_CAT_UI[id] || {};
+  return {
+    icon: ui.icon || '🎀',
+    title: ui.title || (c ? c.label : id),
+    sub: ui.sub || (c ? c.hint : ''),
+  };
+}
+
 function renderDecorPkgStep1() {
   setDecorWizProgress(1);
   const host = el('decPkgCatGrid');
@@ -336,15 +361,20 @@ function renderDecorPkgStep1() {
   const d = decorPkgWizard.draft;
   host.innerHTML = DECORATION_EVENT_CATEGORIES.map(function (c) {
     const on = d.packageCategory === c.id;
+    const ui = decorEventCatUi(c.id);
     return (
-      '<button type="button" class="dec-cat-card' +
+      '<button type="button" class="dec-pkg-ev-card' +
       (on ? ' on' : '') +
       '" data-dec-cat="' +
       esc(c.id) +
-      '"><b>' +
-      esc(c.label) +
+      '"><span class="dec-pkg-ev-chk" aria-hidden="true">' +
+      (on ? '✓' : '') +
+      '</span><span class="dec-pkg-ev-ico" aria-hidden="true">' +
+      ui.icon +
+      '</span><b>' +
+      esc(ui.title) +
       '</b><small>' +
-      esc(c.hint) +
+      esc(ui.sub) +
       '</small></button>'
     );
   }).join('');
@@ -357,9 +387,16 @@ function renderDecorPkgStep1() {
 }
 
 function decorPkgCategoryMeta(id) {
-  return DECORATION_EVENT_CATEGORIES.filter(function (c) {
-    return c.id === id;
+  const c = DECORATION_EVENT_CATEGORIES.filter(function (x) {
+    return x.id === id;
   })[0];
+  if (!c) return null;
+  const ui = decorEventCatUi(id);
+  return {
+    id: c.id,
+    label: ui.title,
+    hint: ui.sub,
+  };
 }
 
 function syncDecorPkgEventTypesFromCategory(d) {

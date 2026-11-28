@@ -95,9 +95,18 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 .dec-pkg-type-btn.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
 .dec-pkg-type-btn.on small{color:rgba(255,255,255,.88)}
 #decPkgTypeSeg .dec-pkg-type-btn{border-radius:999px}
-.dec-filters{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 10px}
-.dec-filters button{border:1px solid var(--line);border-radius:99px;padding:7px 12px;font-size:11px;font-weight:800;background:#fff;color:var(--mut);cursor:pointer}
-.dec-filters button.on{background:#FDF2F8;border-color:#F9A8D4;color:var(--decor2)}
+.dec-filters{display:flex;flex-wrap:nowrap;gap:8px;padding:0 16px 12px;overflow:auto;scrollbar-width:none}
+.dec-filters::-webkit-scrollbar{display:none}
+.dec-filters button{flex:none;border:1.5px solid #E2E8F0;border-radius:99px;padding:9px 16px;font-size:11px;font-weight:800;background:#fff;color:#475569;cursor:pointer;font:inherit;transition:all .15s}
+.dec-filters button.on{background:linear-gradient(135deg,#DB2777,#EC4899);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(219,39,119,.35)}
+.dec-pkg-ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 12px}
+.dec-pkg-ev-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;border:2px solid #E2E8F0;border-radius:16px;padding:16px 10px 14px;background:#fff;cursor:pointer;font:inherit;color:var(--decor-navy);min-height:168px}
+.dec-pkg-ev-card.on{border-color:#F9A8D4;background:linear-gradient(180deg,#FFF1F5 0%,#fff 100%);box-shadow:0 4px 14px rgba(219,39,119,.12)}
+.dec-pkg-ev-chk{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:2px solid #E2E8F0;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:900;color:transparent}
+.dec-pkg-ev-card.on .dec-pkg-ev-chk{background:#12B76A;border-color:#12B76A;color:#fff}
+.dec-pkg-ev-ico{font-size:32px;margin:8px 0 10px;line-height:1}
+.dec-pkg-ev-card b{font-size:12px;font-weight:900;line-height:1.35;display:block;margin-bottom:6px;color:var(--decor-navy)}
+.dec-pkg-ev-card small{font-size:10px;font-weight:600;color:var(--mut);line-height:1.35;display:block}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
 .dec-offer-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1.5px solid #FBCFE8}
@@ -744,8 +753,9 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="top gx-top"><button type="button" class="back" id="decPkgStep1Back">←</button><h1><em>Gixbee</em><span>|</span>Create Package</h1><span class="hub-more">⋮</span></div>
   <div class="dec-progress"><i class="on"></i><i></i><i></i><i></i><i></i></div>
   <p class="dec-wiz-step" id="decWizStepLabel">Step 1 of 5</p>
-  <p class="lbl pad">SELECT PACKAGE CATEGORY *</p>
-  <div class="dec-cat-grid" id="decPkgCatGrid"></div>
+  <p class="dec-lvl-head pad" style="margin-bottom:4px"><span aria-hidden="true">📋</span> Select package category<span class="req">*</span></p>
+  <p class="sub pad" style="margin-top:0;padding-top:0">Choose the category that best describes this package.</p>
+  <div class="dec-pkg-ev-grid" id="decPkgCatGrid"></div>
   <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decPkgStep1Next">Next →</button></div>
 </section>
 
