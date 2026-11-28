@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-dedupe-cats-v32. Do NOT open decoration-owner-flow-shell.html (shell only). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gixbee — Decoration Owner</title>
+<style>
+:root{--navy:#1B2559;--blue:#2563EB;--gn:#12B76A;--gn2:#047857;--soft:#ECFDF3;--decor:#7C3AED;--decor2:#BE185D;--decor-navy:#1E1B4B;--line:#E5E7EB;--mut:#64748B;--shadow:0 10px 32px rgba(15,23,42,.1)}
+*{box-sizing:border-box}
+body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#111827}
+.stage{min-height:100vh;display:flex;justify-content:center;padding:12px 8px 24px}
+.phone{width:min(100%,430px);background:#fff;min-height:920px;border-radius:36px;box-shadow:var(--shadow);overflow:hidden;border:8px solid #111;display:flex;flex-direction:column;position:relative}
+.notch{height:26px;display:flex;justify-content:space-between;padding:8px 18px 0;font-size:12px;font-weight:700}
+.scr{display:none;flex:1;overflow:auto;padding:0 0 88px;-webkit-overflow-scrolling:touch}.scr.on{display:block}
+.top{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line);background:#fff}
+.top h1{margin:0;font-size:15px;font-weight:800;color:var(--decor-navy);text-align:center;line-height:1.25}
+.gx-top h1{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.gx-top h1 em{font-style:normal;color:var(--decor2);font-weight:900}
+.gx-top h1 span{color:#CBD5E1;font-weight:500}
+.back{border:0;background:none;font-size:22px;cursor:pointer;width:40px;height:40px;display:grid;place-items:center;padding:0;color:var(--decor-navy)}
+.hub-more{border:0;background:none;font-size:20px;cursor:pointer;width:40px;height:40px;color:var(--decor-navy)}
+.pad{padding:0 16px}.sub{font-size:12px;color:var(--mut);line-height:1.45;margin:0}
+.lbl{font-size:11px;font-weight:800;color:var(--mut);letter-spacing:.04em;margin:0 0 8px}
+.btn{border:0;border-radius:14px;font-weight:800;font-size:15px;padding:14px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;line-height:1.2}
+.btn-decor{background:var(--decor2);color:#fff;box-shadow:0 8px 22px rgba(190,24,93,.28)}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-ghost{background:#fff;color:var(--decor-navy);border:1.5px solid #CBD5E1}
+.top .link{border:0;background:none;font:inherit;font-weight:800;color:var(--blue);cursor:pointer;padding:6px}
+.cta{padding:12px 16px 20px}.cta .btn{width:100%}
+.lmb-top{background:#F8FAFC;border-bottom:1px solid var(--line);padding:10px 16px 12px}
+.lmb-top .row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.biz-title{font-weight:900;font-size:16px;color:var(--navy);flex:1;min-width:0}
+.home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer;flex-shrink:0}
+.lmb-top .manage-pill{font-size:11px;font-weight:800;color:var(--mut);border:1px solid var(--line);padding:6px 10px;border-radius:99px;background:#fff;flex-shrink:0}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:0 0 14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#DBEAFE;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-ico.decoration{background:#F5F3FF}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px;color:var(--navy)}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600;margin:0}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-dash-card .biz-actions{display:flex;gap:8px}
+.biz-dash-card .biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer;font:inherit}
+.biz-dash-card .biz-actions button.mgr-decoration{border:0;background:var(--blue);color:#fff}
+.pill.ok{background:#DCFCE7;color:#166534;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
+.dash-banner{height:100px;background:linear-gradient(145deg,#7C3AED,#BE185D);position:relative}
+.dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
+.dash-head{padding:36px 16px 12px}
+.dash-head b{font-size:18px;color:var(--decor-navy);display:block}
+.dash-head .loc{font-size:12px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:4px}
+.manage-pill{border:0;background:#F5F3FF;border-radius:99px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--decor);cursor:pointer;white-space:nowrap}
+.area-card{margin:0 16px 14px;padding:14px;border:1px solid #DDD6FE;border-radius:14px;background:#FAF5FF}
+.area-card b{display:flex;align-items:center;gap:6px;color:var(--decor-navy);font-size:14px}
+.area-card .sum{font-size:12px;color:var(--mut);margin:8px 0;line-height:1.4}
+.area-card a{font-size:13px;font-weight:800;color:var(--decor);text-decoration:none;cursor:pointer}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qtile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit;position:relative}
+.qtile .qi{font-size:22px;margin-bottom:6px}
+.qtile b{font-size:11px;color:var(--decor-navy);display:block;line-height:1.3;font-weight:800}
+.qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
+.qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
+.qtile.orange{background:#FFF7ED;border-color:#FED7AA}
+.qtile.teal{background:#F0FDFA;border-color:#99F6E4}
+.qtile.purple{background:#F5F3FF;border-color:#DDD6FE}
+.qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+.bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 calc(10px + env(safe-area-inset-bottom));position:absolute;left:0;right:0;bottom:0;z-index:6}
+.bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bottom-nav button.on{color:var(--decor2)}
+.bottom-nav .ni{font-size:18px;line-height:1}
+.hub-seg{display:flex;margin:0 16px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#F8FAFC}
+.hub-seg button{flex:1;border:0;padding:11px 8px;font-weight:800;font-size:12px;line-height:1.2;background:transparent;color:var(--mut);cursor:pointer}
+.hub-seg button.on{background:var(--decor2);color:#fff}
+.hub-cta-sticky{position:sticky;bottom:0;z-index:4;padding:8px 16px 16px;background:linear-gradient(180deg,transparent,#fff 28%)}
+.hub-cta-sticky .btn{width:100%}
+.dec-empty{text-align:center;padding:32px 16px}.dec-empty-ico{font-size:40px;margin-bottom:8px}
+.dec-pkg-card{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;padding:12px;margin:0 16px 12px;background:#fff}
+.dec-pkg-card>div:last-child{flex:1;min-width:0}
+.dec-pkg-card b{display:block;font-size:14px;color:var(--decor-navy);line-height:1.3}
+.dec-pkg-card .sub{margin-top:4px}
+.dec-pkg-thumb{width:72px;height:72px;border-radius:12px;background:#F5F3FF;display:grid;place-items:center;font-size:32px;flex-shrink:0;position:relative}
+.dec-pkg-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.dec-pkg-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.dec-pkg-level{display:inline-block;font-size:9px;font-weight:800;padding:4px 9px;border-radius:8px;letter-spacing:.02em}
+.dec-pkg-level.basic{background:#E0E7FF;color:#3730A3}
+.dec-pkg-level.standard{background:#FFEDD5;color:#C2410C}
+.dec-pkg-level.premium{background:#FEF3C7;color:#92400E}
+.dec-lvl-head{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:13px;font-weight:900;color:var(--decor-navy)}
+.dec-lvl-head .req{color:#BE185D}
+.dec-pkg-type-seg{display:flex;gap:8px;margin:0 0 14px}
+.dec-pkg-type-btn{flex:1;border:1.5px solid #CBD5E1;border-radius:12px;padding:12px 6px;font-weight:900;font-size:13px;background:#fff;color:var(--decor-navy);cursor:pointer;font:inherit;text-align:center;line-height:1.25}
+.dec-pkg-type-btn small{display:block;margin-top:4px;font-size:10px;font-weight:600;color:var(--mut)}
+.dec-pkg-type-btn.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
+.dec-pkg-type-btn.on small{color:rgba(255,255,255,.88)}
+#decPkgTypeSeg .dec-pkg-type-btn{border-radius:999px}
+.dec-filters{display:flex;flex-wrap:nowrap;gap:8px;padding:0 16px 12px;overflow:auto;scrollbar-width:none}
+.dec-filters::-webkit-scrollbar{display:none}
+.dec-filters button{flex:none;border:1.5px solid #E2E8F0;border-radius:99px;padding:9px 16px;font-size:11px;font-weight:800;background:#fff;color:#475569;cursor:pointer;font:inherit;transition:all .15s}
+.dec-filters button.on{background:linear-gradient(135deg,#DB2777,#EC4899);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(219,39,119,.35)}
+.dec-pkg-ev-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 12px}
+.dec-pkg-ev-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;border:2px solid #E2E8F0;border-radius:16px;padding:16px 10px 14px;background:#fff;cursor:pointer;font:inherit;color:var(--decor-navy);min-height:168px}
+.dec-pkg-ev-card.on{border-color:#F9A8D4;background:linear-gradient(180deg,#FFF1F5 0%,#fff 100%);box-shadow:0 4px 14px rgba(219,39,119,.12)}
+.dec-pkg-ev-chk{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:2px solid #E2E8F0;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:900;color:transparent}
+.dec-pkg-ev-card.on .dec-pkg-ev-chk{background:#12B76A;border-color:#12B76A;color:#fff}
+.dec-pkg-ev-ico{font-size:32px;margin:8px 0 10px;line-height:1}
+.dec-pkg-ev-card b{font-size:12px;font-weight:900;line-height:1.35;display:block;margin-bottom:6px;color:var(--decor-navy)}
+.dec-pkg-ev-card small{font-size:10px;font-weight:600;color:var(--mut);line-height:1.35;display:block}
+#decorHub .dec-hub-cat-row{padding-top:4px;padding-bottom:10px}
+#decorHub .dec-hub-cat-row .dec-pkg-ev-card{min-height:152px}
+#decorHub .dec-hub-cat-row .dec-pkg-ev-card:not(.on) .dec-pkg-ev-chk{display:none}
+.dec-cat-sec-h{margin:14px 16px 6px;font-size:11px;font-weight:900;color:var(--decor-navy);letter-spacing:.03em}
+.dec-preview-cat{margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#FAFAFA}
+.dec-preview-cat-h{margin:0 0 6px;font-size:12px;font-weight:900;color:var(--decor-navy)}
+.dec-chip-wrap.dec-comm-single .dec-chip{min-width:72px}
+.dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.dec-off{font-size:11px;color:#059669;font-weight:800}
+.dec-offer-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1.5px solid #FBCFE8}
+.dec-offer-preview .lbl{margin:0 0 8px;font-size:11px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.dec-offer-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.dec-offer-price s{font-size:15px;font-weight:700;color:#94A3B8;text-decoration:line-through}
+.dec-offer-price b{font-size:20px;font-weight:900;color:#BE185D;letter-spacing:-.02em}
+.dec-preview-price s{color:#94A3B8;font-weight:700;text-decoration:line-through;margin-right:6px}
+.dec-pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;display:inline-block;margin-top:6px}
+.dec-pill.live{background:#DCFCE7;color:#166534}.dec-pill.draft{background:#F3F4F6;color:#475569}
+.dec-card-actions{display:flex;gap:6px;margin-top:10px}.dec-card-actions button{flex:1;border:1px solid var(--line);border-radius:99px;padding:7px 4px;font-size:11px;font-weight:800;background:#fff;cursor:pointer;color:var(--decor-navy)}
+.dec-progress{display:flex;gap:6px;justify-content:center;padding:8px 16px 4px}.dec-progress i{width:32px;height:4px;border-radius:99px;background:#E5E7EB;display:block}
+.dec-progress i.on{background:var(--decor2)}.dec-progress i.done{background:#A78BFA}
+.dec-wiz-step{text-align:center;font-size:12px;font-weight:800;color:var(--mut);margin:0 0 10px}
+.dec-cat-grid{padding:0 16px 8px}
+.dec-cat-card{display:block;width:100%;text-align:left;border:2px solid #E5E7EB;border-radius:14px;padding:14px;margin:0 0 10px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.dec-cat-card.on{border-color:var(--decor2);background:linear-gradient(180deg,#FFF1F2,#fff);box-shadow:0 0 0 1px #FBCFE8}
+.dec-cat-card b{display:block;font-size:14px;color:var(--decor-navy)}.dec-cat-card small{display:block;margin-top:6px;font-size:11px;color:var(--mut);line-height:1.4}
+.dec-chip-wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin:8px 0 4px}
+.dec-chip-wrap .dec-chip{margin:0}
+.dec-chip{border:1.5px solid #DDD6FE;background:#fff;border-radius:99px;padding:8px 12px;font-size:12px;font-weight:800;color:#5B21B6;cursor:pointer;line-height:1.2;text-align:center}
+.dec-chip.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
+.dec-chip.sm{font-size:11px;padding:7px 10px}
+.dec-ban{display:flex;align-items:center;gap:8px;margin:0 16px 12px;padding:10px 12px;border-radius:12px;background:#ECFDF5;border:1px solid #86EFAC;font-size:13px;color:#065F46}
+.dec-ban button{margin-left:auto;border:1px solid #86EFAC;background:#fff;border-radius:99px;padding:4px 10px;font-size:11px;font-weight:800;color:#047857;cursor:pointer}
+.fld{margin:0 0 14px}.fld label{display:block;font-size:12px;font-weight:800;margin-bottom:6px;color:var(--decor-navy)}
+.fld input,.fld select,.fld textarea{width:100%;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px 12px;font:inherit}
+.dec-items-tabseg{display:flex;gap:8px;margin:0 16px 10px;padding:4px;background:#F8FAFC;border-radius:14px;border:1px solid var(--line)}
+.dec-items-tabseg button{flex:1;border:2px solid transparent;border-radius:12px;padding:10px 6px;background:#fff;cursor:pointer;font:inherit;text-align:center;line-height:1.25}
+.dec-items-tabseg button.on{border-color:var(--decor2);background:linear-gradient(180deg,#FFF1F2,#fff);box-shadow:0 0 0 1px #FBCFE8}
+.dec-items-tabseg button b{display:block;font-size:12px;font-weight:900;color:var(--decor-navy)}
+.dec-items-tabseg button small{display:block;font-size:10px;font-weight:700;color:var(--mut);margin-top:3px}
+.dec-items-tabseg button.on b{color:var(--decor2)}
+.dec-pkg-step3-banner{display:flex;align-items:flex-start;gap:10px;margin:0 16px 10px;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,#F5F3FF 0%,#fff 70%);border:1px solid #DDD6FE}
+.dec-pkg-step3-banner .body{flex:1;min-width:0}
+.dec-pkg-step3-banner b{display:block;font-size:14px;font-weight:900;color:var(--decor-navy);line-height:1.3}
+.dec-pkg-step3-banner .tags{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.35}
+.dec-pkg-step3-banner button{margin-top:2px;border:1px solid #C4B5FD;background:#fff;border-radius:99px;padding:5px 11px;font-size:10px;font-weight:900;color:#6D28D9;cursor:pointer;flex-shrink:0}
+.dec-items-split{display:flex;min-height:min(52vh,420px);max-height:min(58vh,480px);margin:0 0 4px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+.dec-cat-rail{width:38%;max-width:132px;border-right:1px solid var(--line);overflow-y:auto;padding:6px 4px;background:#FAFAFA;flex-shrink:0}
+.dec-cat-rail button{display:block;width:100%;border:0;background:transparent;padding:10px 4px;border-radius:10px;text-align:center;cursor:pointer;font:inherit;margin-bottom:2px;color:inherit}
+.dec-cat-rail button.on{background:#FFF1F2;box-shadow:inset 3px 0 0 var(--decor2)}
+.dec-cat-rail .ico{font-size:20px;display:block;margin-bottom:4px;line-height:1}
+.dec-cat-rail b{font-size:9px;font-weight:900;color:var(--decor-navy);line-height:1.2;display:block}
+.dec-cat-rail .cnt{font-size:9px;font-weight:700;color:var(--mut);margin-top:2px}
+.dec-items-pane{flex:1;overflow-y:auto;padding:4px 10px 12px;min-width:0}
+.dec-mod-items-list{padding:0 16px 12px}
+.dec-item-card{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #F1F5F9}
+.dec-item-card:last-child{border-bottom:0}
+.dec-item-thumb{width:54px;height:54px;border-radius:10px;background:linear-gradient(135deg,#EDE9FE,#FBCFE8);flex-shrink:0;display:grid;place-items:center;font-size:22px}
+.dec-item-card-body{flex:1;min-width:0}
+.dec-item-card-body b{font-size:12px;font-weight:900;display:block;color:var(--decor-navy);line-height:1.25}
+.dec-item-card-body .blurb{font-size:10px;color:var(--mut);margin:3px 0 8px;line-height:1.35}
+.dec-item-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dec-qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:#fff}
+.dec-qty button{width:28px;height:28px;border:0;background:#F8FAFC;font-weight:900;font-size:16px;line-height:1;cursor:pointer;color:var(--decor-navy)}
+.dec-qty span{min-width:22px;text-align:center;font-size:12px;font-weight:900}
+.dec-act-inc,.dec-act-extra{border-radius:99px;padding:6px 12px;font-size:10px;font-weight:900;cursor:pointer;border:1.5px solid;font:inherit;line-height:1.2}
+.dec-act-inc{border-color:#86EFAC;background:#fff;color:#166534}
+.dec-act-inc.on{background:#16A34A;color:#fff;border-color:#16A34A}
+.dec-act-extra{border-color:#E9D5FF;color:#7C3AED;background:#fff;text-align:center}
+.dec-act-extra.on{background:var(--decor2);color:#fff;border-color:var(--decor2)}
+.dec-act-extra .pr{display:block;font-size:9px;font-weight:800;margin-top:2px}
+.dec-add-custom-btn{display:block;width:calc(100% - 32px);margin:6px 16px 12px;border:2px dashed #F9A8D4;background:#FFF1F2;color:var(--decor2);font-weight:900;font-size:13px;padding:11px 12px;border-radius:12px;cursor:pointer;font:inherit}
+.dec-pkg-sel-wrap{margin-top:4px;padding-top:0;border-top:1px solid var(--line)}
+.dec-custom-sec-hd{font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--decor2);margin:16px 0 8px}
+.dec-item-card .dec-tag-custom{font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:#FEF3C7;color:#92400E;margin-left:6px;vertical-align:middle}
+.dec-items-empty{padding:20px 8px;text-align:center;font-size:12px;color:var(--mut);line-height:1.45}
+.dec-custom-sheet{max-height:88%}
+.dec-custom-type{display:flex;gap:8px;margin:8px 0 12px}
+.dec-custom-type label{flex:1;display:flex;align-items:flex-start;gap:8px;padding:10px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;font-size:12px;font-weight:800}
+.dec-custom-type label:has(input:checked){border-color:var(--decor2);background:#FFF1F2}
+.dec-mod-list{padding-bottom:8px}
+.dec-mod-row{display:flex;align-items:center;gap:10px;margin:0 16px 8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit;text-align:left;width:calc(100% - 32px);color:inherit}
+.dec-mod-row.on{border-color:var(--decor2);background:#FFF1F2}
+.dec-mod-row b{display:block;font-size:13px;color:var(--decor-navy)}
+.dec-mod-row small{display:block;font-size:11px;color:var(--mut);margin-top:2px}
+.dec-mod-ico{font-size:22px;flex-shrink:0}.dec-chev{margin-left:auto;color:var(--mut);font-size:18px;font-weight:700}
+.dec-pick-list{padding-bottom:8px}
+.dec-pick-row{display:flex;gap:10px;align-items:flex-start;margin:0 16px 8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-size:13px;line-height:1.4}
+.dec-pick-row.on{border-color:#A78BFA;background:#FAF5FF}
+.dec-pick-row input[type=checkbox]{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--decor2)}
+.dec-pick-row span{flex:1;min-width:0}
+.dec-pick-row b{display:inline;font-weight:800;color:var(--decor-navy)}
+.dec-radio{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.dec-radio label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.dec-radio label:has(input:checked){border-color:var(--decor2);background:#FFF1F2}
+.dec-tag{font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;vertical-align:middle}.dec-tag.inc{background:#DCFCE7;color:#166534}.dec-tag.extra{background:#FCE7F3;color:#BE185D}
+.dec-items-intro{margin:0 16px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#F8FAFC}
+.dec-inc-extra-legend{display:flex;flex-direction:column;gap:8px;margin:0 0 12px}
+.dec-legend{font-size:11px;line-height:1.45;padding:8px 10px;border-radius:10px;border:1px solid}
+.dec-legend.inc{background:#ECFDF5;border-color:#86EFAC;color:#065F46}
+.dec-legend.extra{background:#FFF1F2;border-color:#FBCFE8;color:#9D174D}
+.dec-legend b{font-size:12px;font-weight:900}
+.dec-item-stats{display:flex;gap:8px}
+.dec-stat-pill{flex:1;text-align:center;padding:10px 8px;border-radius:12px;font-size:10px;font-weight:800;line-height:1.3}
+.dec-stat-pill b{display:block;font-size:20px;font-weight:900;line-height:1.1;margin-bottom:4px}
+.dec-stat-pill.inc{background:#DCFCE7;color:#166534}
+.dec-stat-pill.extra{background:#FCE7F3;color:#BE185D}
+.dec-sel-sec{margin:0 0 10px}
+.dec-sel-sec-hd{font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin:12px 0 8px;display:flex;align-items:center;gap:6px}
+.dec-sel-sec-hd.inc{color:#166534}.dec-sel-sec-hd.extra{color:#BE185D}
+.dec-radio label span{display:flex;flex-direction:column;gap:2px;line-height:1.35}
+.dec-radio label span small{font-size:11px;font-weight:600;color:var(--mut)}
+.dec-radio label:has(input:checked) span small{color:#831843}
+.dec-tier-grid{display:grid;gap:12px}.dec-tier-grid .fld{margin:0}
+.dec-tier-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#F8FAFC;font-size:13px}
+.dec-tier-row b{font-weight:900;color:var(--decor-navy)}
+.dec-sel-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #F1F5F9;font-size:13px}
+.dec-sel-row span{flex:1;min-width:0;line-height:1.4}
+.dec-link{border:0;background:none;color:var(--decor);font-weight:800;font-size:12px;cursor:pointer;padding:4px 0;flex-shrink:0}
+.dec-offer{border:1px solid #FBCFE8;border-radius:14px;padding:12px 14px;background:#FFF1F2}
+.dec-offer label{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px}
+.dec-offer input[type=number]{margin-top:10px;width:100%;border:1.5px solid #FBCFE8;border-radius:10px;padding:10px}
+.dec-preview-hero{width:100%;height:128px;border-radius:16px;background:linear-gradient(145deg,#7C3AED,#BE185D);display:grid;place-items:center;font-size:52px;margin:0 0 12px}
+.dec-preview-price{font-size:20px;font-weight:900;margin:8px 0 12px;color:var(--decor-navy);display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.dec-sec-h{font-size:13px;font-weight:800;margin:14px 0 8px;color:var(--decor-navy)}
+.dec-ul{margin:0 0 12px;padding-left:18px;font-size:13px;line-height:1.5;color:#374151}
+.dec-success{text-align:center;padding:28px 16px 24px}.dec-success .ok{width:64px;height:64px;border-radius:50%;background:#DCFCE7;color:#166534;display:grid;place-items:center;font-size:32px;margin:0 auto 12px;font-weight:900}
+.dec-success #decSuccessCard{margin:16px auto;padding:14px;border:1px solid var(--line);border-radius:14px;max-width:280px;text-align:left}
+.dec-design-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#F8FAFC}
+.dec-svc-progress{display:flex;gap:6px;justify-content:center;padding:8px 16px 4px}.dec-svc-progress i{width:40px;height:4px;border-radius:99px;background:#E5E7EB;display:block}
+.dec-svc-progress i.on{background:var(--decor2)}.dec-svc-progress i.done{background:#A78BFA}
+.dec-svc-step{text-align:center;font-size:12px;font-weight:800;color:var(--mut);margin:0 0 10px}
+.dec-skip-link{display:block;width:calc(100% - 32px);margin:0 16px 8px;border:0;background:none;color:var(--decor);font-weight:800;font-size:13px;cursor:pointer;text-align:center;padding:8px}
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:#1E1B4B;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700;display:none;z-index:99;max-width:90%}
+.stub{padding:24px 16px;text-align:center}
+.search{margin:0 16px 12px;display:flex;align-items:center;gap:8px;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px 12px;background:#fff}
+.search input{border:0;flex:1;outline:none;font:inherit;font-weight:600;min-width:0}
+.cat-wiz-foot{display:flex;gap:10px;padding:12px 16px 16px;background:#fff;border-top:1px solid #E2E8F0;position:sticky;bottom:0;z-index:3}
+.cat-wiz-foot .btn{flex:1;margin:0;min-width:0}
+.cat-wiz-foot .btn-ghost{flex:0 0 auto;padding:14px 18px}
+.wiz-foot{display:flex;gap:10px;padding:12px 16px 16px;background:#fff;border-top:1px solid #E2E8F0;position:sticky;bottom:0;z-index:3}
+.wiz-foot .btn{flex:1;margin:0;min-width:0;width:auto}
+.wiz-foot .btn-ghost{flex:0 0 auto;padding:14px 18px}
+/* platform-shared */
+.dash-banner{height:100px;background:linear-gradient(145deg,#64748B,#94A3B8);position:relative}
+.dash-logo{position:absolute;left:16px;bottom:-28px;width:56px;height:56px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.12);display:grid;place-items:center;font-size:22px}
+.dash-head{padding:36px 16px 12px}
+.dash-head b{font-size:18px;color:var(--navy);display:block}
+.dash-head .loc{font-size:12px;color:var(--mut);margin-top:4px;display:flex;align-items:center;gap:4px}
+.area-card{margin:0 16px 14px;padding:14px;border:1px solid #BFDBFE;border-radius:14px;background:#F8FAFC}
+.area-card b{display:flex;align-items:center;gap:6px;color:var(--navy);font-size:14px}
+.area-card .sum{font-size:12px;color:var(--mut);margin:8px 0;line-height:1.4}
+.area-card a{font-size:13px;font-weight:800;color:var(--blue);text-decoration:none;cursor:pointer}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.qtile{border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font:inherit;color:inherit}
+.qtile .qi{font-size:22px;margin-bottom:6px}
+.qtile b{font-size:11px;color:var(--navy);display:block;line-height:1.3}
+.qtile.pink{background:#FDF2F8;border-color:#FBCFE8}
+.qtile.blue{background:#EFF6FF;border-color:#BFDBFE}
+.qtile.orange{background:#FFF7ED;border-color:#FED7AA;position:relative}
+.qtile.teal{background:#F0FDFA;border-color:#99F6E4}
+.qtile.gray{background:#F8FAFC;border-color:#CBD5E1}
+.qtile .badge{position:absolute;top:8px;right:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:99px;display:grid;place-items:center}
+.op-remove{border:0;background:none;color:#DC2626;font-weight:800;font-size:13px;cursor:pointer;padding:8px 4px}
+.btn-restore{width:100%;border:1.5px solid #BFDBFE;background:#EFF6FF;color:var(--blue);border-radius:99px;padding:10px;font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.bottom-nav{display:flex;border-top:1px solid var(--line);background:#fff;padding:8px 0 10px;position:absolute;left:0;right:0;bottom:0;z-index:5}
+.bottom-nav button{flex:1;border:0;background:none;font-size:10px;font-weight:800;color:#64748B;cursor:pointer;padding:6px 0}
+.bottom-nav button.on{color:var(--blue)}
+.hero-ico{width:48px;height:48px;border-radius:50%;background:#EFF6FF;display:grid;place-items:center;margin:16px auto 10px;color:var(--blue)}
+.hero-ico .p-ico{width:28px;height:28px}
+.sa-search{display:flex;align-items:center;gap:8px;border:1.5px solid #BFDBFE;border-radius:12px;padding:10px 12px;margin:0 16px 12px;background:#fff}
+.sa-search input{border:0;flex:1;font:inherit;font-weight:600;outline:none}
+.chk-list{padding:0 16px}
+.chk-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;font-size:14px;font-weight:700;color:var(--navy)}
+.chk-row.on{background:#ECFDF3;border-color:#86EFAC}
+.chk-row .chk-hint{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:4px;line-height:1.35;font-style:normal}
+.chk-row.locked{background:#ECFDF3;border-color:#86EFAC}
+.chk-box{width:22px;height:22px;border-radius:6px;border:2px solid #CBD5E1;display:grid;place-items:center;flex-shrink:0}
+.chk-row.on .chk-box,.chk-row.locked .chk-box{background:var(--blue);border-color:var(--blue);color:#fff}
+.seg{display:flex;gap:0;margin:0 16px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{flex:1;border:0;padding:10px;font-weight:800;font-size:13px;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.seg button.on{background:var(--blue);color:#fff}
+.review-card{margin:0 16px 12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.review-card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.review-card-hd b{color:var(--navy);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-district{font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px;background:#ECFDF3;color:#065F46}
+.info-box{margin:12px 16px;padding:12px;border-radius:12px;background:#EFF6FF;border:1px solid #BFDBFE;font-size:11px;color:var(--navy);line-height:1.45;display:flex;gap:8px;align-items:flex-start}
+#menuPkg,#svcPkg{padding-bottom:88px;background:linear-gradient(180deg,#F8FAFC 0%,#fff 28%)}
+#menuPkg .hub-top,#svcPkg .hub-top{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:4px;padding:12px 16px 0;background:transparent;border:0}
+#menuPkg .hub-top h1,#svcPkg .hub-top h1{margin:0;font-size:15px;font-weight:800;color:var(--navy);text-align:center;padding:0}
+#menuPkg .hub-top .back,#svcPkg .hub-top .back{justify-self:start}
+.hub-top .hub-more{justify-self:end;border:0;background:transparent;font-size:20px;font-weight:700;color:var(--navy);cursor:pointer;padding:4px;line-height:1}
+#menuPkg .hub-pkg-only .hub-intro{display:none}
+.hub-cat-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 14px}
+.hub-cat-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:2px solid #E2E8F0;border-radius:14px;padding:12px 10px;background:#F8FAFC;cursor:pointer;font:inherit;color:var(--navy);min-height:76px;transition:border-color .15s,background .15s,box-shadow .15s}
+.hub-cat-card.on{border-color:#EC4899;background:linear-gradient(180deg,#FFF1F2,#fff);box-shadow:0 0 0 1px #FBCFE8}
+.hub-cat-card b{font-size:11px;font-weight:900;line-height:1.35;display:block}
+.hub-cat-card small{font-size:9px;font-weight:600;color:#64748B;margin-top:6px;line-height:1.35;display:block}
+.cat-hub-count{font-size:13px;font-weight:800;color:var(--navy);letter-spacing:0;text-transform:none}
+.cat-hub-count b{font-size:15px;font-weight:900;margin-right:4px}
+.cat-sort-btn{border:0;background:transparent;font-size:12px;font-weight:800;color:#64748B;cursor:pointer;font:inherit;display:inline-flex;align-items:center;gap:4px}
+#menuPkg .hub-seg{border:1px solid #F1F5F9;background:#F8FAFC}
+#menuPkg .hub-tab.on.pkg-tab{color:#BE185D;box-shadow:0 0 0 2px #FBCFE8}
+#menuPkg .hub-tab.on.svc-tab{color:#BE185D;box-shadow:0 0 0 2px #FBCFE8}
+.prof-hero{position:relative;padding:0 16px 88px;margin-bottom:-56px}
+.prof-hero-bg{height:200px;border-radius:0 0 28px 28px;background:linear-gradient(145deg,#1B2559 0%,#2563EB 45%,#7C3AED 100%);box-shadow:0 16px 40px rgba(37,99,235,.25);overflow:hidden;position:relative}
+.prof-hero-bg::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.prof-hero-top{position:absolute;top:12px;left:16px;right:16px;z-index:2;display:flex;justify-content:space-between;align-items:center}
+.prof-back{width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
+.prof-hero-label{font-size:11px;font-weight:800;color:rgba(255,255,255,.85);letter-spacing:.08em;text-transform:uppercase}
+.prof-identity{position:relative;z-index:1;margin:0 8px;text-align:center}
+.prof-avatar{width:88px;height:88px;margin:-44px auto 12px;border-radius:24px;background:linear-gradient(145deg,#fff,#E0E7FF);border:4px solid #fff;box-shadow:0 12px 28px rgba(15,23,42,.15);display:grid;place-items:center;font-size:36px}
+.prof-identity h2{margin:0 0 6px;font-size:22px;font-weight:900;color:var(--navy);line-height:1.2}
+.prof-tagline{margin:0 0 12px;font-size:13px;color:var(--mut);font-weight:600;line-height:1.4}
+.prof-badge-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.prof-badge{font-size:10px;font-weight:800;padding:6px 12px;border-radius:99px;display:inline-flex;align-items:center;gap:4px}
+.prof-badge.ver{background:#DCFCE7;color:#166534}
+.prof-badge.type{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE}
+.prof-scroll{padding:0 16px 16px}
+.prof-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.prof-chip{background:#fff;border-radius:14px;padding:12px 8px;text-align:center;border:1px solid #E2E8F0;box-shadow:0 4px 12px rgba(15,23,42,.04)}
+.prof-chip b{display:block;font-size:16px;font-weight:900;color:var(--navy);line-height:1.1}
+.prof-chip span{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-top:4px;display:block}
+.prof-group{background:#fff;border-radius:18px;padding:4px 14px 8px;margin-bottom:12px;border:1px solid #E2E8F0;box-shadow:0 4px 16px rgba(15,23,42,.05)}
+.prof-group-hd{display:flex;align-items:center;gap:8px;padding:12px 0 8px;font-size:12px;font-weight:900;color:var(--navy);letter-spacing:.02em}
+.prof-group-hd span{font-size:16px}
+.prof-cell{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid #F1F5F9}
+.prof-cell-ico{width:36px;height:36px;border-radius:10px;background:#F8FAFC;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.prof-cell-bd{flex:1;min-width:0}
+.prof-cell-bd label{display:block;font-size:10px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.prof-cell-bd b{font-size:14px;font-weight:800;color:var(--navy);line-height:1.4;display:block;word-break:break-word}
+.prof-foot{margin:8px 4px 0;padding:14px;border-radius:14px;background:#fff;border:1px dashed #CBD5E1;font-size:11px;color:var(--mut);line-height:1.45;text-align:center}
+.home-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800;border:0;cursor:pointer}
+.biz-dash-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.biz-dash-card .biz-row{display:flex;gap:12px;align-items:flex-start}
+.biz-dash-card .biz-ico{width:44px;height:44px;border-radius:12px;background:#DBEAFE;display:grid;place-items:center;font-size:22px;flex:none}
+.biz-dash-card .biz-ico.catering{background:#FEF3C7}
+.biz-dash-card .biz-name{font-weight:900;font-size:15px;margin:0 0 2px;color:var(--navy)}
+.biz-dash-card .biz-type{font-size:12px;color:var(--mut);font-weight:600;margin:0}
+.biz-dash-card .biz-meta{font-size:12px;color:var(--mut);margin:8px 0}
+.biz-dash-card .biz-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.biz-dash-card .biz-badges span{font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#FEE2E2;color:#B91C1C}
+.biz-dash-card .biz-badges span.gy{background:#F3F4F6;color:#374151}
+.biz-dash-card .biz-actions{display:flex;gap:8px}
+.biz-dash-card .biz-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:99px;padding:9px 6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer}
+.biz-dash-card .biz-actions button.mgr-photo, .biz-dash-card .biz-actions button.mgr-catering{border:0;background:var(--blue);color:#fff}
+.pill.ok{background:#DCFCE7;color:#166534;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
+.menu.manage-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manage-card{position:relative;text-align:left;border:1px solid var(--line);border-radius:16px;padding:14px 12px;cursor:pointer;min-height:132px;display:flex;flex-direction:column;background:#fff;width:100%;font:inherit;color:inherit}
+.manage-card-top{display:flex;justify-content:space-between;align-items:flex-start;width:100%;margin-bottom:10px}
+.manage-card-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.manage-card-chev{color:#9CA3AF;font-size:20px;line-height:1;font-weight:300}
+.manage-card-badge{position:absolute;top:12px;right:36px;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#EF4444;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.manage-card-title{display:block;font-size:14px;font-weight:800;color:var(--navy);margin:0 0 6px;line-height:1.25}
+.manage-card-sub{font-size:11px;color:var(--mut);line-height:1.45;margin:0;font-weight:600}
+.manage-card.theme-pkg{background:#FDF2F8;border-color:#FBCFE8}
+.manage-card.theme-pkg .manage-card-ico{background:#FCE7F3;color:#BE185D}
+.manage-card.theme-cal{background:#ECFDF3;border-color:#A7F3D0}
+.manage-card.theme-cal .manage-card-ico{background:#DCFCE7;color:#15803D}
+.manage-card.theme-req{background:#FFFBEB;border-color:#FDE68A}
+.manage-card.theme-req .manage-card-ico{background:#FEF3C7;color:#B45309}
+.manage-card.theme-photo{background:#EFF6FF;border-color:#BFDBFE}
+.manage-card.theme-photo .manage-card-ico{background:#DBEAFE;color:#2563EB}
+.manage-card.theme-area{background:#F0FDFA;border-color:#99F6E4}
+.manage-card.theme-area .manage-card-ico{background:#CCFBF1;color:#0F766E}
+.manage-biz-card{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:16px;padding:14px;margin-bottom:14px}
+.manage-biz-photo{height:118px;border-radius:12px;margin-bottom:12px;background:linear-gradient(145deg,#64748B 0%,#94A3B8 40%,#CBD5E1 100%)}
+.manage-field-lbl{font-size:13px;font-weight:800;color:var(--navy);margin:0 0 6px}
+.biz-ro-display{font-size:17px;font-weight:900;color:var(--navy);margin:0 0 8px;line-height:1.3}
+.chip-h{padding:6px 12px;border-radius:99px;background:var(--soft);color:var(--gn2);font-size:11px;font-weight:800}
+.prog{display:flex;align-items:center;gap:8px;padding:4px 16px 12px}
+.bar{flex:1;height:6px;background:#E5E7EB;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gn2);border-radius:99px;transition:width .2s}
+.frac{font-size:12px;color:#9CA3AF;font-weight:700}
+.manage-top{align-items:center}
+.manage-check-row{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;margin:8px 0 12px}
+.step-num{font-size:13px;font-weight:900;color:var(--blue);margin:0 0 10px}
+.price-panel{border:2px solid #FCA5A5;border-radius:14px;padding:12px;margin:12px 0;background:#FFF5F5}
+.radio-row{display:flex;gap:16px;font-weight:700;font-size:14px}
+.radio-row label{display:flex;align-items:center;gap:6px}
+.cat-rate-choice{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}
+.cat-rate-choice label{display:flex;align-items:flex-start;gap:8px;font-weight:700;font-size:13px;color:var(--navy);line-height:1.35;cursor:pointer}
+.cat-rate-choice input{margin-top:2px;flex-shrink:0}
+.seg-full{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0}
+.seg-full button{flex:1;border:0;padding:10px;font-weight:800;background:#F8FAFC;color:var(--mut);cursor:pointer}
+.seg-full button.on{background:var(--blue);color:#fff}
+.cover-row{display:flex;gap:10px;align-items:center}
+.cover-thumb{width:64px;height:64px;border-radius:10px;border:2px dashed #BFDBFE;background:#F8FAFC;display:grid;place-items:center;cursor:pointer;font:inherit;color:var(--mut);font-size:22px;font-weight:800;flex-shrink:0;padding:0}
+.cover-thumb.on{border-style:solid;background:linear-gradient(145deg,#7C3AED,#BE185D);color:#fff;font-size:18px}
+.dec-pkg-thumb.has-photo{background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%);font-size:0}
+.dec-preview-hero.has-photo{font-size:0;background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%)}
+.dec-pkg-cover-zone .svc-cover-upload{border-color:#DDD6FE;background:#FAF5FF;width:100%}
+.dec-pkg-cover-zone .svc-cover-upload.has-image{border-color:#C4B5FD}
+.svc-basics-lead{margin:0 0 16px;font-size:13px;color:var(--mut);line-height:1.5}
+.svc-basics-cat{margin:0 0 18px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--line)}
+.svc-basics-cat-lbl{display:block;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase;margin:0 0 8px}
+.svc-basics-cat .cat-pill{margin:0;background:#fff}
+.svc-cover-upload{display:flex;align-items:center;gap:14px;width:100%;padding:14px;border:2px dashed #BFDBFE;border-radius:16px;background:#F8FAFC;cursor:pointer;font:inherit;text-align:left;-webkit-tap-highlight-color:transparent}
+.svc-cover-upload.has-image{border-style:solid;border-color:#93C5FD;background:linear-gradient(145deg,#64748B 0%,#94A3B8 55%,#CBD5E1 100%);min-height:120px;align-items:flex-end;padding:16px}
+.svc-cover-upload.has-image .svc-cover-upload-ico{display:none}
+.svc-cover-upload.has-image .svc-cover-upload-txt{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.svc-cover-upload.has-image .svc-cover-upload-txt .sub{color:rgba(255,255,255,.92)}
+.svc-cover-upload-ico{width:48px;height:48px;border-radius:12px;background:#EFF6FF;display:grid;place-items:center;font-size:22px;flex-shrink:0}
+.svc-cover-upload-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.svc-cover-upload-txt b{font-size:15px;color:var(--navy)}
+.svc-cover-upload-txt .sub{font-size:12px;color:var(--mut);font-weight:600}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick{border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:12px;font-weight:800;cursor:pointer;background:#fff;font:inherit;color:var(--navy)}
+.pick.on{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
+.cal-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px}
+.cal-tabs .pick{padding:10px 4px;font-size:11px}
+.photo-reg-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
+.photo-reg-stat{padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-reg-stat b{display:block;font-size:20px;color:var(--navy)}
+.photo-reg-stat span{font-size:11px;font-weight:700;color:var(--mut)}
+.photo-bk-register-date{margin:16px 0 6px;font-size:11px;font-weight:800;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase}
+.photo-bk-register-row{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.photo-bk-register-row:active{background:#F8FAFC}
+.photo-bk-register-row .bk-time{font-size:11px;font-weight:800;color:var(--blue);min-width:52px}
+.photo-bk-register-row .bk-meta{flex:1;min-width:0}
+.photo-bk-register-row .bk-meta b{display:block;font-size:14px;color:var(--navy)}
+.photo-bk-register-row .bk-meta span{font-size:11px;color:var(--mut);font-weight:600}
+.photo-bk-register-row .bk-op{font-size:10px;font-weight:800;color:#6B7280;text-align:right;max-width:72px;line-height:1.3}
+.photo-detail-dl{margin:12px 0}
+.photo-detail-dl dt{font-size:11px;font-weight:800;color:#9CA3AF;margin:12px 0 4px}
+.photo-detail-dl dd{margin:0;font-size:15px;font-weight:700;color:var(--navy)}
+.photo-audit-list{margin:0;padding:0;list-style:none}
+.photo-audit-item{padding:12px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.45}
+.photo-audit-item b{color:var(--navy)}
+.photo-audit-item .audit-changes{margin-top:6px;color:var(--mut);font-weight:600}
+.btn-audit-link{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 14px;border-radius:12px;border:1.5px solid #BFDBFE;background:#EFF6FF;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;font:inherit}
+.btn-audit-link.has-changes::after{content:'';width:8px;height:8px;border-radius:50%;background:#EF4444}
+.cal-month-nav{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;gap:8px}
+.cal-month-nav button{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;color:var(--navy);font-weight:800}
+.cal-month-nav b{font-size:16px;color:var(--navy)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:#9CA3AF;text-align:center;margin-bottom:4px}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;text-align:center;margin:0 0 12px}
+.cal-mini .cal-pad{visibility:hidden;pointer-events:none}
+.cal-day-cell{border:0;background:#F9FAFB;border-radius:10px;padding:6px 0 8px;cursor:pointer;font-weight:700;position:relative;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;color:var(--navy)}
+.cal-day-cell.on{background:var(--blue);color:#fff}
+.cal-day-count{font-size:9px;font-weight:800;line-height:1;opacity:.85}
+.cal-day-count.empty{visibility:hidden}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-dot.av{background:#22C55E}
+.cal-dot.bk{background:#EF4444}
+.cal-dot.off{background:#F97316}
+.cal-dot.blk{background:#7C3AED}
+.cal-dot.na{background:#2563EB}
+.cal-day-cell.on .cal-dot{box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:var(--mut);margin-bottom:12px}
+.cal-legend span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.cal-month-pick{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:13px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--navy);font:inherit}
+.cal-date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 14px}
+.cal-date-nav b{font-size:15px;color:var(--navy);flex:1;text-align:center;line-height:1.3}
+.slot{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+.slot h3{margin:6px 0 4px;font-size:15px;color:var(--navy)}
+.slot-actions{display:flex;gap:8px;margin-top:10px}
+.slot-actions .btn{margin:0;flex:1;font-size:14px;padding:12px;border-radius:12px}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800;margin-bottom:6px}
+.pill.ok{background:#ECFDF3;color:#059669}
+.pill.bad{background:#FEE2E2;color:#B91C1C}
+.pill.off{background:#FFEDD5;color:#C2410C}
+.pill.muted{background:#F3F4F6;color:#6B7280}
+.photo-cal-day-sum{margin-bottom:12px;padding:12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}
+.photo-bk-notes{font-size:12px;color:var(--mut);margin:8px 0 0;line-height:1.45}
+.photo-day-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.photo-day-actions .btn{margin:0}
+.info.gn{margin-top:10px;padding:10px 12px;border-radius:10px;background:#ECFDF3;color:#065F46;font-size:12px;font-weight:700;line-height:1.4}
+.info.bl{margin-top:10px;padding:10px 12px;border-radius:10px;background:#EFF6FF;color:#1E40AF;font-size:12px;font-weight:700;line-height:1.4}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);z-index:20;display:none;align-items:flex-end;justify-content:center;padding:0}
+.overlay.on{display:flex}
+.overlay.center{align-items:center;padding:16px}
+.sheet{width:100%;max-height:88%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px 24px;overflow:auto;box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-head h2{margin:0;font-size:18px;color:var(--navy)}
+.sheet-close{border:0;background:#F3F4F6;width:36px;height:36px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-slot-sum{padding:12px;border-radius:12px;background:#F9FAFB;border:1px solid var(--line);margin-bottom:14px;font-size:13px;font-weight:700;color:var(--navy)}
+.block-reason{display:block;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.block-reason.on{border-color:var(--blue);background:#EFF6FF}
+.block-reason input{margin-right:8px}
+.block-reason small{display:block;color:var(--mut);font-size:12px;margin-top:4px;font-weight:600}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sheet-actions .btn{margin:0;width:100%}
+#photoMonthPickerList{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:50vh;overflow:auto}
+.link-add{border:0;background:none;color:var(--blue);font-weight:800;font-size:13px;cursor:pointer;padding:8px 0;margin:8px 0;display:block}
+.warn-box{margin:12px 0;padding:10px;border-radius:10px;background:#FFFBEB;border:1px solid #FDE68A;font-size:11px;line-height:1.4}
+.role-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
+.qty-step{display:flex;align-items:center;gap:8px}
+.qty-step button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;font-weight:800}
+.extra-row{display:grid;grid-template-columns:22px minmax(0,1fr) 76px 36px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:11px}
+.extra-row.mode-extra{grid-template-columns:22px minmax(0,1fr) 76px minmax(52px,64px) minmax(58px,72px) 36px}
+.extra-row .extra-name{font-size:12px;color:var(--navy);line-height:1.3}
+.extra-row select,.extra-row input:not([type=checkbox]){padding:6px;font-size:11px;border-radius:8px;border:1px solid var(--line);width:100%;box-sizing:border-box}
+.extra-pay-fields{display:none}
+.extra-row.mode-extra .extra-pay-fields{display:contents}
+.extra-included-block{grid-column:1/-1;display:none;padding:4px 0 6px 28px;border-top:1px dashed var(--line);margin-top:4px}
+.extra-row.mode-included .extra-included-block{display:block}
+.extra-included-block label.extra-hourly-chk{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--navy);cursor:pointer;margin:0}
+.extra-hourly-fields{display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.extra-row.mode-included.hourly-on .extra-hourly-fields{display:grid}
+.extra-included-block .extra-stream-cams{margin-bottom:10px}
+.extra-hourly-fields .fld{margin:0}
+.extra-hourly-fields .fld label{font-size:10px;color:var(--muted);display:block;margin-bottom:4px}
+.extra-row .pay-del{width:32px;height:32px;border-radius:8px;background:#FEF2F2;display:grid;place-items:center;font-size:14px;line-height:1;border:1px solid #FECACA;cursor:pointer}
+.pkg-optional-details{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#FAFBFC}
+.pkg-optional-details summary{font-weight:700;font-size:13px;color:var(--navy);cursor:pointer;list-style:none}
+.pkg-optional-details summary::-webkit-details-marker{display:none}
+.pkg-optional-details[open] summary{margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="stage"><div class="phone">
+<div class="notch"><span>9:41</span><span>●●●</span></div>
+
+<section class="scr on" id="lmbDashboard">
+  <div class="lmb-top">
+    <div class="row">
+      <button type="button" class="home-pill" id="lmbHomeBtn">🏠 Home</button>
+      <div class="biz-title">List My Business</div>
+      <span class="manage-pill">Manage &amp; grow</span>
+    </div>
+  </div>
+  <div class="pad" style="padding-top:8px" id="lmbCards"></div>
+</section>
+
+<section class="scr" id="photoDash">
+  <div class="top"><button type="button" class="back" id="backToLmb">←</button><h1>Dashboard</h1><button type="button" class="manage-pill" id="photoBizProfileBtn">Business profile</button></div>
+  <div class="dash-banner" style="background:linear-gradient(145deg,#7C3AED,#BE185D)"><div class="dash-logo">🎀</div></div>
+  <div class="dash-head">
+    <b id="dashBizName">Decor Mart</b>
+    <div class="loc"><span id="dashLocIco"></span> <span id="dashLocTxt">Sakthan Nagar, Thrissur</span></div>
+  </div>
+  <div class="area-card">
+    <b><span id="areaCardIco"></span> Service areas</b>
+    <p class="sum" id="areaSummary">Set where you accept bookings.</p>
+    <a href="#" id="manageAreasLink">Manage service areas →</a>
+  </div>
+  <p class="lbl" style="padding:0 16px;margin-bottom:8px">QUICK ACTIONS</p>
+  <div class="qgrid" id="quickGrid"></div>
+</section>
+
+<section class="scr" id="saStates">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Service Areas</h1><button type="button" class="link" id="saSkip">Skip</button></div>
+  <div class="hero-ico" id="saHeroIco"></div>
+  <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy);font-size:16px">Where do you provide your services?</b><p class="sub" style="margin-top:6px">Select states where you accept bookings. You can add multiple states.</p></div>
+  <div class="sa-search"><span id="saSearchIco"></span><input type="search" id="stateSearch" placeholder="Search states"></div>
+  <div class="chk-list" id="stateList"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="saStatesContinue">Continue →</button></div>
+</section>
+<section class="scr" id="saDistricts">
+  <div class="top"><button type="button" class="back" data-to="saStates">←</button><h1>Service Areas</h1><span style="width:48px"></span></div>
+  <div class="seg" id="stateSeg"></div>
+  <div class="pad" style="text-align:center;margin-bottom:8px"><b id="distStateTitle" style="color:var(--navy)">Kerala</b><p class="sub">Select districts where you accept bookings.</p></div>
+  <div class="sa-search"><span></span><input type="search" id="distSearch" placeholder="Search districts"></div>
+  <div class="chk-list" id="distList"></div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="saDistContinue">Continue →</button></div>
+</section>
+<section class="scr" id="saReview">
+  <div class="top"><button type="button" class="back" data-to="saDistricts">←</button><h1>Service Areas</h1><span style="width:48px"></span></div>
+  <div class="hero-ico" id="saRevIco"></div>
+  <div class="pad" style="text-align:center;margin-bottom:12px"><b style="color:var(--navy)">Review your service areas</b></div>
+  <div id="saReviewCards"></div>
+  <div class="info-box"><span>ℹ️</span><span>You can add or remove states and districts later from your dashboard.</span></div>
+  <div class="cta"><button type="button" class="btn btn-green" id="saSave">Save Service Areas</button></div>
+</section>
+<section class="scr" id="calendar">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Calendar &amp; Bookings</h1><span class="chip-h" id="calBuildChip" style="font-size:9px;max-width:88px;line-height:1.2;text-align:center">ERP</span></div>
+  <div class="pad">
+    <div class="cal-tabs">
+      <button type="button" class="pick on" id="photoTabCalMain">Calendar</button>
+      <button type="button" class="pick" id="photoTabBookList">Bookings</button>
+      <button type="button" class="pick" id="photoTabBookSettings">Settings</button>
+    </div>
+    <div class="cal-month-nav">
+      <button type="button" id="photoCalPrevMonth" aria-label="Previous month">‹</button>
+      <b id="photoCalMonthLabel">October 2026</b>
+      <button type="button" id="photoCalNextMonth" aria-label="Next month">›</button>
+    </div>
+    <div id="photoCalPanelGrid">
+      <div class="cal-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="cal-mini" id="photoCalGrid"></div>
+      <div class="cal-legend">
+        <span><i class="cal-dot av"></i> Open</span>
+        <span><i class="cal-dot off"></i> Has shoots</span>
+        <span><i class="cal-dot bk"></i> Full</span>
+        <span><i class="cal-dot na"></i> Unavailable</span>
+      </div>
+      <button type="button" class="cal-month-pick" id="photoOpenMonthPicker">📅 Month: <span id="photoCalMonthPickLabel">October 2026</span> ▾</button>
+      <p class="hint" style="margin-top:12px">Tap a date for day schedule, add bookings, or change availability.</p>
+    </div>
+    <div id="photoCalPanelList" hidden>
+      <div class="photo-reg-stats" id="photoBkRegisterStats"></div>
+      <button type="button" class="cal-month-pick" id="photoOpenMonthPickerList" style="margin-bottom:12px">📅 Month: <span id="photoCalMonthPickLabelList">October 2026</span> ▾</button>
+      <div id="photoBkRegisterList"></div>
+      <p class="hint">Tap a row for full details, edit, or change history.</p>
+    </div>
+  </div>
+</section>
+<section class="scr" id="photoBookingDetail">
+  <div class="top"><button type="button" class="back" id="photoBackFromBkDetail">←</button><h1>Booking</h1><span style="width:36px"></span></div>
+  <div class="pad" id="photoBookingDetailBody"></div>
+</section>
+<section class="scr" id="photoCalDay">
+  <div class="top"><button type="button" class="back" id="photoBackFromCalDay">←</button><h1>Day schedule</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <div class="cal-date-nav">
+      <button type="button" id="photoCalPrevDay" aria-label="Previous day">‹</button>
+      <b id="photoCalDayTitle">—</b>
+      <button type="button" id="photoCalNextDay" aria-label="Next day">›</button>
+    </div>
+    <div id="photoDayBookings"></div>
+  </div>
+</section>
+<section class="scr" id="photoBookSettings">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Settings</h1><span style="width:36px"></span></div>
+  <div class="pad">
+    <h2 style="margin:0 0 4px;font-size:17px;color:var(--navy)">Max bookings per day</h2>
+    <p class="sub">How many shoots you can take on the same date (ERP capacity).</p>
+    <div class="grid3" id="photoMaxPerDay"></div>
+    <div class="info gn" id="photoMaxInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Customer booking window</h2>
+    <p class="sub">How far ahead customers can book online.</p>
+    <div class="grid3" id="photoBookWindow"></div>
+    <div class="info bl" id="photoWindowInfo"></div>
+    <h2 style="margin:20px 0 4px;font-size:17px;color:var(--navy)">Minimum notice</h2>
+    <p class="sub">Earliest day customers can pick from today.</p>
+    <div class="grid3" id="photoMinNotice"></div>
+    <div class="info bl" id="photoNoticeInfo"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoSaveBookSettings">Save &amp; back to calendar</button></div>
+</section>
+<section class="scr" id="gallery">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Photos &amp; Gallery</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>Gallery</h2><p class="sub">Upload portfolio photos for your business profile.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+<section class="scr" id="requests">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Booking Requests</h1><span style="width:36px"></span></div>
+  <div class="stub"><h2>3 pending requests</h2><p class="sub">Accept or decline customer booking requests here.</p><button type="button" class="btn btn-blue" data-to="photoDash" style="max-width:200px;margin:16px auto">Back to dashboard</button></div>
+</section>
+<section class="scr" id="photoBizProfile">
+  <div class="prof-hero">
+    <div class="prof-hero-bg"></div>
+    <div class="prof-hero-top">
+      <button type="button" class="prof-back back" data-to="photoDash" aria-label="Back">←</button>
+      <span class="prof-hero-label">Business profile</span>
+      <span style="width:40px"></span>
+    </div>
+  </div>
+  <div class="prof-identity">
+    <div class="prof-avatar" aria-hidden="true">🎀</div>
+    <h2 id="profBizName">—</h2>
+    <p class="prof-tagline" id="profBizTagline"></p>
+    <div class="prof-badge-row" id="profBadges"></div>
+  </div>
+  <div class="prof-scroll">
+    <div class="prof-chips" id="profChips"></div>
+    <div id="profDetailGroups"></div>
+    <p class="prof-foot">Registered business name is locked after listing. For legal name changes, contact Gixbee support via Help.</p>
+  </div>
+</section>
+<section class="scr" id="photoOperators">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Operators</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <p class="sub" id="photoOperatorsSub" style="margin-top:0">Who can manage this business</p>
+    <div class="operators-info">Operators can manage bookings, calendar, and requests. They cannot delete the business or change billing.</div>
+    <p class="lbl" style="margin-top:16px">CURRENT OPERATORS</p>
+    <div id="photoOperatorsList"></div>
+  </div>
+  <div class="cta"><button type="button" class="btn btn-blue" id="photoAddOperatorBtn">+ Add Operator</button></div>
+</section>
+<section class="scr" id="deletedBusiness">
+  <div class="top"><button type="button" class="back" data-to="photoDash">←</button><h1>Deleted business</h1><span style="width:36px"></span></div>
+  <div class="pad" style="padding-top:8px">
+    <p class="sub">Businesses you removed from List My Business. Restore within 30 days to keep your reviews and packages.</p>
+    <div id="deletedBizList" style="margin-top:12px"></div>
+  </div>
+</section>
+<div class="overlay" id="photoBookSheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="photoBookSheetTitle">Add booking</h2><button type="button" class="sheet-close" id="photoCloseBookSheet" aria-label="Close">×</button></div>
+    <div class="sheet-slot-sum" id="photoBookSheetSum">—</div>
+    <div class="fld"><label>Client name *</label><input id="photoBkClient" placeholder="Client or family name"></div>
+    <div class="fld"><label>Phone</label><input id="photoBkPhone" placeholder="+91 " inputmode="tel"></div>
+    <div class="fld"><label>Event type</label><input id="photoBkEvent" placeholder="Wedding, portrait, funeral…"></div>
+    <div class="fld"><label>Time</label><input id="photoBkTime" placeholder="10:00 AM – 6:00 PM"></div>
+    <div class="fld"><label>Assigned operator *</label><select id="photoBkOperator"></select></div>
+    <div class="fld"><label>Source</label>
+      <div class="radio-row" style="margin-top:6px">
+        <label><input type="radio" name="photoBkSource" value="offline" checked> Offline / phone</label>
+        <label><input type="radio" name="photoBkSource" value="gixbee"> Gixbee</label>
+      </div>
+    </div>
+    <div class="fld"><label>Notes</label><textarea id="photoBkNotes" rows="3" placeholder="Venue, package, special requests…"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCancelBookSheet">Cancel</button>
+      <button type="button" class="btn btn-blue" id="photoSaveBookSheet">Save booking</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoDaySheetOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Day availability</h2><button type="button" class="sheet-close" id="photoCloseDaySheet" aria-label="Close">×</button></div>
+    <p class="sub">Control what customers see. You can still add offline bookings unless the day is at capacity.</p>
+    <label class="block-reason on"><input type="radio" name="photoDayStatus" value="open" checked> <b>Open</b><small>Normal day — bookings allowed up to daily limit.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="full"> <b>Full</b><small>Hide from customers — day marked as bookings full.</small></label>
+    <label class="block-reason"><input type="radio" name="photoDayStatus" value="disabled"> <b>Not available</b><small>Day off, travel, or personal — no customer booking.</small></label>
+    <div class="fld" style="margin-top:12px"><label>Note (optional)</label><textarea id="photoDayNote" rows="2" placeholder="Shown to your team on this date"></textarea></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="photoCloseDaySheet2" style="display:none"></button>
+      <button type="button" class="btn btn-blue" id="photoSaveDaySheet" style="grid-column:1/-1">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="photoAuditOverlay" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheet-head"><h2>Change history</h2><button type="button" class="sheet-close" id="photoCloseAudit" aria-label="Close">×</button></div>
+    <p class="sub" id="photoAuditSubtitle" style="margin-top:0">Who changed this booking and when.</p>
+    <ul class="photo-audit-list" id="photoAuditList"></ul>
+    <button type="button" class="btn btn-ghost" id="photoCloseAuditBtn" style="width:100%;margin-top:8px">Close</button>
+  </div>
+</div>
+
+<div class="overlay center" id="photoMonthPickerOverlay" aria-hidden="true">
+  <div class="sheet" style="max-height:70%;border-radius:16px">
+    <div class="sheet-head"><h2>Jump to month</h2><button type="button" class="sheet-close" id="photoCloseMonthPicker">×</button></div>
+    <div id="photoMonthPickerList"></div>
+  </div>
+</div>
+
+
+<section class="scr" id="decorHub">
+  <div class="top gx-top"><button type="button" class="back" id="decHubBack" data-to="photoDash">←</button><h1 id="decHubHead"><em>Gixbee</em><span>|</span>Packages &amp; Services</h1><button type="button" class="hub-more" aria-label="More">⋮</button></div>
+  <div class="hub-seg"><button type="button" id="decTabPackages" class="on">Packages</button><button type="button" id="decTabServices">Individual Services</button></div>
+  <div id="decHubPkgPanel">
+    <div class="search"><span>🔍</span><input type="search" id="decPkgSearch" placeholder="Search packages" autocomplete="off"></div>
+    <div class="dec-filters" id="decPkgFilters"></div>
+    <div id="decPkgCategoryFilters" aria-label="Package category filters"></div>
+    <p class="sub pad" id="decHubStat">0 packages</p>
+    <div id="decPkgList"></div>
+    <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decAddPackageBtn">+ Create Package</button></div>
+  </div>
+  <div id="decHubSvcPanel" hidden>
+    <p class="sub pad">Standalone stage, arch, car flowers, lighting, and more.</p>
+    <div id="decSvcList"></div>
+    <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decAddServiceBtn">+ Add Individual Service</button></div>
+  </div>
+</section>
+
+<section class="scr" id="decorPkgStep1">
+  <div class="top gx-top"><button type="button" class="back" id="decPkgStep1Back">←</button><h1><em>Gixbee</em><span>|</span>Create Package</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-progress"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+  <p class="dec-wiz-step" id="decWizStepLabel">Step 1 of 5</p>
+  <p class="dec-lvl-head pad" style="margin-bottom:4px"><span aria-hidden="true">📋</span> Select package category<span class="req">*</span></p>
+  <p class="sub pad" style="margin-top:0;padding-top:0">Choose the category that best describes this package.</p>
+  <div class="dec-pkg-ev-grid" id="decPkgCatGrid"></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decPkgStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep2">
+  <div class="top gx-top"><button type="button" class="back" id="decPkgStep2Back">←</button><h1><em>Gixbee</em><span>|</span>Package Details</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-progress"><i class="done"></i><i class="on"></i><i></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 2 of 5</p>
+  <div class="dec-ban"><span>📦</span><b id="decPkgCatBanner">—</b><button type="button" id="decPkgChangeCategory">Change</button></div>
+  <div class="pad">
+  <p class="sub" id="decPkgCategoryHint" style="margin:0 0 12px">Function type is set from step 1 — no need to list Haldi, Mehendi, and similar events here.</p>
+  <p class="dec-lvl-head"><span aria-hidden="true">📋</span> Package level<span class="req">*</span></p>
+  <div class="dec-pkg-type-seg" id="decPkgTypeSeg"></div>
+  <div id="decCommunityBlock">
+  <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🕌</span> Community (select one)<span class="req">*</span></p>
+  <p class="sub" style="margin:0 0 10px">One community per wedding package. Categories in step 3 depend on this.</p>
+  <div class="dec-chip-wrap dec-comm-single" id="decTraditionChips"></div>
+  <div class="fld" id="decTraditionOtherWrap" hidden>
+    <label>Specify other community *</label>
+    <input type="text" id="decTraditionOther" placeholder="e.g. Jain, Sikh, interfaith, Indo-western" autocomplete="off" maxlength="80">
+  </div>
+  </div>
+  <div id="decOtherFunctionBlock" hidden>
+    <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🎉</span> Function type (select one)<span class="req">*</span></p>
+    <p class="sub" style="margin:0 0 10px">Picks the right categories — e.g. Baptism gets stage + christening items, not wedding mandap.</p>
+    <div class="dec-chip-wrap dec-comm-single" id="decOtherFunctionChips"></div>
+    <div class="fld" id="decOtherFunctionOtherWrap" hidden>
+      <label>Specify function type *</label>
+      <input type="text" id="decOtherFunctionOther" placeholder="e.g. Noolukettu, Naming ceremony" autocomplete="off" maxlength="80">
+    </div>
+  </div>
+  <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
+  <p class="sub" id="decPkgTitlePreview">Your package name</p>
+  <div class="fld"><label>Description (optional)</label><textarea id="decPkgDesc" rows="2" placeholder="Short note for customers"></textarea></div>
+  <div class="fld dec-pkg-cover-zone"><label>Package images</label>
+  <p class="sub" style="margin:0 0 10px">Cover photo first — customers see this on search and booking. Add more portfolio shots (optional).</p>
+  <button type="button" class="svc-cover-upload" id="decPkgCoverUpload">
+    <span class="svc-cover-upload-ico" aria-hidden="true">📷</span>
+    <span class="svc-cover-upload-txt"><b id="decPkgCoverTitle">Upload cover photo</b><span class="sub" id="decPkgCoverSub">JPG or PNG · demo upload</span></span>
+  </button>
+  <div class="cover-row" id="decPkgImageRow" style="margin-top:10px;flex-wrap:wrap"></div>
+  <button type="button" class="btn btn-ghost" id="decPkgAddImage" style="width:100%;margin-top:8px">+ Add another photo</button></div></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep2Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep2Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep3">
+  <div class="top gx-top"><button type="button" class="back" id="decPkgStep3Back">←</button><h1><em>Gixbee</em><span>|</span>Add Items</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 3 of 5</p>
+  <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
+  <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
+  <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
+  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Wedding: community + common. Other functions: stage for every function + items for your function type + shared categories.</p>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
+  <div class="dec-mod-list" id="decModList"></div>
+  <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>
+  <div class="pad dec-pkg-sel-wrap" id="decSelectedItemsCompact" hidden></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep3BackFoot">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep3Next">Next: Set pricing →</button></div>
+</section>
+
+<div class="overlay" id="decCustomItemOverlay" aria-hidden="true">
+  <div class="sheet dec-custom-sheet">
+    <div class="sheet-head"><h2>Add Custom Item</h2><button type="button" class="sheet-close" id="decCustomClose" aria-label="Close">×</button></div>
+    <p class="sub" style="margin-top:0">Add a requirement not in the catalogue (arch, stands, coolers, car decoration, etc.).</p>
+    <div class="fld"><label>Item name *</label><input id="decCustomSheetName" placeholder="Church entrance arch" autocomplete="off"></div>
+    <div class="fld"><label>Category</label><select id="decCustomSheetCategory"></select></div>
+    <div class="fld"><label>Location / placement</label><input id="decCustomSheetLocation" placeholder="Church entrance" autocomplete="off"></div>
+    <div class="fld"><label>Quantity</label><input type="number" id="decCustomSheetQty" min="1" value="1" inputmode="numeric"></div>
+    <div class="fld"><label>Unit</label><select id="decCustomSheetUnit"></select></div>
+    <p class="lbl" style="margin:8px 0 6px">Add to package as</p>
+    <div class="dec-custom-type">
+      <label><input type="radio" name="decCustomCharge" id="decCustomSheetInc" checked> Included in package</label>
+      <label><input type="radio" name="decCustomCharge" id="decCustomSheetExtra"> Extra add-on</label>
+    </div>
+    <div class="fld" id="decCustomExtraWrap" hidden><label>Extra price (₹) *</label><input type="number" id="decCustomSheetExtraPrice" min="0" inputmode="numeric" placeholder="1,500"></div>
+    <div class="fld"><label>Additional instructions (optional)</label><textarea id="decCustomSheetNote" rows="2" maxlength="250" placeholder="Colours, size, timing…"></textarea></div>
+    <button type="button" class="btn btn-decor" id="decCustomSave" style="width:100%">Add item</button>
+  </div>
+</div>
+
+<section class="scr" id="decorModPick">
+  <div class="top gx-top"><button type="button" class="back" id="decModPickBack">←</button><h1 id="decPickModTitle">Category</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-wiz-step">Step 3 of 5</p>
+  <div class="dec-items-tabseg" id="decPickItemsTabSeg"></div>
+  <p class="sub pad" id="decPickItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
+  <p class="sub pad" id="decPickModCount" style="margin:0 0 8px">0 selected</p>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decPickModSearch" placeholder="Search items in this category" autocomplete="off"></form>
+  <div class="dec-mod-items-list" id="decPickModList"></div>
+  <button type="button" class="dec-add-custom-btn" id="decPickOpenCustom">+ Add Custom Item</button>
+  <div class="hub-cta-sticky"><button type="button" class="btn btn-decor" id="decModPickDone">Done</button></div>
+</section>
+
+<section class="scr" id="decorItemConfig">
+  <div class="top gx-top"><button type="button" class="back" id="decItemCfgBack">←</button><h1 id="decItemCfgTitle">Configure item</h1><span class="hub-more">⋮</span></div>
+  <div class="pad">
+    <p class="lbl">HOW IS THIS CHARGED?</p>
+    <div class="dec-radio">
+    <label><input type="radio" name="decInc" id="decIncIncluded" checked><span><b>Included</b><small>In package price</small></span></label>
+    <label><input type="radio" name="decInc" id="decIncExtra"><span><b>Extra</b><small>Add-on — enter price below</small></span></label></div>
+    <div id="decExtraPriceWrap" hidden>
+    <div class="fld"><label>Extra price (₹) *</label><input type="number" id="decItemExtraPrice" min="0" inputmode="numeric"></div>
+    <div class="fld"><label>Pricing unit</label><select id="decItemUnit"></select></div></div>
+    <div class="fld"><label>Quantity</label><input type="number" id="decItemQty" min="1" value="1"></div>
+    <div class="fld"><label>Description (optional)</label><textarea id="decItemNote" rows="2"></textarea></div>
+  </div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decItemCfgSave">Save item</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep4">
+  <div class="top gx-top"><button type="button" class="back" id="decPkgStep4Back">←</button><h1><em>Gixbee</em><span>|</span>Package Price</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
+  <p class="dec-wiz-step">Step 4 of 5</p>
+  <p class="pad sub" id="decPkgPriceIntro">One price for this package level — create separate packages for Basic, Standard and Premium.</p>
+  <div class="pad">
+    <div class="fld"><label id="decPkgPriceLabel">Package amount (₹) *</label><input type="number" id="decPkgListPrice" min="0" placeholder="40,000" inputmode="numeric"></div>
+  </div>
+  <div class="pad dec-offer"><label><input type="checkbox" id="decOfferOn"> Offer / discount for customers</label>
+  <div id="decOfferFields" hidden>
+    <label class="sub" for="decOfferPct" style="display:block;margin:10px 0 6px;font-weight:800">Discount % (1–90)</label>
+    <input type="number" id="decOfferPct" min="1" max="90" placeholder="e.g. 10" inputmode="numeric">
+    <div id="decOfferLivePreview" class="dec-offer-preview" hidden aria-live="polite"></div>
+  </div></div>
+  <div class="pad" id="decTierPreview"></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decPkgStep4Back2">← Back</button><button type="button" class="btn btn-decor" id="decPkgStep4Next">Preview →</button></div>
+</section>
+
+<section class="scr" id="decorPkgStep5">
+  <div class="top gx-top"><button type="button" class="back" id="decPkgStep5Back">←</button><h1><em>Gixbee</em><span>|</span>Preview</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i></div>
+  <p class="dec-wiz-step">Step 5 of 5</p>
+  <div class="pad" id="decPkgPreviewBody"></div>
+  <div class="cat-wiz-foot" style="flex-direction:column;gap:8px"><button type="button" class="btn btn-decor" id="decPkgPublish">Publish Package</button><button type="button" class="btn btn-ghost" id="decPkgSaveDraft">Save as Draft</button></div>
+</section>
+
+<section class="scr" id="decorPkgSuccess">
+  <div class="dec-success"><h1 style="font-size:18px;margin:0">Package created!</h1><p class="sub">Your decoration package is published.</p>
+  <div class="ok">✓</div>
+  <div id="decSuccessCard"></div><p class="sub" style="margin:12px 0">Share: WhatsApp · PDF · Link (prototype)</p>
+  <button type="button" class="btn btn-decor" id="decorPkgSuccessDone" style="width:min(100%,280px)">View packages</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep1">
+  <div class="top gx-top"><button type="button" class="back" id="decSvcWizardBack">←</button><h1><em>Gixbee</em><span>|</span>Add Service</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="on"></i><i></i><i></i><i></i></div>
+  <p class="dec-svc-step">Step 1 of 4</p>
+  <p class="sub pad" id="decSvcCatHint">Pick one category — one price per service (not package tiers).</p>
+  <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decSvcCatSearch" placeholder="Search categories" autocomplete="off"></form>
+  <div class="dec-mod-list" id="decSvcCatList"></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decSvcStep1Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep2">
+  <div class="top gx-top"><button type="button" class="back" id="decSvcStep2TopBack">←</button><h1><em>Gixbee</em><span>|</span>Service details</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="done"></i><i class="on"></i><i></i><i></i></div>
+  <p class="dec-svc-step">Step 2 of 4</p>
+  <div class="dec-ban"><span>✨</span><b id="decSvcCatBanner">—</b><button type="button" id="decSvcChangeCat">Change</button></div>
+  <div class="pad"><div class="fld"><label>Service name *</label><input id="decSvcName" placeholder="Wedding car floral decoration"></div>
+  <div class="fld"><label>Short description</label><textarea id="decSvcDesc" rows="2" placeholder="What is included in this service?"></textarea></div>
+  <p class="lbl">COMMUNITY *</p><div class="dec-chip-wrap" id="decSvcCommunityChips"></div>
+  <div class="fld" id="decSvcTraditionOtherWrap" hidden>
+    <label>Specify other community *</label>
+    <input type="text" id="decSvcTraditionOther" placeholder="e.g. Jain, Sikh, interfaith" autocomplete="off" maxlength="80">
+  </div></div>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-ghost" id="decSvcStep2Back">← Back</button><button type="button" class="btn btn-decor" id="decSvcStep2Next">Next →</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep3">
+  <div class="top gx-top"><button type="button" class="back" id="decSvcStep3TopBack">←</button><h1><em>Gixbee</em><span>|</span>Portfolio</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="done"></i><i class="done"></i><i class="on"></i><i></i></div>
+  <p class="dec-svc-step">Step 3 of 4</p>
+  <p class="sub pad">Add design names so customers can choose a look (optional).</p>
+  <div class="pad"><p class="lbl">DESIGN OPTIONS</p><div id="decSvcDesigns"></div>
+  <button type="button" class="btn btn-ghost" id="decSvcAddDesign" style="width:100%;margin-top:4px">+ Add another design</button></div>
+  <button type="button" class="dec-skip-link" id="decSvcSkipDesigns">Skip — no design list for now</button>
+  <div class="cat-wiz-foot"><button type="button" class="btn btn-decor" id="decSvcStep3Next">Next: Set price →</button></div>
+</section>
+
+<section class="scr" id="decorSvcStep4">
+  <div class="top gx-top"><button type="button" class="back" id="decSvcStep4TopBack">←</button><h1><em>Gixbee</em><span>|</span>Service price</h1><span class="hub-more">⋮</span></div>
+  <div class="dec-svc-progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="on"></i></div>
+  <p class="dec-svc-step">Step 4 of 4</p>
+  <p class="sub pad">One clear rate for this service — not Basic / Standard / Premium like packages.</p>
+  <div class="pad">
+    <div class="fld"><label>Service price (₹) *</label><input type="number" id="decSvcPrice" min="0" placeholder="e.g. 8000" inputmode="numeric"></div>
+    <div class="fld"><label>Price unit</label><select id="decSvcPriceUnit"></select></div>
+    <div class="dec-offer"><label><input type="checkbox" id="decSvcOfferOn"> Offer for customers</label>
+    <div id="decSvcOfferFields" hidden><input type="number" id="decSvcOfferPct" min="1" max="90" placeholder="Discount %" inputmode="numeric"></div></div>
+    <p class="lbl">GST</p><div class="dec-chip-wrap" id="decSvcGstChips"></div>
+    <p class="lbl">Setup charges</p><div class="dec-chip-wrap" id="decSvcSetupChips"></div>
+    <p class="lbl">Transport</p><div class="dec-chip-wrap" id="decSvcTransportChips"></div>
+    <div id="decSvcPricePreview"></div>
+  </div>
+  <div class="cat-wiz-foot" style="flex-direction:column;gap:8px">
+    <button type="button" class="btn btn-decor" id="decSvcPublish">Publish service</button>
+    <div style="display:flex;gap:10px;width:100%"><button type="button" class="btn btn-ghost" id="decSvcStep4Back" style="flex:1">← Back</button><button type="button" class="btn btn-ghost" id="decSvcSaveDraft" style="flex:1">Save draft</button></div>
+  </div>
+</section>
+
+<section class="scr" id="decorSvcSuccess">
+  <div class="dec-success"><h1 style="font-size:18px;margin:0" id="decSvcSuccessTitle">Service live</h1><p class="sub">Customers can enquire for this service at the price below.</p>
+  <div class="ok">✓</div>
+  <div id="decSvcSuccessBody"></div>
+  <button type="button" class="btn btn-decor" id="decSvcSuccessDone" style="width:min(100%,280px);margin-top:16px">View services</button></div>
+</section>
+
+<div class="toast" id="toast"></div>
+</div></div>
+<!-- APP_START -->
+<div style="margin:16px;padding:16px;border:2px solid #DC2626;border-radius:12px"><b>Not the demo file.</b> Open GIXBEE-DECORATION-OWNER-FINALFLOW5.html</div>
+<!-- APP_END -->
+</body>
+</html>
