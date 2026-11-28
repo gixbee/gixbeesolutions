@@ -7,7 +7,7 @@ let decorSvcWizard = { editId: null, draft: null, catSearch: '' };
 
 function newDecorServiceDraft() {
   return {
-    categoryId: 'd08',
+    categoryId: 'w06',
     name: '',
     description: '',
     traditionTags: [],

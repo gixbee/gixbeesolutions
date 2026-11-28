@@ -1,5 +1,5 @@
-/** Decoration package catalogue — 3 main items per category; custom item for the rest. */
-const DECORATION_PACKAGE_MODULE_IDS = ["d01", "d02", "d03", "d04", "d05", "d06", "d07", "d08", "d09", "d10"];
+/** Decoration package catalogue — community + common wedding categories. */
+const DECORATION_PACKAGE_MODULE_IDS = ["c01", "c02", "c03", "c04", "c05", "h01", "h02", "h03", "h04", "h05", "m01", "m02", "m03", "m04", "m05", "w01", "w02", "w03", "w04", "w05", "w06", "w07", "w08", "w09", "w10", "w11", "w12"];
 const DECORATION_PKG_LEVELS = ['Basic', 'Standard', 'Premium'];
 const DECORATION_PKG_LEVEL_HINTS = {
   Basic: 'Essential décor for the function',
@@ -22,144 +22,328 @@ const DECORATION_GST = ['Included','Additional','Not Applicable'];
 
 const DECORATION_CATALOG_DEFS = [
   {
-    "id": "d01",
+    "id": "h01",
     "name": "Stage / Mandapam",
     "emoji": "\ud83c\udfaa",
+    "scope": "community",
+    "traditions": ["hindu"],
     "items": [
-          "Wedding Stage Decoration",
-          "Couple Sofa / Diwan",
-          "Stage Carpet / Runners"
-    ],
+          "Traditional Mandapam",
+          "Floral Mandapam",
+          "Wooden Mandapam"
+    ]
   },
   {
-    "id": "d02",
+    "id": "h02",
+    "name": "Traditional Ritual Decoration",
+    "emoji": "\ud83e\ude94",
+    "scope": "community",
+    "traditions": ["hindu"],
+    "items": [
+          "Pooja Area Setup",
+          "Homam / Havan Setup",
+          "Kalash Arrangement"
+    ]
+  },
+  {
+    "id": "h03",
+    "name": "Nilavilakku Decoration",
+    "emoji": "\ud83e\ude94",
+    "scope": "community",
+    "traditions": ["hindu"],
+    "items": [
+          "Brass Nilavilakku",
+          "Traditional Lamp Arrangement",
+          "Decorative Lamp Setup"
+    ]
+  },
+  {
+    "id": "h04",
+    "name": "Traditional Entrance Decoration",
+    "emoji": "\ud83d\udeaa",
+    "scope": "community",
+    "traditions": ["hindu"],
+    "items": [
+          "Banana Stem Decoration",
+          "Thoranam",
+          "Traditional Welcome Arch"
+    ]
+  },
+  {
+    "id": "h05",
+    "name": "Pookalam & Rangoli",
+    "emoji": "\ud83c\udf38",
+    "scope": "community",
+    "traditions": ["hindu"],
+    "items": [
+          "Pookalam",
+          "Floral Rangoli",
+          "Kolam"
+    ]
+  },
+  {
+    "id": "c01",
+    "name": "Stage / Wedding Backdrop",
+    "emoji": "\ud83c\udfaa",
+    "scope": "community",
+    "traditions": ["christian"],
+    "items": [
+          "Wedding Stage",
+          "Floral Stage",
+          "Couple Backdrop"
+    ]
+  },
+  {
+    "id": "c02",
     "name": "Church Decoration",
     "emoji": "\u26ea",
+    "scope": "community",
+    "traditions": ["christian"],
     "items": [
-          "Church Entrance Arch",
-          "Church Flower Stand",
-          "Pew / Aisle Flowers"
-    ],
+          "Altar Floral Decoration",
+          "Church Aisle Decoration",
+          "Church Entrance Arch"
+    ]
   },
   {
-    "id": "d03",
+    "id": "c03",
+    "name": "Church Seating Decoration",
+    "emoji": "\ud83e\ude91",
+    "scope": "community",
+    "traditions": ["christian"],
+    "items": [
+          "Pew / Bench Floral Decoration",
+          "Reserved Family Seating",
+          "Chair Decoration"
+    ]
+  },
+  {
+    "id": "c04",
+    "name": "Wedding Ceremony Decoration",
+    "emoji": "\u271d\ufe0f",
+    "scope": "community",
+    "traditions": ["christian"],
+    "items": [
+          "Ceremony Backdrop",
+          "Cross Backdrop (if requested)",
+          "Prayer Area Decoration"
+    ]
+  },
+  {
+    "id": "c05",
+    "name": "Church Floral Decoration",
+    "emoji": "\ud83d\udc90",
+    "scope": "community",
+    "traditions": ["christian"],
+    "items": [
+          "White Rose Arrangement",
+          "Lily Arrangement",
+          "Orchid Arrangement"
+    ]
+  },
+  {
+    "id": "m01",
+    "name": "Stage / Nikah Stage",
+    "emoji": "\ud83c\udfaa",
+    "scope": "community",
+    "traditions": ["muslim"],
+    "items": [
+          "Nikah Stage",
+          "Floral Nikah Stage",
+          "Traditional Nikah Backdrop"
+    ]
+  },
+  {
+    "id": "m02",
+    "name": "Nikah Ceremony Decoration",
+    "emoji": "\ud83d\udcdc",
+    "scope": "community",
+    "traditions": ["muslim"],
+    "items": [
+          "Nikah Seating Setup",
+          "Nikah Signing Table",
+          "Ceremony Area Setup"
+    ]
+  },
+  {
+    "id": "m03",
+    "name": "Nikah Backdrop Decoration",
+    "emoji": "\ud83d\uddbc\ufe0f",
+    "scope": "community",
+    "traditions": ["muslim"],
+    "items": [
+          "Floral Nikah Backdrop",
+          "Fabric Backdrop",
+          "Personalised Nikah Backdrop"
+    ]
+  },
+  {
+    "id": "m04",
+    "name": "Family Seating Decoration",
+    "emoji": "\ud83e\ude91",
+    "scope": "community",
+    "traditions": ["muslim"],
+    "items": [
+          "Family Seating Setup",
+          "Separate Seating Arrangement (if requested)",
+          "VIP Family Seating"
+    ]
+  },
+  {
+    "id": "m05",
+    "name": "Nikah Welcome Decoration",
+    "emoji": "\ud83d\udeaa",
+    "scope": "community",
+    "traditions": ["muslim"],
+    "items": [
+          "Nikah Welcome Board",
+          "Personalised Nikah Signage",
+          "Ceremony Welcome Setup"
+    ]
+  },
+  {
+    "id": "w01",
     "name": "Entrance & Welcome",
     "emoji": "\ud83d\udeaa",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Welcome Arch",
-          "Welcome Board",
-          "Name LED Board"
-    ],
+          "Floral Welcome Arch",
+          "Grand Entrance",
+          "Welcome Board"
+    ]
   },
   {
-    "id": "d04",
+    "id": "w02",
     "name": "Pathway Decoration",
     "emoji": "\ud83d\udee4\ufe0f",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Aisle Carpet / Runner",
-          "Aisle Floral Stands",
-          "LED Pathway Lights"
-    ],
+          "Floral Pathway",
+          "Flower Carpet",
+          "Petal Decoration"
+    ]
   },
   {
-    "id": "d05",
+    "id": "w03",
     "name": "Floral Decoration",
     "emoji": "\ud83d\udc90",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Floral Backdrop",
-          "Floral Ceiling",
-          "Bridal Bouquet"
-    ],
+          "Rose Decoration",
+          "Jasmine Decoration",
+          "Orchid Decoration"
+    ]
   },
   {
-    "id": "d06",
+    "id": "w04",
     "name": "Lighting & Sound",
     "emoji": "\ud83d\udca1",
+    "scope": "common",
+    "traditions": [],
     "items": [
+          "Decorative Lighting",
           "Stage Lighting",
-          "Fairy / String Lights",
           "Sound System"
-    ],
+    ]
   },
   {
-    "id": "d07",
+    "id": "w05",
     "name": "Seating & Furniture",
     "emoji": "\ud83e\ude91",
+    "scope": "common",
+    "traditions": [],
     "items": [
+          "Couple Sofa",
           "Guest Chairs",
-          "Chair Covers & Bows",
-          "VIP Sofa Seating"
-    ],
+          "VIP Seating"
+    ]
   },
   {
-    "id": "d08",
+    "id": "w06",
     "name": "Car Decoration",
     "emoji": "\ud83d\ude97",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Wedding Car Decoration",
-          "Car Bonnet Decoration",
-          "Car Door Decoration"
-    ],
+          "Wedding Car Floral Decoration",
+          "Ribbon Decoration",
+          "Car Bonnet Floral"
+    ]
   },
   {
-    "id": "d09",
+    "id": "w07",
     "name": "Photo & Display",
     "emoji": "\ud83d\udcf8",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Photo Booth Backdrop",
-          "Couple Portrait Backdrop",
-          "Hashtag LED Board"
-    ],
+          "Couple Photo Display",
+          "Family Photo Display",
+          "Direction Board"
+    ]
   },
   {
-    "id": "d10",
+    "id": "w08",
     "name": "Special Effects",
     "emoji": "\u2728",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Low-Lying Fog",
-          "Confetti Blast",
-          "Sparkler Entry Package"
-    ],
+          "Flower Shower",
+          "Cold Pyro",
+          "Confetti"
+    ]
   },
   {
-    "id": "d11",
-    "name": "Personal Flowers & Garlands",
-    "emoji": "\ud83d\udcae",
+    "id": "w09",
+    "name": "Ceiling & Hanging Decoration",
+    "emoji": "\ud83c\udf80",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Boutonniere (Groom)",
-          "Bridesmaid Bouquets",
-          "Garland for Groom Entry"
-    ],
+          "Floral Ceiling",
+          "Hanging Flowers",
+          "Fabric Draping"
+    ]
   },
   {
-    "id": "d12",
-    "name": "Traditional / Ceremony Setup",
-    "emoji": "\ud83e\ude94",
-    "items": [
-          "Traditional Mandapam Setup",
-          "Pooja Backdrop (Traditional)",
-          "Nikah Signing Table Setup"
-    ],
-  },
-  {
-    "id": "d13",
-    "name": "Dining & Table",
+    "id": "w10",
+    "name": "Dining & Table Decoration",
     "emoji": "\ud83c\udf7d\ufe0f",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Buffet Table Skirting & Décor",
           "Table Centrepieces",
-          "Cake Table Setup"
-    ],
+          "Dining Area Decoration",
+          "Buffet Counter Decoration"
+    ]
   },
   {
-    "id": "d14",
-    "name": "Other Items",
-    "emoji": "\ud83d\udce6",
+    "id": "w11",
+    "name": "Photo Booth & Guest Experience",
+    "emoji": "\ud83e\udd33",
+    "scope": "common",
+    "traditions": [],
     "items": [
-          "Ceiling Draping (Full Hall)",
-          "Pillar Wrapping",
-          "Custom Theme Props"
-    ],
+          "Selfie Booth",
+          "Couple Photo Booth",
+          "Guest Welcome Area"
+    ]
+  },
+  {
+    "id": "w12",
+    "name": "Outdoor & Venue Decoration",
+    "emoji": "\ud83c\udf33",
+    "scope": "common",
+    "traditions": [],
+    "items": [
+          "Garden Decoration",
+          "Lawn Decoration",
+          "Building Exterior Decoration"
+    ]
   },
 ];
 function decorTraditionKey(tag) {
@@ -184,67 +368,42 @@ function decorFormatTraditionTags(tags, otherText) {
     .join(', ');
 }
 
+function decorPrimaryCommunityKey(ctx) {
+  const comm = (ctx && ctx.traditionTags) || [];
+  if (!comm.length) return '';
+  return decorTraditionKey(comm[0]);
+}
+
 function inferDecorationItemScopes(name) {
   const n = String(name || '').toLowerCase();
-  const pkgScopes = [];
-  const traditionScopes = [];
-  const wedding =
-    /\b(wedding|bridal|couple|mandap|mandapam|mehendi|mailanchi|haldi|sangeet|nikah|walima|engagement|reception|mala|throne|roka|chunni|pookalam|nilavilakku|couple name)\b/.test(
-      n
-    );
-  const other =
-    /\b(birthday|baby shower|corporate|housewarming|baptism|communion|navjote|festival|ganesh|onam|kids|inauguration|green room|repairs|balloon ceiling|balloon arch)\b/.test(
-      n
-    );
-  if (wedding) pkgScopes.push('wedding');
-  if (other) pkgScopes.push('other');
-  if (!pkgScopes.length) pkgScopes.push('wedding', 'other');
-  if (/\b(nikah|walima|islamic)\b/.test(n)) traditionScopes.push('muslim');
-  if (/\b(church|baptism|communion|pew|altar|pulpit|lectern|cross)\b/.test(n)) traditionScopes.push('christian');
-  if (
-    /\b(mandap|mandapam|pookalam|haldi|mehendi|sangeet|marigold|nilavilakku|kalash|jasmine|malli|south indian|north indian|pooja|toran|thoranam|mango leaf|banana stem|garland for mala)\b/.test(
-      n
-    )
-  )
-    traditionScopes.push('hindu');
-  if (/\b(anand karaj|gurdwara|jain|interfaith)\b/.test(n)) traditionScopes.push('others');
-  if (
-    /\b(corporate|minimal stage|balloon|kids|housewarming|weather|partition|ceiling draping|wall draping|pillar wrapping|direction|parking|registration|signage package|custom theme|garden|lawn tent|green room|repairs)\b/.test(
-      n
-    )
-  ) {
-    if (traditionScopes.indexOf('others') < 0) traditionScopes.push('others');
-  }
-  if (!traditionScopes.length) traditionScopes.push('hindu', 'muslim', 'christian', 'others');
+  const pkgScopes = ['wedding', 'other'];
+  const traditionScopes = ['hindu', 'muslim', 'christian', 'others'];
   return { pkgScopes: pkgScopes, traditionScopes: traditionScopes };
 }
 
 function decorCatalogContextFromDraft(draft) {
   const d = draft || {};
+  const tags = (d.traditionTags || []).slice(0, 1);
   return {
     packageCategory: d.packageCategory || 'wedding',
-    traditionTags: d.traditionTags || [],
+    traditionTags: tags,
   };
 }
 
-/** Categories only for selected communities (e.g. Church → Christian). */
-const DECORATION_MODULE_TRADITIONS = {
-  d02: ['christian'],
-};
-
 function decorModuleVisibleForPackage(mod, ctx) {
   if (!mod || !ctx) return true;
-  const gate =
-    typeof DECORATION_MODULE_TRADITIONS === 'object' ? DECORATION_MODULE_TRADITIONS[mod.id] : null;
-  if (!gate || !gate.length) return true;
-  const comm = ctx.traditionTags || [];
-  if (!comm.length) return false;
-  return comm.some(function (t) {
-    return gate.indexOf(decorTraditionKey(t)) >= 0;
-  });
+  const pkgCat = ctx.packageCategory || 'wedding';
+  const scope = mod.moduleScope || 'common';
+  if (scope === 'common') return pkgCat === 'wedding' || pkgCat === 'other';
+  if (pkgCat !== 'wedding') return false;
+  const gates = mod.moduleTraditions || [];
+  if (!gates.length) return false;
+  const key = decorPrimaryCommunityKey(ctx);
+  if (!key) return false;
+  if (key === 'others') return false;
+  return gates.indexOf(key) >= 0;
 }
 
-/** Owner package wizard: list every main catalogue item per category (wedding/other only). */
 function decorCatalogContextForOwnerPick(draft) {
   return Object.assign({}, decorCatalogContextFromDraft(draft), { ownerPick: true });
 }
@@ -264,10 +423,8 @@ function decorItemVisibleForPackage(item, ctx) {
   if (ctx && ctx.ownerPick) return true;
   const comm = ctx.traditionTags || [];
   if (!comm.length) return true;
-  return comm.some(function (t) {
-    const key = decorTraditionKey(t);
-    return scopes.traditionScopes.indexOf('all') >= 0 || scopes.traditionScopes.indexOf(key) >= 0;
-  });
+  const key = decorTraditionKey(comm[0]);
+  return scopes.traditionScopes.indexOf('all') >= 0 || scopes.traditionScopes.indexOf(key) >= 0;
 }
 
 function decorFilteredModuleItems(mod, ctx, searchQ) {
@@ -289,10 +446,20 @@ function decorModulesForPackage(ctx, searchQ) {
     const nameHit = q && m.name.toLowerCase().indexOf(q) >= 0;
     const visible = decorFilteredModuleItems(m, ctx, nameHit ? '' : q);
     return { mod: m, visibleCount: visible.length, items: visible };
-  })
-    .filter(function (row) {
-      return row && row.visibleCount > 0;
-    });
+  }).filter(function (row) {
+    return row && row.visibleCount > 0;
+  });
+}
+
+function decorModulesGroupedForPackage(ctx, searchQ) {
+  const rows = decorModulesForPackage(ctx, searchQ);
+  const community = [];
+  const common = [];
+  rows.forEach(function (row) {
+    if ((row.mod.moduleScope || 'common') === 'community') community.push(row);
+    else common.push(row);
+  });
+  return { community: community, common: common, all: rows };
 }
 
 function decorPackageCatalogSummary(ctx) {
@@ -323,7 +490,15 @@ function buildDecorationModules() {
         traditionScopes: scopes.traditionScopes,
       };
     });
-    return { id: m.id, num: idx + 1, name: m.name, emoji: m.emoji, items: items };
+    return {
+      id: m.id,
+      num: idx + 1,
+      name: m.name,
+      emoji: m.emoji,
+      moduleScope: m.scope || 'common',
+      moduleTraditions: m.traditions || [],
+      items: items,
+    };
   });
 }
 const DECORATION_MODULES = buildDecorationModules();

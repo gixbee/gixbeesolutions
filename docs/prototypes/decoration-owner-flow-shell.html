@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-other-community-v28. Do NOT open decoration-owner-flow-shell.html (shell only). -->
+<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-wedding-catalog-v29. Do NOT open decoration-owner-flow-shell.html (shell only). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -111,6 +111,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 #decorHub .dec-hub-cat-row{padding-top:4px;padding-bottom:10px}
 #decorHub .dec-hub-cat-row .dec-pkg-ev-card{min-height:152px}
 #decorHub .dec-hub-cat-row .dec-pkg-ev-card:not(.on) .dec-pkg-ev-chk{display:none}
+.dec-cat-sec-h{margin:14px 16px 6px;font-size:11px;font-weight:900;color:var(--decor-navy);letter-spacing:.03em}
+.dec-chip-wrap.dec-comm-single .dec-chip{min-width:72px}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
 .dec-offer-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1.5px solid #FBCFE8}
@@ -773,11 +775,14 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <p class="sub" id="decPkgCategoryHint" style="margin:0 0 12px">Function type is set from step 1 — no need to list Haldi, Mehendi, and similar events here.</p>
   <p class="dec-lvl-head"><span aria-hidden="true">📋</span> Package level<span class="req">*</span></p>
   <div class="dec-pkg-type-seg" id="decPkgTypeSeg"></div>
-  <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🕌</span> Community<span class="req">*</span></p>
-  <div class="dec-chip-wrap" id="decTraditionChips"></div>
+  <div id="decCommunityBlock">
+  <p class="dec-lvl-head" style="margin-top:4px"><span aria-hidden="true">🕌</span> Community (select one)<span class="req">*</span></p>
+  <p class="sub" style="margin:0 0 10px">One community per wedding package. Categories in step 3 depend on this.</p>
+  <div class="dec-chip-wrap dec-comm-single" id="decTraditionChips"></div>
   <div class="fld" id="decTraditionOtherWrap" hidden>
     <label>Specify other community *</label>
     <input type="text" id="decTraditionOther" placeholder="e.g. Jain, Sikh, interfaith, Indo-western" autocomplete="off" maxlength="80">
+  </div>
   </div>
   <div class="fld"><label>Package name *</label><input id="decPkgName" placeholder="Basic Wedding Decoration"></div>
   <p class="sub" id="decPkgTitlePreview">Your package name</p>
@@ -800,7 +805,7 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
   <div class="dec-pkg-step3-banner" id="decPkgStep3Banner"></div>
   <div class="dec-items-tabseg" id="decItemsTabSeg"></div>
   <p class="sub pad" id="decItemsTabHint" style="margin-top:0">These items are part of your package price.</p>
-  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Each category has 3 main items. Church Decoration appears only when Christian is selected in step 2.</p>
+  <p class="sub pad" id="decPkgCatalogHint" style="margin:0;padding-top:0">Community-specific categories match your step 2 choice; common categories appear once. Each category has 3 main items plus custom.</p>
   <form class="search" onsubmit="return false"><span>🔍</span><input type="search" id="decModSearch" placeholder="Search categories" autocomplete="off"></form>
   <div class="dec-mod-list" id="decModList"></div>
   <button type="button" class="dec-add-custom-btn" id="decOpenCustomItem">+ Add Custom Item</button>

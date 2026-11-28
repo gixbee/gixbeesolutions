@@ -45,6 +45,7 @@ function decorPkgHeroClass(d) {
 
 function normalizeDecorPackage(d) {
   if (!d) return;
+  if (d.traditionTags && d.traditionTags.length > 1) d.traditionTags = [d.traditionTags[0]];
   ensureDecorPkgImageSlots(d);
   if (!d.level) {
     const t = d.tierPrices || {};
@@ -70,7 +71,7 @@ function newDecorPkgDraft() {
     packageCategory: 'wedding',
     level: 'Standard',
     eventTypes: [],
-    traditionTags: [],
+    traditionTags: ['Hindu'],
     traditionOtherText: '',
     ceremonySetup: [],
     styles: [],
@@ -517,8 +518,20 @@ function renderDecorPkgStep2() {
       ? cat.hint || 'Function type is set from step 1 — you do not pick individual events here.'
       : 'Pick a category in step 1 first.';
   }
+  const commBlock = el('decCommunityBlock');
+  const isWedding = d.packageCategory === 'wedding';
+  if (commBlock) commBlock.hidden = !isWedding;
+  if (!isWedding) {
+    d.traditionTags = [];
+    d.traditionOtherText = '';
+  } else if (!(d.traditionTags || []).length) {
+    d.traditionTags = ['Hindu'];
+  } else if (d.traditionTags.length > 1) {
+    d.traditionTags = [d.traditionTags[0]];
+  }
+  const sel = (d.traditionTags || [])[0] || '';
   el('decTraditionChips').innerHTML = DECORATION_TRADITIONS.map(function (t) {
-    const on = (d.traditionTags || []).indexOf(t) >= 0;
+    const on = sel === t;
     return '<button type="button" class="dec-chip sm' + (on ? ' on' : '') + '" data-trad="' + esc(t) + '">' + esc(t) + '</button>';
   }).join('');
   renderDecorPkgTypeSeg(d.level || 'Standard');
@@ -538,13 +551,9 @@ function renderDecorPkgStep2() {
   el('decTraditionChips').querySelectorAll('[data-trad]').forEach(function (btn) {
     btn.onclick = function () {
       const val = btn.getAttribute('data-trad');
-      const arr = decorPkgWizard.draft.traditionTags || [];
-      const i = arr.indexOf(val);
-      if (i >= 0) {
-        arr.splice(i, 1);
-        if (decorTraditionKey(val) === 'others') decorPkgWizard.draft.traditionOtherText = '';
-      } else arr.push(val);
-      decorPkgWizard.draft.traditionTags = arr;
+      if (decorPkgWizard.draft.traditionTags[0] === val) return;
+      decorPkgWizard.draft.traditionTags = [val];
+      if (decorTraditionKey(val) !== 'others') decorPkgWizard.draft.traditionOtherText = '';
       renderDecorPkgStep2();
     };
   });
@@ -749,16 +758,8 @@ function renderDecorItemsTabSeg(opts) {
   }
 }
 
-function renderDecorCategoryList(ctx, q) {
-  const host = el('decModList');
-  if (!host) return;
-  const rows = decorModulesForPackage(ctx, q);
-  if (!rows.length) {
-    host.innerHTML =
-      '<div class="dec-items-empty" style="margin:12px 16px">No categories match. Try another search or update package type / community in step 2.</div>';
-    return;
-  }
-  host.innerHTML = rows
+function decorRenderCategoryModRows(rows) {
+  return rows
     .map(function (row) {
       const m = row.mod;
       const stats = decorModuleItemCounts(m.id);
@@ -781,6 +782,34 @@ function renderDecorCategoryList(ctx, q) {
       );
     })
     .join('');
+}
+
+function renderDecorCategoryList(ctx, q) {
+  const host = el('decModList');
+  if (!host) return;
+  const grouped = decorModulesGroupedForPackage(ctx, q);
+  const d = decorPkgWizard.draft;
+  if (!grouped.all.length) {
+    host.innerHTML =
+      '<div class="dec-items-empty" style="margin:12px 16px">No categories match. Try another search or update package type / community in step 2.</div>';
+    return;
+  }
+  let html = '';
+  if (d.packageCategory === 'wedding' && grouped.community.length) {
+    html +=
+      '<p class="dec-cat-sec-h">Community-specific categories (' +
+      grouped.community.length +
+      ')</p>' +
+      decorRenderCategoryModRows(grouped.community);
+  }
+  if (grouped.common.length) {
+    html +=
+      '<p class="dec-cat-sec-h">' +
+      (d.packageCategory === 'wedding' ? 'Common wedding categories (' + grouped.common.length + ')' : 'Categories (' + grouped.common.length + ')') +
+      '</p>' +
+      decorRenderCategoryModRows(grouped.common);
+  }
+  host.innerHTML = html;
   host.querySelectorAll('[data-dec-mod]').forEach(function (row) {
     row.onclick = function () {
       openDecorModulePick(row.getAttribute('data-dec-mod'));
@@ -1543,17 +1572,23 @@ function validateDecorPkgStep(step) {
       toast('Select package level (Basic, Standard or Premium)');
       return false;
     }
-    if (!(d.traditionTags || []).length) {
-      toast('Select at least one community');
-      return false;
-    }
-    if (decorHasOthersTradition(d.traditionTags) && !(d.traditionOtherText || '').trim()) {
-      toast('Specify other community');
-      return false;
-    }
-    if (decorHasOthersTradition(d.traditionTags)) {
-      d.traditionOtherText = (d.traditionOtherText || '').trim();
+    if (d.packageCategory === 'wedding') {
+      if (!(d.traditionTags || []).length) {
+        toast('Select one community for this wedding package');
+        return false;
+      }
+      if (d.traditionTags.length > 1) d.traditionTags = [d.traditionTags[0]];
+      if (decorHasOthersTradition(d.traditionTags) && !(d.traditionOtherText || '').trim()) {
+        toast('Specify other community');
+        return false;
+      }
+      if (decorHasOthersTradition(d.traditionTags)) {
+        d.traditionOtherText = (d.traditionOtherText || '').trim();
+      } else {
+        d.traditionOtherText = '';
+      }
     } else {
+      d.traditionTags = [];
       d.traditionOtherText = '';
     }
     if (!(d.name || '').trim()) {
