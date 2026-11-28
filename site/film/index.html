@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gixbee</title>
+  <style>
+    @font-face { font-family: Fraunces; src: url("fonts/Fraunces-500.ttf") format("truetype"); font-weight: 500; font-style: normal; }
+    @font-face { font-family: Fraunces; src: url("fonts/Fraunces-600.ttf") format("truetype"); font-weight: 600; font-style: normal; }
+    @font-face { font-family: Outfit; src: url("fonts/Outfit-400.ttf") format("truetype"); font-weight: 400; font-style: normal; }
+    @font-face { font-family: Outfit; src: url("fonts/Outfit-500.ttf") format("truetype"); font-weight: 500; font-style: normal; }
+    @font-face { font-family: Outfit; src: url("fonts/Outfit-600.ttf") format("truetype"); font-weight: 600; font-style: normal; }
+    html, body { margin: 0; background: #09090d; }
+    #stage {
+      width: 1920px; height: 1080px; position: relative; overflow: hidden;
+      background: #09090d; color: #f6f3ec;
+    }
+    .glow {
+      position: absolute; width: 1500px; height: 1500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,140,0,0.28) 0%, rgba(255,120,0,0.10) 36%, rgba(255,140,0,0) 72%);
+      filter: blur(46px); pointer-events: none;
+    }
+    #grain { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay; }
+    .vignette {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.45) 100%);
+    }
+    section {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: center; box-sizing: border-box;
+    }
+    .center { align-items: center; text-align: center; padding: 0 160px; }
+    .edit { align-items: flex-start; text-align: left; padding: 0 200px; }
+    .kicker {
+      font-family: Outfit, sans-serif; font-weight: 600; font-size: 22px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: #ff8c00;
+      margin: 0 0 28px;
+    }
+    h1 {
+      font-family: Fraunces, serif; font-weight: 500; font-size: 108px;
+      line-height: 0.98; letter-spacing: -0.03em; margin: 0; color: #f6f3ec;
+    }
+    .name {
+      font-family: Fraunces, serif; font-weight: 500; font-size: 118px;
+      line-height: 0.94; letter-spacing: -0.035em; margin: 0; color: #f6f3ec;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .name span { display: block; }
+    .sub {
+      font-family: Outfit, sans-serif; font-weight: 400; font-size: 34px;
+      line-height: 1.4; color: #c9c3b8; margin: 36px 0 0; max-width: 920px;
+    }
+    .rule { width: 84px; height: 3px; background: #ff8c00; margin: 0 0 40px; transform-origin: center; }
+    .logo { width: 680px; height: auto; display: block; }
+    .logo-sm { width: 320px; height: auto; display: block; margin-top: 48px; }
+    .path {
+      display: flex; align-items: baseline; gap: 36px; margin: 10px 0;
+      font-family: Fraunces, serif; font-weight: 500; font-size: 72px;
+      letter-spacing: -0.03em; line-height: 1.15;
+    }
+    .path b {
+      font-family: Outfit, sans-serif; font-weight: 600; font-size: 26px;
+      letter-spacing: 0.14em; color: #ff8c00; width: 64px; flex: none;
+    }
+    .services {
+      display: flex; flex-direction: column; gap: 16px; margin-top: 46px;
+      font-family: Outfit, sans-serif; font-weight: 500; font-size: 26px;
+      letter-spacing: 0.2em; text-transform: uppercase; color: #f6f3ec;
+    }
+    .services div { display: flex; gap: 40px; }
+    .mail {
+      font-family: Outfit, sans-serif; font-weight: 500; font-size: 28px;
+      color: #f6f3ec; margin-top: 22px;
+    }
+    .child { opacity: 0; will-change: transform, opacity; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div class="glow" id="glow"></div>
+    <canvas id="grain" width="1920" height="1080"></canvas>
+    <div class="vignette"></div>
+
+    <section class="center" id="sOpen">
+      <div class="rule child" id="openRule"></div>
+      <img class="logo child" id="openLogo" src="../assets/gixbee-logo.png" alt="Gixbee">
+    </section>
+
+    <section class="center" id="sName">
+      <h1 class="name">
+        <span class="child" id="n1">The Skill</span>
+        <span class="child" id="n2">Intelligence</span>
+        <span class="child" id="n3">Network.</span>
+      </h1>
+      <div class="rule child" id="nRule" style="width:128px;margin-top:36px"></div>
+      <p class="kicker child" id="nK" style="margin-top:28px;margin-bottom:0">Kerala first</p>
+    </section>
+
+    <section class="edit" id="sState">
+      <p class="kicker child" id="stK">The product</p>
+      <h1 class="child" id="stH">Software for<br>local services<br>and work.</h1>
+      <p class="sub child" id="stS">One account. Book help, plan an event, find a job, or list a business.</p>
+    </section>
+
+    <section class="edit" id="sPaths">
+      <p class="kicker child" id="pK">Four ways</p>
+      <div class="path child" id="p1"><b>01</b><span>Book help</span></div>
+      <div class="path child" id="p2"><b>02</b><span>Find a job</span></div>
+      <div class="path child" id="p3"><b>03</b><span>Earn Hourly</span></div>
+      <div class="path child" id="p4"><b>04</b><span>List a business</span></div>
+    </section>
+
+    <section class="edit" id="sAccept">
+      <p class="kicker child" id="aK">A booking</p>
+      <h1 class="child" id="aH">Someone<br>accepts.</h1>
+      <p class="sub child" id="aS">Gixbee does not assign the work. The customer pays the professional directly.</p>
+    </section>
+
+    <section class="edit" id="sAzure">
+      <p class="kicker child" id="zK">Platform</p>
+      <h1 class="child" id="zH">Hosted on<br>Microsoft Azure.</h1>
+      <div class="services child" id="zS">
+        <div><span>Compute</span><span>Database</span><span>Cache</span></div>
+        <div><span>Storage</span><span>Networking</span><span>Monitoring</span></div>
+      </div>
+    </section>
+
+    <section class="center" id="sClose">
+      <p class="kicker child" id="cK">Public beta</p>
+      <h1 class="child" id="cH">March 2027.</h1>
+      <p class="sub child" id="cS" style="margin-left:auto;margin-right:auto">Kerala first, then the rest of India, then the world.</p>
+      <p class="mail child" id="cM">contact@gixbee.com</p>
+      <img class="logo-sm child" id="cL" src="../assets/gixbee-logo.png" alt="">
+    </section>
+  </div>
+  <script>
+    (function grain() {
+      const c = document.getElementById("grain");
+      const x = c.getContext("2d");
+      const img = x.createImageData(1920, 1080);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = 118 + Math.random() * 50;
+        d[i] = d[i + 1] = d[i + 2] = v;
+        d[i + 3] = 255;
+      }
+      x.putImageData(img, 0, 0);
+    })();
+    const DURATION = 36;
+    function ease(p) {
+      p = Math.max(0, Math.min(1, p));
+      return 1 - Math.pow(1 - p, 3);
+    }
+    function show(el, t, a, b, rise) {
+      const inn = ease((t - a) / 0.55);
+      const out = b > 90 ? 0 : ease((t - (b - 0.42)) / 0.42);
+      const o = Math.max(0, inn * (1 - out));
+      const y = (1 - inn) * (rise || 22) - out * 14;
+      el.style.opacity = o.toFixed(4);
+      el.style.transform = "translateY(" + y.toFixed(2) + "px)";
+    }
+    function rule(el, t, a, b) {
+      const inn = ease((t - a) / 0.7);
+      const out = b > 90 ? 0 : ease((t - (b - 0.42)) / 0.42);
+      const o = Math.max(0, inn * (1 - out));
+      el.style.opacity = o.toFixed(4);
+      el.style.transform = "scaleX(" + inn.toFixed(4) + ")";
+    }
+    window.renderAt = function (t) {
+      const g = document.getElementById("glow");
+      const x = 38 + Math.sin(t * 0.35) * 10;
+      const y = 42 + Math.cos(t * 0.22) * 6;
+      g.style.left = x + "%";
+      g.style.top = y + "%";
+      g.style.transform = "translate(-50%, -50%)";
+
+      rule(document.getElementById("openRule"), t, 0.3, 4.4);
+      show(document.getElementById("openLogo"), t, 0.6, 4.4, 16);
+
+      show(document.getElementById("n1"), t, 4.35, 10.5, 28);
+      show(document.getElementById("n2"), t, 4.85, 10.5, 28);
+      show(document.getElementById("n3"), t, 5.35, 10.5, 28);
+      rule(document.getElementById("nRule"), t, 5.85, 10.5);
+      show(document.getElementById("nK"), t, 6.2, 10.5, 12);
+
+      show(document.getElementById("stK"), t, 10.35, 15.15, 12);
+      show(document.getElementById("stH"), t, 10.55, 15.15, 26);
+      show(document.getElementById("stS"), t, 11.15, 15.15, 16);
+
+      show(document.getElementById("pK"), t, 15.0, 20.9, 12);
+      show(document.getElementById("p1"), t, 15.25, 20.9, 20);
+      show(document.getElementById("p2"), t, 15.55, 20.9, 20);
+      show(document.getElementById("p3"), t, 15.85, 20.9, 20);
+      show(document.getElementById("p4"), t, 16.15, 20.9, 20);
+
+      show(document.getElementById("aK"), t, 20.75, 25.45, 12);
+      show(document.getElementById("aH"), t, 20.95, 25.45, 26);
+      show(document.getElementById("aS"), t, 21.5, 25.45, 16);
+
+      show(document.getElementById("zK"), t, 25.3, 30.1, 12);
+      show(document.getElementById("zH"), t, 25.5, 30.1, 26);
+      show(document.getElementById("zS"), t, 26.1, 30.1, 16);
+
+      show(document.getElementById("cK"), t, 29.95, 99, 12);
+      show(document.getElementById("cH"), t, 30.15, 99, 24);
+      show(document.getElementById("cS"), t, 30.65, 99, 14);
+      show(document.getElementById("cM"), t, 31.0, 99, 12);
+      show(document.getElementById("cL"), t, 31.45, 99, 12);
+    };
+    window.FILM_DURATION = DURATION;
+    if (location.hash !== "#still") {
+      document.fonts.ready.then(function () {
+        const t0 = performance.now();
+        function loop(now) {
+          const t = Math.min((now - t0) / 1000, DURATION);
+          window.renderAt(t);
+          if (t < DURATION) requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+      });
+    } else {
+      document.fonts.ready.then(function () { window.renderAt(0); window.__ready = true; });
+    }
+  </script>
+</body>
+</html>
