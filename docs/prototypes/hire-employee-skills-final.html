@@ -260,6 +260,11 @@
           <div class="age-row"><span>From</span><input type="range" id="ageMin" min="18" max="65" value="30" aria-label="Minimum age"><b id="ageMinV">30</b></div>
           <div class="age-row"><span>To</span><input type="range" id="ageMax" min="18" max="65" value="50" aria-label="Maximum age"><b id="ageMaxV">50</b></div>
         </div>
+        <div class="fld">
+          <label class="req">Work schedule</label>
+          <p class="hint" style="margin-top:0">Day-time job or shift-based work — helps match the right candidates.</p>
+          <div class="chips" id="shiftChips"></div>
+        </div>
         <div class="match match-bottom">
           <div class="pdot">👥</div>
           <div><div class="n" id="matchN">42</div><div class="s">available candidates match your requirement</div></div>
@@ -8981,8 +8986,13 @@ const state = {
   ageMax: 50,
   benefitAccommodation: false,
   benefitFood: false,
+  workSchedule: 'DAY',
 };
 const GENDERS = ['Male', 'Female', 'Transgender'];
+const WORK_SCHEDULES = [
+  {id:'DAY', label:'Day time job', hint:'Regular daytime hours'},
+  {id:'SHIFT', label:'Shift job', hint:'Rotating, evening, or night shifts'},
+];
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
   'English', 'Malayalam', 'Hindi', 'Tamil', 'Kannada', 'Telugu', 'Marathi', 'Bengali',
@@ -9186,11 +9196,20 @@ function syncAgeUI(){
   if(hiV) hiV.textContent = hi;
   matchCount();
 }
+function workScheduleLabel(){
+  return WORK_SCHEDULES.find(w => w.id === state.workSchedule)?.label || '—';
+}
 function renderS4(){
   const gEl = document.getElementById('genderChips');
   if(gEl){
     gEl.innerHTML = GENDERS.map(g =>
       `<button type="button" class="chip ${state.genders.includes(g)?'on':''}" data-g="${g}">${g}</button>`
+    ).join('');
+  }
+  const sEl = document.getElementById('shiftChips');
+  if(sEl){
+    sEl.innerHTML = WORK_SCHEDULES.map(w =>
+      `<button type="button" class="chip ${state.workSchedule===w.id?'on':''}" data-shift="${w.id}" title="${w.hint}">${w.label}</button>`
     ).join('');
   }
   const minEl = document.getElementById('ageMin');
@@ -9230,6 +9249,7 @@ function renderS5(){
     ['Languages', state.languages.join(', ')||'—'],
     ['Preferred gender', state.genders.join(', ') || '—'],
     ['Age range', state.ageMin + ' – ' + state.ageMax + ' years'],
+    ['Work schedule', workScheduleLabel()],
     ['Location', loc],
     ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
     ['Vacancies', state.vac],
@@ -9372,6 +9392,12 @@ document.getElementById('genderChips').addEventListener('click', e => {
 });
 document.getElementById('ageMin').addEventListener('input', syncAgeUI);
 document.getElementById('ageMax').addEventListener('input', syncAgeUI);
+document.getElementById('shiftChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-shift]');
+  if(!b) return;
+  state.workSchedule = b.dataset.shift;
+  renderS4();
+});
 document.getElementById('expV');
 document.getElementById('vacM').onclick = () => { state.vac=Math.max(1,state.vac-1); document.getElementById('vacV').textContent=state.vac; matchCount(); };
 document.getElementById('vacP').onclick = () => { state.vac=Math.min(20,state.vac+1); document.getElementById('vacV').textContent=state.vac; matchCount(); };
@@ -9380,6 +9406,7 @@ document.getElementById('clrLoc').onclick = () => { document.getElementById('loc
 ['loc','smin','smax'].forEach(id => document.getElementById(id).addEventListener('input', matchCount));
 document.getElementById('c4').onclick = () => {
   if(!state.genders.length){ toast('Select at least one preferred gender.'); return; }
+  if(!state.workSchedule){ toast('Select day time or shift job.'); return; }
   show('s5'); renderS5();
 };
 document.getElementById('benAccom').addEventListener('change', function(){
