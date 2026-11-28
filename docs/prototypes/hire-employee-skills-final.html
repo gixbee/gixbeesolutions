@@ -183,8 +183,8 @@
         </div>
         <div class="fld" id="qualMarksBlock" hidden>
           <label class="req" for="qualPct">Marks scored (%)</label>
-          <input id="qualPct" type="text" inputmode="numeric" maxlength="3" pattern="[0-9]*" placeholder="e.g. 72" aria-required="true" autocomplete="off">
-          <p class="hint">Whole numbers only. Minimum 1%, maximum 100%.</p>
+          <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="e.g. 72.55" aria-required="true" autocomplete="off">
+          <p class="hint">Up to 2 decimal places. Minimum 1%, maximum 100%.</p>
         </div>
         <div class="fld">
           <label>Minimum experience (years)</label>
@@ -9037,23 +9037,45 @@ function syncQualUI(){
 }
 function readQualMarks(){
   const raw = (document.getElementById('qualPct')?.value || '').trim();
-  if(!raw) return null;
-  if(!/^\d+$/.test(raw)) return null;
-  const n = parseInt(raw, 10);
-  if(n < 1 || n > 100) return null;
-  return String(n);
+  if(!raw || raw.endsWith('.')) return null;
+  if(!/^\d+(\.\d{1,2})?$/.test(raw)) return null;
+  const n = parseFloat(raw);
+  if(Number.isNaN(n) || n < 1 || n > 100) return null;
+  return raw;
 }
 function sanitizeQualPctInput(){
   const el = document.getElementById('qualPct');
   if(!el) return;
   const prev = state.qualMarks || '';
-  let v = el.value.replace(/[^\d]/g, '').slice(0, 3);
+  let v = el.value.replace(/[^\d.]/g, '');
+  const firstDot = v.indexOf('.');
+  if(firstDot !== -1){
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+  }
+  if(firstDot !== -1){
+    const parts = v.split('.');
+    v = parts[0] + '.' + (parts[1] || '').slice(0, 2);
+  }
   if(v === ''){
     el.value = '';
     state.qualMarks = '';
     return;
   }
-  const n = parseInt(v, 10);
+  if(v === '.'){
+    el.value = prev;
+    return;
+  }
+  if(v.endsWith('.')){
+    const n = parseFloat(v.slice(0, -1));
+    if(Number.isNaN(n) || n > 100){
+      el.value = prev;
+      return;
+    }
+    el.value = v;
+    state.qualMarks = v;
+    return;
+  }
+  const n = parseFloat(v);
   if(Number.isNaN(n) || n > 100){
     el.value = prev;
     return;
@@ -9070,7 +9092,7 @@ function validateQualification(){
   sanitizeQualPctInput();
   const marks = readQualMarks();
   if(marks === null){
-    toast('Enter whole-number percentage from 1 to 100 only.');
+    toast('Enter percentage from 1 to 100 (max 2 decimal places).');
     const el = document.getElementById('qualPct');
     if(el) el.focus();
     return false;
