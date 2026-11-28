@@ -285,7 +285,7 @@
       <div class="prog"><div class="bar"><i style="width:100%"></i></div><span class="frac">5/5</span></div>
       <div class="pad">
         <h2>Review &amp; Publish</h2>
-        <p class="sub">Check your job details and choose a matching package to get interested candidates.</p>
+        <p class="sub">Review your job details. On the next step you can choose a package and start matching.</p>
         <h2 style="margin:0 0 6px;font-size:17px">Employee benefits <span style="font-size:12px;font-weight:600;color:#9CA3AF">(optional)</span></h2>
         <p class="hint" style="margin:0 0 10px">Tick only if your company provides these to the employee.</p>
         <div class="sum" style="margin-bottom:16px;padding:12px 14px">
@@ -296,20 +296,8 @@
           <div style="display:flex;justify-content:space-between"><b>Job Summary</b><button class="see" type="button" data-to="s3">Edit</button></div>
           <div id="summary"></div>
         </div>
-        <h2>Select Interested Candidates Package</h2>
-        <div class="pk on" data-n="5" data-p="29"><b>Up to 5 interested</b><div class="amt">₹29</div><div class="s">₹5.80 per interested candidate · Good for one urgent position</div></div>
-        <div class="pk" data-n="10" data-p="49"><b>Up to 10 interested</b><div class="amt">₹49</div><div class="s">₹4.90 per interested candidate · More choice for shortlist</div></div>
-        <div class="pk" data-n="20" data-p="79"><b>Up to 20 interested</b><div class="amt">₹79</div><div class="s">₹3.95 per interested candidate · For multiple openings</div></div>
-        <div class="sum">
-          <div style="display:flex;justify-content:space-between"><span>Wallet Balance (demo)</span><b>₹10</b></div>
-          <div class="line"><span>Package Price</span><b id="pkP">₹29</b></div>
-          <div class="line"><span>Use from Wallet</span><b>− ₹10</b></div>
-          <div class="line"><span>Remaining Payable Amount</span><b id="due">₹19</b></div>
-        </div>
-        <label class="ck"><input type="checkbox" id="agree" checked> I understand that I will be charged only for interested candidates, and any unused amount will be added to my wallet.</label>
-        <p class="ok">Demo only. Live app charges via Razorpay / hiring credit — wallet is off in production.</p>
       </div>
-      <div class="cta"><button class="btn" id="c5">Pay ₹19 &amp; Start Matching</button></div>
+      <div class="cta"><button class="btn" id="c5">Choose package &amp; start matching</button></div>
     </section>
 
     <section class="scr" id="s6">
@@ -9263,10 +9251,6 @@ function renderS5(){
     ['Vacancies', state.vac],
     ['Employee benefits', benefitsSummary()],
   ].map(([k,v])=>`<div class="line"><span>${k}</span><b>${v}</b></div>`).join('');
-  const due = Math.max(0, state.pkg.p-10);
-  document.getElementById('pkP').textContent = '₹'+state.pkg.p;
-  document.getElementById('due').textContent = '₹'+due;
-  document.getElementById('c5').textContent = 'Pay ₹'+due+' & Start Matching';
 }
 function matchCount(){
   const loc = document.getElementById('loc').value.length;
@@ -9425,16 +9409,9 @@ document.getElementById('benFood').addEventListener('change', function(){
   state.benefitFood = this.checked;
   renderS5();
 });
-document.querySelectorAll('.pk').forEach(pk => pk.onclick = () => {
-  document.querySelectorAll('.pk').forEach(x=>x.classList.remove('on'));
-  pk.classList.add('on');
-  state.pkg={n:+pk.dataset.n,p:+pk.dataset.p};
-  renderS5();
-});
 document.getElementById('c5').onclick = () => {
-  if(!document.getElementById('agree').checked){ toast('Please accept the charge note.'); return; }
   document.getElementById('doneTxt').textContent =
-    'Posted '+position().label+' in '+sector().label+' · '+state.pkg.n+' interested target.';
+    'Posted '+position().label+' in '+sector().label+'. Matching is live — interested candidates can respond.';
   show('s6');
 };
 document.getElementById('skMore').onclick = () => { state.skillFull=true; drawSkills(); };
