@@ -107,6 +107,39 @@
   .shift-opt b{display:block;font-size:12px;font-weight:800;color:#111827;margin-bottom:4px}
   .shift-opt span{display:block;font-size:10px;line-height:1.35;color:var(--mut)}
   .shift-opt.on b{color:#065F46}
+  /* —— Interested Candidates / packages —— */
+  .ic-top{align-items:flex-start;padding-top:10px}
+  .ic-top h1{font-size:16px;line-height:1.25;flex:1;min-width:0}
+  .wal-mini{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:6px 8px;box-shadow:0 4px 14px rgba(15,23,42,.07);flex:none;max-width:118px}
+  .wal-mini b{display:block;font-size:12px;font-weight:800;color:#111;line-height:1.2}
+  .wal-mini .wlbl{font-size:9px;color:#9CA3AF;display:block;line-height:1.2;margin-top:1px}
+  .coin-ico{font-size:22px;line-height:1;flex:none}
+  .ic-h2{font-size:21px;font-weight:800;color:#1B2559;margin:8px 0 6px;letter-spacing:-.02em}
+  .icpkg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
+  .ic-pkg{position:relative;border:2px solid #E5E7EB;border-radius:18px;padding:12px 8px 14px;text-align:center;cursor:pointer;background:#fff;font:inherit;width:100%}
+  .ic-pkg.on{border-color:#12B76A;background:#fff;box-shadow:0 0 0 2px #D1FADF}
+  .ic-pkg .chk{position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:50%;background:#12B76A;color:#fff;display:none;align-items:center;justify-content:center;font-size:13px;font-weight:900;line-height:1}
+  .ic-pkg.on .chk{display:flex}
+  .coin-stack{min-height:34px;display:flex;align-items:flex-end;justify-content:center;gap:0;margin-bottom:8px;font-size:26px;line-height:1}
+  .coin-stack span{display:inline-block;transform:translateY(var(--y,0))}
+  .ic-pkg h3{font-size:13px;font-weight:800;color:#1B2559;margin:0 0 10px;line-height:1.25}
+  .price-pill{background:#ECFDF3;border-radius:16px;padding:10px 8px;margin-bottom:10px}
+  .price-pill b{font-size:12px;font-weight:800;color:#1B2559;display:block;line-height:1.25}
+  .price-pill small{font-size:11px;color:#374151;font-weight:600}
+  .per-cap{font-size:11px;font-weight:700;color:#12B76A;line-height:1.2}
+  .ic-pay{margin-top:18px!important;padding:14px 14px 0!important}
+  .ic-pay .pay-hd{font-size:16px;font-weight:800;color:#1B2559;display:block;margin-bottom:8px}
+  .ic-pay .pay-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:7px 0;color:#6B7280}
+  .ic-pay .pay-row strong{color:#111;font-weight:700;text-align:right}
+  .ic-pay .pay-total{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 10px;border-top:1px solid #F3F4F6;margin-top:4px}
+  .ic-pay .pay-total span{font-size:15px;font-weight:800;color:#1B2559}
+  .ic-pay .big-pay{font-size:28px;font-weight:900;color:#12B76A;line-height:1}
+  .ic-wal-rem{background:#ECFDF3;border-radius:14px;padding:11px 12px;margin:0 -14px 0;display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#065F46;font-weight:700}
+  .ic-wal-rem b{font-weight:800;color:#059669}
+  .ic-info{display:flex;gap:10px;align-items:flex-start;background:#ECFDF3;border-radius:14px;padding:12px;margin:14px 0 4px;font-size:11px;line-height:1.5;color:#065F46}
+  .ic-info i{width:24px;height:24px;border-radius:50%;background:#12B76A;color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;flex:none}
+  #cPkgStart{font-size:15px;letter-spacing:-.01em}
+  #sPkg .ck{border:0;padding:10px 0;font-size:11px;line-height:1.45;color:#6B7280}
   /* —— Step 1: Type & Sector (design v2) —— */
   #s1 .top{display:none}
   #s1 .prog{display:none}
@@ -298,6 +331,35 @@
         </div>
       </div>
       <div class="cta"><button class="btn" id="c5">Choose package &amp; start matching</button></div>
+    </section>
+
+    <section class="scr" id="sPkg">
+      <div class="top ic-top">
+        <button class="back" type="button" data-to="s5">←</button>
+        <h1>Interested Candidates</h1>
+        <div class="wal-mini">
+          <span class="coin-ico" aria-hidden="true">🪙</span>
+          <div><b id="walHdr">70 Coins</b><span class="wlbl">Wallet Balance</span></div>
+        </div>
+      </div>
+      <div class="pad" style="padding-top:4px">
+        <h2 class="ic-h2">Choose Your Package</h2>
+        <p class="sub" style="margin-bottom:4px">Pay for interested candidates. Unused value is credited to your wallet.</p>
+        <div class="icpkg-grid" id="icPkgGrid"></div>
+        <div class="sum ic-pay">
+          <span class="pay-hd">Payment Breakdown</span>
+          <div class="pay-row"><span>Package Price</span><strong id="pkgPriceLine">40 Coins (₹40)</strong></div>
+          <div class="pay-row"><span>Use from Wallet</span><strong id="pkgWalletLine">− 40 Coins (₹40)</strong></div>
+          <div class="pay-total"><span>Amount to Pay</span><span class="big-pay" id="pkgPayAmt">₹0</span></div>
+          <div class="ic-wal-rem"><span>Remaining Wallet Balance</span><b id="pkgWalRem">30 Coins (₹30)</b></div>
+        </div>
+        <label class="ck"><input type="checkbox" id="pkgAgree"> I understand that if fewer eligible candidates are matched than the selected package includes, the unused value will be credited to my Gixbee wallet as platform credits, not cash.</label>
+        <div class="ic-info">
+          <i>i</i>
+          <div><b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Wallet balance completely covers this transaction. No external payment required.</div>
+        </div>
+      </div>
+      <div class="cta"><button class="btn" id="cPkgStart" type="button">Use 40 Coins &amp; Start Matching →</button></div>
     </section>
 
     <section class="scr" id="s6">
@@ -8968,7 +9030,8 @@ const state = {
   exp: 2,
   vac: 1,
   neg: true,
-  pkg: {n:5,p:29},
+  walletCoins: 70,
+  pkgId: 'p5',
   posLimit: 8,
   skillFull: false,
   languages: ['English', 'Malayalam'],
@@ -8987,6 +9050,46 @@ const WORK_SCHEDULES = [
   {id:'DAY', label:'Day time job', hint:'Regular daytime hours'},
   {id:'SHIFT', label:'Shift job', hint:'Rotating, evening, or night shifts'},
 ];
+const PKG_OPTIONS = [
+  {id:'p5', n:5, coins:40, per:8, stacks:[0,4,8]},
+  {id:'p10', n:10, coins:70, per:7, stacks:[0,2,6]},
+  {id:'p15', n:15, coins:90, per:6, stacks:[0,0,4]},
+];
+function selectedPkg(){ return PKG_OPTIONS.find(p => p.id === state.pkgId) || PKG_OPTIONS[0]; }
+function coinStackHtml(stacks){
+  return stacks.map((y,i) => `<span style="--y:${y}px">🪙</span>`).join('');
+}
+function renderPkg(){
+  const grid = document.getElementById('icPkgGrid');
+  if(!grid) return;
+  grid.innerHTML = PKG_OPTIONS.map(p =>
+    `<button type="button" class="ic-pkg ${state.pkgId===p.id?'on':''}" data-pkg="${p.id}">
+      <span class="chk">✓</span>
+      <div class="coin-stack">${coinStackHtml(p.stacks)}</div>
+      <h3>${p.n} Candidates</h3>
+      <div class="price-pill"><b>${p.coins} Coins</b><small>(₹${p.coins})</small></div>
+      <div class="per-cap">₹${p.per} per candidate</div>
+    </button>`
+  ).join('');
+  const p = selectedPkg();
+  const use = Math.min(state.walletCoins, p.coins);
+  const pay = Math.max(0, p.coins - state.walletCoins);
+  const rem = state.walletCoins - use;
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  set('pkgPriceLine', p.coins + ' Coins (₹' + p.coins + ')');
+  set('pkgWalletLine', '− ' + use + ' Coins (₹' + use + ')');
+  set('pkgPayAmt', '₹' + pay);
+  set('pkgWalRem', rem + ' Coins (₹' + rem + ')');
+  set('walHdr', state.walletCoins + ' Coins');
+  const btn = document.getElementById('cPkgStart');
+  if(btn) btn.textContent = pay > 0 ? ('Pay ₹' + pay + ' & Start Matching →') : ('Use ' + use + ' Coins & Start Matching →');
+  const info = document.querySelector('#sPkg .ic-info div');
+  if(info){
+    info.innerHTML = pay > 0
+      ? '<b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Complete payment for the balance to start matching.'
+      : '<b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Wallet balance completely covers this transaction. No external payment required.';
+  }
+}
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
 const LANGUAGE_LIST = [
   'English', 'Malayalam', 'Hindi', 'Tamil', 'Kannada', 'Telugu', 'Marathi', 'Bengali',
@@ -9409,9 +9512,21 @@ document.getElementById('benFood').addEventListener('change', function(){
   state.benefitFood = this.checked;
   renderS5();
 });
-document.getElementById('c5').onclick = () => {
+document.getElementById('c5').onclick = () => { show('sPkg'); renderPkg(); };
+document.getElementById('icPkgGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-pkg]');
+  if(!b) return;
+  state.pkgId = b.dataset.pkg;
+  renderPkg();
+});
+document.getElementById('cPkgStart').onclick = () => {
+  const agree = document.getElementById('pkgAgree');
+  if(agree && !agree.checked){ toast('Please confirm the wallet credit terms.'); return; }
+  const p = selectedPkg();
+  const use = Math.min(state.walletCoins, p.coins);
+  state.walletCoins -= use;
   document.getElementById('doneTxt').textContent =
-    'Posted '+position().label+' in '+sector().label+'. Matching is live — interested candidates can respond.';
+    'Posted '+position().label+' in '+sector().label+' · up to '+p.n+' interested candidates · matching live.';
   show('s6');
 };
 document.getElementById('skMore').onclick = () => { state.skillFull=true; drawSkills(); };
@@ -9460,6 +9575,7 @@ document.querySelectorAll('[data-to]').forEach(b => b.addEventListener('click', 
   if(id==='s2') renderS2();
   if(id==='s3') renderS3();
   if(id==='s4') renderS4();
+  if(id==='sPkg') renderPkg();
 }));
 document.getElementById('myReq').onclick = () => toast('My requests is a prototype stub.');
 renderS1();
