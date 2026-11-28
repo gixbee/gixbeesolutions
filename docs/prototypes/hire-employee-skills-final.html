@@ -183,7 +183,7 @@
         </div>
         <div class="fld" id="qualMarksBlock" hidden>
           <label class="req" for="qualPct">Marks scored (%)</label>
-          <input id="qualPct" type="number" inputmode="numeric" min="1" max="100" step="1" placeholder="e.g. 72" aria-required="true">
+          <input id="qualPct" type="text" inputmode="numeric" maxlength="3" pattern="[0-9]*" placeholder="e.g. 72" aria-required="true" autocomplete="off">
           <p class="hint">Whole numbers only. Minimum 1%, maximum 100%.</p>
         </div>
         <div class="fld">
@@ -9046,14 +9046,19 @@ function readQualMarks(){
 function sanitizeQualPctInput(){
   const el = document.getElementById('qualPct');
   if(!el) return;
-  let v = el.value.replace(/[^\d]/g, '');
-  if(v !== ''){
-    let n = parseInt(v, 10);
-    if(Number.isNaN(n)) n = '';
-    else if(n > 100) n = 100;
-    v = n === '' ? '' : String(n);
+  const prev = state.qualMarks || '';
+  let v = el.value.replace(/[^\d]/g, '').slice(0, 3);
+  if(v === ''){
+    el.value = '';
+    state.qualMarks = '';
+    return;
   }
-  if(el.value !== v) el.value = v;
+  const n = parseInt(v, 10);
+  if(Number.isNaN(n) || n > 100){
+    el.value = prev;
+    return;
+  }
+  el.value = v;
   state.qualMarks = v;
 }
 function validateQualification(){
