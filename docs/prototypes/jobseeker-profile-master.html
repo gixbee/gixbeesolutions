@@ -338,7 +338,7 @@
     </section>
 
     <section class="scr" id="s3">
-      <div class="top"><button class="back" type="button" data-to="s2">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles3">My profiles</button></div>
+      <div class="top"><button class="back" type="button" id="s3Back">←</button><h1>Job Profile</h1><button class="req" type="button" id="myProfiles3">My profiles</button></div>
       <div class="prog"><div class="bar"><i style="width:60%"></i></div><span class="frac">3/5</span></div>
       <div class="pad">
         <div class="crumb">
@@ -4191,6 +4191,7 @@ if (!C || !C.employmentTypes) {
 
 const state = {
   editId: null,
+  editFromHome: false,
   emp: 'FT',
   sectorId: null,
   positionId: null,
@@ -4644,6 +4645,7 @@ function startCreateProfile() {
     return;
   }
   resetWizard(false);
+  state.editFromHome = false;
   show('s1');
   renderS1();
 }
@@ -4864,9 +4866,25 @@ function applyPayload(profile) {
   renderS4();
 }
 
+function openProfileEdit(profile, fromHome) {
+  if (!profile?.sector?.id || !profile?.position?.id) {
+    toast('Profile is incomplete — finish setup from step 1.');
+    applyPayload(profile);
+    show('s1');
+    renderS1();
+    return;
+  }
+  applyPayload(profile);
+  state.editFromHome = !!fromHome;
+  syncQualUI();
+  renderS3();
+  show('s3');
+}
+
 function resetWizard(keepEmp) {
   const emp = keepEmp ? state.emp : 'FT';
   state.editId = null;
+  state.editFromHome = false;
   state.emp = emp;
   state.sectorId = null;
   state.positionId = null;
@@ -5224,7 +5242,7 @@ function persistProfile() {
   }
   saveProfiles(list);
   state.editId = payload.id;
-  const sal = payload.salary?.expectedMonthly;
+  state.editFromHome = false;
   toast('Profile saved — matching is on.');
   renderHome();
   show('sHome');
@@ -5506,6 +5524,16 @@ document.getElementById('s1Back').onclick = () => {
   renderHome();
   show('sHome');
 };
+document.getElementById('s3Back').onclick = () => {
+  if (state.editFromHome && state.editId) {
+    state.editFromHome = false;
+    renderHome();
+    show('sHome');
+    return;
+  }
+  show('s2');
+  renderS2();
+};
 el('homeUpgradePro')?.addEventListener('click', () => toast('Pro — ₹99/month, up to 3 profiles (demo only).'));
 el('homeUpgradeProPlus')?.addEventListener('click', () => toast('Pro Plus — ₹199/month, up to 8 profiles (demo only).'));
 el('navAlerts')?.addEventListener('click', () => toast('Alerts — demo.'));
@@ -5535,10 +5563,7 @@ el('homeProfileList')?.addEventListener('click', (e) => {
   if (edit) {
     const pr = loadProfiles().find((x) => x.id === edit.getAttribute('data-edit'));
     if (!pr) return;
-    applyPayload(pr);
-    show('s1');
-    renderS1();
-    toast('Editing profile — walk through or save to update.');
+    openProfileEdit(pr, true);
     return;
   }
   const match = e.target.closest('[data-match]');
@@ -5567,10 +5592,7 @@ document.getElementById('profileList')?.addEventListener('click', (e) => {
   if (!open) return;
   const pr = loadProfiles().find((x) => x.id === open.getAttribute('data-open'));
   if (!pr) return;
-  applyPayload(pr);
-  show('s1');
-  renderS1();
-  toast('Profile loaded — review steps or save again to update.');
+  openProfileEdit(pr, true);
 });
 document.getElementById('exportProfiles').onclick = () => {
   const json = JSON.stringify(loadProfiles(), null, 2);
