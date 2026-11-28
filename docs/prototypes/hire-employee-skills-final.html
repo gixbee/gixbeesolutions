@@ -172,7 +172,8 @@
           <button class="see" type="button" id="moreTypes" hidden>Show more</button>
         </div>
         <div class="fld">
-          <label class="req" for="qual">Qualification</label>
+          <label class="req" for="qual">Qualification required for this job</label>
+          <p class="hint" style="margin-top:0">Choose the minimum education level candidates must have.</p>
           <select id="qual" required aria-required="true">
             <option value="">Select qualification</option>
             <option>10th</option><option>12th</option><option>ITI / Diploma</option>
@@ -182,9 +183,10 @@
           </select>
         </div>
         <div class="fld" id="qualMarksBlock" hidden>
-          <label class="req" for="qualPct">Marks scored (%)</label>
-          <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="e.g. 72.55" aria-required="true" autocomplete="off">
-          <p class="hint">Up to 2 decimal places. Minimum 1%, maximum 100%.</p>
+          <label class="req" for="qualPct">Minimum marks (%)</label>
+          <p class="hint" style="margin-top:0">Percentage range you require for this qualification (0 to 100).</p>
+          <input id="qualPct" type="text" inputmode="decimal" maxlength="6" placeholder="e.g. 55 or 72.5" aria-required="true" autocomplete="off">
+          <p class="hint">Up to 2 decimal places. Employers set the floor — matching uses this minimum only.</p>
         </div>
         <div class="fld">
           <label>Minimum experience (years)</label>
@@ -9040,7 +9042,7 @@ function readQualMarks(){
   if(!raw || raw.endsWith('.')) return null;
   if(!/^\d+(\.\d{1,2})?$/.test(raw)) return null;
   const n = parseFloat(raw);
-  if(Number.isNaN(n) || n < 1 || n > 100) return null;
+  if(Number.isNaN(n) || n < 0 || n > 100) return null;
   return raw;
 }
 function sanitizeQualPctInput(){
@@ -9092,7 +9094,7 @@ function validateQualification(){
   sanitizeQualPctInput();
   const marks = readQualMarks();
   if(marks === null){
-    toast('Enter percentage from 1 to 100 (max 2 decimal places).');
+    toast('Enter minimum marks % from 0 to 100 (max 2 decimal places).');
     const el = document.getElementById('qualPct');
     if(el) el.focus();
     return false;
@@ -9139,8 +9141,8 @@ function renderS5(){
     ['Sector', s.label],
     ['Position', p.label + (state.types[0]? ' ('+state.types.join(', ')+')':'')],
     ['Experience', state.exp+'+ years'],
-    ['Qualification', state.qualification || '—'],
-    ['Marks required', state.qualMarks ? state.qualMarks + '%' : '—'],
+    ['Qualification required', state.qualification || '—'],
+    ['Minimum marks %', state.qualMarks !== '' && state.qualMarks != null ? state.qualMarks + '%' : '—'],
     ['Skills', state.skills.join(', ')||'—'],
     ['Languages', state.languages.join(', ')||'—'],
     ['Location', loc],
