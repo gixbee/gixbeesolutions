@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-wedding-catalog-v29. Do NOT open decoration-owner-flow-shell.html (shell only). -->
+<!-- GIXBEE DECORATION OWNER — single self-contained demo (offline). Save as .html and open in Chrome/Safari/Edge. Build: decoration-owner-preview-by-cat-v30. Do NOT open decoration-owner-flow-shell.html (shell only). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -112,6 +112,8 @@ body{margin:0;background:#E8EDF5;font-family:Inter,system-ui,sans-serif;color:#1
 #decorHub .dec-hub-cat-row .dec-pkg-ev-card{min-height:152px}
 #decorHub .dec-hub-cat-row .dec-pkg-ev-card:not(.on) .dec-pkg-ev-chk{display:none}
 .dec-cat-sec-h{margin:14px 16px 6px;font-size:11px;font-weight:900;color:var(--decor-navy);letter-spacing:.03em}
+.dec-preview-cat{margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#FAFAFA}
+.dec-preview-cat-h{margin:0 0 6px;font-size:12px;font-weight:900;color:var(--decor-navy)}
 .dec-chip-wrap.dec-comm-single .dec-chip{min-width:72px}
 .dec-pkg-price{margin-top:8px;font-weight:800;color:var(--decor);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .dec-off{font-size:11px;color:#059669;font-weight:800}
@@ -3312,11 +3314,43 @@ function decorModuleItemCounts(moduleId) {
   const items = decorSelectedInModule(moduleId);
   let included = 0;
   let extra = 0;
+  let custom = 0;
   items.forEach(function (it) {
+    if (decorIsCustomPackageItem(it)) custom++;
     if (it.inclusionType === 'extra') extra++;
     else included++;
   });
-  return { total: items.length, included: included, extra: extra };
+  return { total: items.length, included: included, extra: extra, custom: custom };
+}
+
+function decorPackageItemLabel(it) {
+  let label = it.customName || it.name || 'Item';
+  const qty = Math.max(1, +it.quantity || 1);
+  if (qty > 1) label += ' (×' + qty + ')';
+  if (decorIsCustomPackageItem(it)) label += ' — Custom';
+  return label;
+}
+
+function decorGroupItemsByModule(items) {
+  const map = {};
+  const order = [];
+  (items || []).forEach(function (it) {
+    const mid = it.moduleId || '';
+    if (!map[mid]) {
+      map[mid] = [];
+      order.push(mid);
+    }
+    map[mid].push(it);
+  });
+  return order.map(function (mid) {
+    const mod = findDecorationModule(mid);
+    return {
+      moduleId: mid,
+      title: mod ? mod.name : 'Other items',
+      emoji: mod ? mod.emoji : '📦',
+      items: map[mid],
+    };
+  });
 }
 
 function decorPkgItemsTab() {
@@ -3446,8 +3480,9 @@ function decorRenderCategoryModRows(rows) {
       let sub;
       if (stats.total) {
         sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
+        if (stats.custom) sub += ', ' + stats.custom + ' custom';
       } else {
-        sub = row.visibleCount + ' items for this package';
+        sub = row.visibleCount + ' catalogue items';
       }
       return (
         '<button type="button" class="dec-mod-row" data-dec-mod="' +
@@ -3892,26 +3927,22 @@ function renderDecorModulePick() {
   }).length;
   const ctx = decorCatalogContextForOwnerPick(decorPkgWizard.draft);
   const list = decorFilteredModuleItems(mod, ctx, q);
-  el('decPickModCount').textContent =
-    pickedTab +
-    ' in this tab · ' +
-    list.length +
-    ' items shown';
-  const host = el('decPickModList');
   const customRows = decorCustomItemsForModule(mod.id, tab, q);
+  const shownCount = list.length + customRows.length;
+  el('decPickModCount').textContent =
+    pickedTab + ' selected in this tab · ' + shownCount + ' items in list (catalogue + custom)';
+  const host = el('decPickModList');
   let html = list
     .map(function (it) {
       return renderDecorItemCard(it, mod, tab);
     })
     .join('');
   if (customRows.length) {
-    html +=
-      '<p class="dec-custom-sec-hd">Your custom items</p>' +
-      customRows
-        .map(function (row) {
-          return renderDecorCustomItemCard(row, mod, tab);
-        })
-        .join('');
+    html += customRows
+      .map(function (row) {
+        return renderDecorCustomItemCard(row, mod, tab);
+      })
+      .join('');
   }
   if (!html) {
     host.innerHTML =
@@ -4222,21 +4253,47 @@ function renderDecorPkgStep5() {
       ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
       : '<b>' + inr(pr.base) + '</b>') +
     '</span></div>';
-  html += '<p class="dec-sec-h">Inclusions (' + inc.length + ')</p><ul class="dec-ul">';
-  inc.forEach(function (it) {
-    html += '<li>' + esc(it.customName || it.name) + '</li>';
-  });
-  html += '</ul><p class="dec-sec-h">Optional / Extra (' + extra.length + ')</p><ul class="dec-ul">';
-  extra.forEach(function (it) {
-    html +=
-      '<li>' +
-      esc(it.customName || it.name) +
-      ' — ' +
-      inr(it.extraPrice) +
-      ' / ' +
-      esc(it.unit || 'Per Event') +
-      '</li>';
-  });
+  html += '<p class="dec-sec-h">Included in package (' + inc.length + ')</p>';
+  if (!inc.length) {
+    html += '<p class="sub" style="margin:0 0 12px">No included items yet.</p>';
+  } else {
+    decorGroupItemsByModule(inc).forEach(function (grp) {
+      html +=
+        '<div class="dec-preview-cat"><p class="dec-preview-cat-h"><span aria-hidden="true">' +
+        grp.emoji +
+        '</span> ' +
+        esc(grp.title) +
+        '</p><ul class="dec-ul">';
+      grp.items.forEach(function (it) {
+        html += '<li>' + esc(decorPackageItemLabel(it)) + '</li>';
+      });
+      html += '</ul></div>';
+    });
+  }
+  html += '<p class="dec-sec-h">Optional add-ons (' + extra.length + ')</p>';
+  if (!extra.length) {
+    html += '<p class="sub" style="margin:0">No extra add-ons.</p>';
+  } else {
+    decorGroupItemsByModule(extra).forEach(function (grp) {
+      html +=
+        '<div class="dec-preview-cat"><p class="dec-preview-cat-h"><span aria-hidden="true">' +
+        grp.emoji +
+        '</span> ' +
+        esc(grp.title) +
+        '</p><ul class="dec-ul">';
+      grp.items.forEach(function (it) {
+        html +=
+          '<li>' +
+          esc(decorPackageItemLabel(it)) +
+          ' — ' +
+          inr(it.extraPrice) +
+          ' / ' +
+          esc(it.unit || 'Per Event') +
+          '</li>';
+      });
+      html += '</ul></div>';
+    });
+  }
   el('decPkgPreviewBody').innerHTML = html;
 }
 
@@ -5458,7 +5515,7 @@ function bindDecorationPlatform() {
 
 
 /** Decoration owner app — dashboard/platform parity with catering + decoration hub. */
-const DECORATION_OWNER_BUILD = 'decoration-owner-wedding-catalog-v29';
+const DECORATION_OWNER_BUILD = 'decoration-owner-preview-by-cat-v30';
 const STORAGE_KEY = 'GIXBEE_DECORATION_OWNER_V1';
 
 function defaultStore() {

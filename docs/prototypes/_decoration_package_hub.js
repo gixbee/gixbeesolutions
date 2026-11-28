@@ -632,11 +632,43 @@ function decorModuleItemCounts(moduleId) {
   const items = decorSelectedInModule(moduleId);
   let included = 0;
   let extra = 0;
+  let custom = 0;
   items.forEach(function (it) {
+    if (decorIsCustomPackageItem(it)) custom++;
     if (it.inclusionType === 'extra') extra++;
     else included++;
   });
-  return { total: items.length, included: included, extra: extra };
+  return { total: items.length, included: included, extra: extra, custom: custom };
+}
+
+function decorPackageItemLabel(it) {
+  let label = it.customName || it.name || 'Item';
+  const qty = Math.max(1, +it.quantity || 1);
+  if (qty > 1) label += ' (×' + qty + ')';
+  if (decorIsCustomPackageItem(it)) label += ' — Custom';
+  return label;
+}
+
+function decorGroupItemsByModule(items) {
+  const map = {};
+  const order = [];
+  (items || []).forEach(function (it) {
+    const mid = it.moduleId || '';
+    if (!map[mid]) {
+      map[mid] = [];
+      order.push(mid);
+    }
+    map[mid].push(it);
+  });
+  return order.map(function (mid) {
+    const mod = findDecorationModule(mid);
+    return {
+      moduleId: mid,
+      title: mod ? mod.name : 'Other items',
+      emoji: mod ? mod.emoji : '📦',
+      items: map[mid],
+    };
+  });
 }
 
 function decorPkgItemsTab() {
@@ -766,8 +798,9 @@ function decorRenderCategoryModRows(rows) {
       let sub;
       if (stats.total) {
         sub = stats.included + ' included' + (stats.extra ? ', ' + stats.extra + ' extra' : '');
+        if (stats.custom) sub += ', ' + stats.custom + ' custom';
       } else {
-        sub = row.visibleCount + ' items for this package';
+        sub = row.visibleCount + ' catalogue items';
       }
       return (
         '<button type="button" class="dec-mod-row" data-dec-mod="' +
@@ -1212,26 +1245,22 @@ function renderDecorModulePick() {
   }).length;
   const ctx = decorCatalogContextForOwnerPick(decorPkgWizard.draft);
   const list = decorFilteredModuleItems(mod, ctx, q);
-  el('decPickModCount').textContent =
-    pickedTab +
-    ' in this tab · ' +
-    list.length +
-    ' items shown';
-  const host = el('decPickModList');
   const customRows = decorCustomItemsForModule(mod.id, tab, q);
+  const shownCount = list.length + customRows.length;
+  el('decPickModCount').textContent =
+    pickedTab + ' selected in this tab · ' + shownCount + ' items in list (catalogue + custom)';
+  const host = el('decPickModList');
   let html = list
     .map(function (it) {
       return renderDecorItemCard(it, mod, tab);
     })
     .join('');
   if (customRows.length) {
-    html +=
-      '<p class="dec-custom-sec-hd">Your custom items</p>' +
-      customRows
-        .map(function (row) {
-          return renderDecorCustomItemCard(row, mod, tab);
-        })
-        .join('');
+    html += customRows
+      .map(function (row) {
+        return renderDecorCustomItemCard(row, mod, tab);
+      })
+      .join('');
   }
   if (!html) {
     host.innerHTML =
@@ -1542,21 +1571,47 @@ function renderDecorPkgStep5() {
       ? '<s>' + inr(pr.base) + '</s> <b>' + inr(pr.offer) + '</b> <span class="dec-off">-' + pr.pct + '%</span>'
       : '<b>' + inr(pr.base) + '</b>') +
     '</span></div>';
-  html += '<p class="dec-sec-h">Inclusions (' + inc.length + ')</p><ul class="dec-ul">';
-  inc.forEach(function (it) {
-    html += '<li>' + esc(it.customName || it.name) + '</li>';
-  });
-  html += '</ul><p class="dec-sec-h">Optional / Extra (' + extra.length + ')</p><ul class="dec-ul">';
-  extra.forEach(function (it) {
-    html +=
-      '<li>' +
-      esc(it.customName || it.name) +
-      ' — ' +
-      inr(it.extraPrice) +
-      ' / ' +
-      esc(it.unit || 'Per Event') +
-      '</li>';
-  });
+  html += '<p class="dec-sec-h">Included in package (' + inc.length + ')</p>';
+  if (!inc.length) {
+    html += '<p class="sub" style="margin:0 0 12px">No included items yet.</p>';
+  } else {
+    decorGroupItemsByModule(inc).forEach(function (grp) {
+      html +=
+        '<div class="dec-preview-cat"><p class="dec-preview-cat-h"><span aria-hidden="true">' +
+        grp.emoji +
+        '</span> ' +
+        esc(grp.title) +
+        '</p><ul class="dec-ul">';
+      grp.items.forEach(function (it) {
+        html += '<li>' + esc(decorPackageItemLabel(it)) + '</li>';
+      });
+      html += '</ul></div>';
+    });
+  }
+  html += '<p class="dec-sec-h">Optional add-ons (' + extra.length + ')</p>';
+  if (!extra.length) {
+    html += '<p class="sub" style="margin:0">No extra add-ons.</p>';
+  } else {
+    decorGroupItemsByModule(extra).forEach(function (grp) {
+      html +=
+        '<div class="dec-preview-cat"><p class="dec-preview-cat-h"><span aria-hidden="true">' +
+        grp.emoji +
+        '</span> ' +
+        esc(grp.title) +
+        '</p><ul class="dec-ul">';
+      grp.items.forEach(function (it) {
+        html +=
+          '<li>' +
+          esc(decorPackageItemLabel(it)) +
+          ' — ' +
+          inr(it.extraPrice) +
+          ' / ' +
+          esc(it.unit || 'Per Event') +
+          '</li>';
+      });
+      html += '</ul></div>';
+    });
+  }
   el('decPkgPreviewBody').innerHTML = html;
 }
 
