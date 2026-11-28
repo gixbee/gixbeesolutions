@@ -180,9 +180,6 @@
   .home-home-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #E5E7EB;border-radius:10px;background:#F9FAFB;color:var(--navy);font-size:12px;font-weight:800;padding:7px 10px;cursor:pointer}
   .home-top h1{flex:1;margin:0;text-align:center;font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.02em}
   .home-jobs-pill{display:inline-flex;align-items:center;gap:4px;border-radius:99px;background:var(--soft);border:1px solid #BBF7D0;padding:6px 9px;font-size:10px;font-weight:800;color:var(--gn2);white-space:nowrap}
-  .home-tabs{display:flex;gap:2px;overflow-x:auto;padding:6px 12px 8px;border-bottom:1px solid #E5E7EB;background:#FAFAFA;-webkit-overflow-scrolling:touch}
-  .home-tabs button{border:0;background:none;color:var(--mut);font-size:11px;font-weight:700;padding:6px 8px 8px;white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent}
-  .home-tabs button.on{color:var(--gn2);border-bottom-color:var(--gn)}
   .home-scroll{flex:1;overflow:auto;padding:12px 16px 8px}
   .home-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:10px}
   .home-hdr h2{margin:0;font-size:18px;font-weight:800;color:#0F172A}
@@ -249,14 +246,6 @@
           <h1>Find a Job</h1>
           <span class="home-jobs-pill">💼 10K+ jobs</span>
         </header>
-        <nav class="home-tabs" aria-label="Profile wizard steps">
-          <button type="button" class="on" data-nav="home">Home</button>
-          <button type="button" data-nav="s1">Choose Job</button>
-          <button type="button" data-nav="s3">Skills</button>
-          <button type="button" data-nav="s4">Salary &amp; Location</button>
-          <button type="button" data-nav="s5">Profile Live ✓</button>
-          <button type="button" data-nav="alerts">Alerts</button>
-        </nav>
         <div class="home-scroll">
           <div class="home-hdr">
             <div>
@@ -5537,45 +5526,6 @@ el('homeUpgrade')?.addEventListener('click', () => toast('Pro upgrade — demo o
 el('navAlerts')?.addEventListener('click', () => toast('Alerts — demo.'));
 el('navStatus')?.addEventListener('click', () => toast('Status — demo.'));
 el('navSettings')?.addEventListener('click', () => toast('Settings — demo.'));
-document.querySelectorAll('.home-tabs [data-nav]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const nav = btn.getAttribute('data-nav');
-    if (nav === 'home') {
-      renderHome();
-      show('sHome');
-      return;
-    }
-    if (nav === 'alerts') {
-      toast('Alerts — demo.');
-      return;
-    }
-    if (nav === 's1') {
-      if (!state.sectorId) {
-        startCreateProfile();
-        return;
-      }
-      show('s1');
-      renderS1();
-      return;
-    }
-    if (nav === 's3' && state.positionId) {
-      show('s3');
-      renderS3();
-      return;
-    }
-    if (nav === 's4' && state.positionId) {
-      renderS4();
-      show('s4');
-      return;
-    }
-    if (nav === 's5' && state.positionId) {
-      renderS5();
-      show('s5');
-      return;
-    }
-    toast('Complete Choose Job first.');
-  });
-});
 el('homeProfileList')?.addEventListener('click', (e) => {
   const del = e.target.closest('[data-del]');
   if (del) {
