@@ -300,20 +300,32 @@
       <div class="top"><button class="back" type="button" data-to="s3">←</button><h1>Hire Employee</h1><button class="req" type="button">My requests</button></div>
       <div class="prog"><div class="bar"><i style="width:80%"></i></div><span class="frac">4/5</span></div>
       <div class="pad">
-        <h2>Location &amp; Compensation</h2>
-        <p class="sub">Set your work location and salary to find the best matching candidates.</p>
+        <h2 id="s4Title">Location &amp; Compensation</h2>
+        <p class="sub" id="s4Sub">Set your work location and salary to find the best matching candidates.</p>
         <div class="fld">
           <label>Work Location</label>
           <div class="loc">📍 <input id="loc" value="Kochi, Kerala"><button type="button" id="clrLoc" style="border:0;background:none;cursor:pointer">✕</button></div>
         </div>
-        <div class="fld">
-          <label>Salary</label>
-          <div class="sal">
-            <div><small style="color:#9CA3AF">Min (₹/month)</small><input id="smin" type="number" value="25000"></div>
-            <div><small style="color:#9CA3AF">Max (₹/month) (Optional)</small><input id="smax" type="number" value="30000"></div>
+        <div class="fld" id="internPayBlock" hidden>
+          <label class="req">Stipend</label>
+          <p class="hint" style="margin-top:0">Paid internships show a stipend range. Unpaid roles focus on experience and certificate.</p>
+          <div class="shift-pick" id="internPayPick" role="group" aria-label="Stipend type">
+            <button type="button" class="shift-opt" data-ipay="PAID"><b>Paid</b><span>With stipend</span></button>
+            <button type="button" class="shift-opt" data-ipay="UNPAID"><b>Unpaid</b><span>Experience &amp; certificate</span></button>
           </div>
         </div>
-        <div class="tog"><div><b>Salary negotiable</b><div class="s">Helps us show your job to more relevant candidates.</div></div><button class="sw on" type="button" id="neg"><i></i></button></div>
+        <div class="ic-info" id="unpaidInternBanner" hidden style="margin:0 0 14px">
+          <i>i</i>
+          <div><strong>Unpaid internship</strong> — looking for candidates willing to work for experience &amp; a certificate. <strong>No stipend</strong> is shown to applicants.</div>
+        </div>
+        <div class="fld" id="salaryFld">
+          <label id="compLbl">Salary</label>
+          <div class="sal">
+            <div><small style="color:#9CA3AF" id="compMinLbl">Min (₹/month)</small><input id="smin" type="number" value="25000"></div>
+            <div><small style="color:#9CA3AF" id="compMaxLbl">Max (₹/month) (Optional)</small><input id="smax" type="number" value="30000"></div>
+          </div>
+        </div>
+        <div class="tog" id="negWrap"><div><b id="negLbl">Salary negotiable</b><div class="s" id="negSub">Helps us show your job to more relevant candidates.</div></div><button class="sw on" type="button" id="neg"><i></i></button></div>
         <div class="fld">
           <label>Number of vacancies</label>
           <div class="stepper"><button type="button" id="vacM">−</button><b id="vacV">1</b><button type="button" id="vacP">+</button></div>
@@ -9101,6 +9113,7 @@ const state = {
   benefitAccommodation: false,
   benefitFood: false,
   workSchedule: 'DAY',
+  internStipend: 'PAID',
 };
 const GENDERS = ['Male', 'Female', 'Transgender'];
 const WORK_SCHEDULES = [
@@ -9421,7 +9434,66 @@ function syncAgeUI(){
 function workScheduleLabel(){
   return WORK_SCHEDULES.find(w => w.id === state.workSchedule)?.label || '—';
 }
+function syncCompUI(){
+  const intern = isInternHire();
+  const payBlock = document.getElementById('internPayBlock');
+  const banner = document.getElementById('unpaidInternBanner');
+  const salFld = document.getElementById('salaryFld');
+  const negWrap = document.getElementById('negWrap');
+  const title = document.getElementById('s4Title');
+  const sub = document.getElementById('s4Sub');
+  const compLbl = document.getElementById('compLbl');
+  const compMin = document.getElementById('compMinLbl');
+  const compMax = document.getElementById('compMaxLbl');
+  const negLbl = document.getElementById('negLbl');
+  const negSub = document.getElementById('negSub');
+  const pick = document.getElementById('internPayPick');
+  if(title) title.textContent = intern ? 'Location & stipend' : 'Location & Compensation';
+  if(sub){
+    sub.textContent = intern
+      ? 'Set location and whether this internship is paid or unpaid.'
+      : 'Set your work location and salary to find the best matching candidates.';
+  }
+  if(payBlock) payBlock.hidden = !intern;
+  if(!intern){
+    if(banner) banner.hidden = true;
+    if(salFld) salFld.hidden = false;
+    if(negWrap) negWrap.hidden = false;
+    if(compLbl) compLbl.textContent = 'Salary';
+    if(compMin) compMin.textContent = 'Min (₹/month)';
+    if(compMax) compMax.textContent = 'Max (₹/month) (Optional)';
+    if(negLbl) negLbl.textContent = 'Salary negotiable';
+    if(negSub) negSub.textContent = 'Helps us show your job to more relevant candidates.';
+    return;
+  }
+  if(!state.internStipend) state.internStipend = 'PAID';
+  if(pick){
+    pick.querySelectorAll('[data-ipay]').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.ipay === state.internStipend);
+    });
+  }
+  const unpaid = state.internStipend === 'UNPAID';
+  if(banner) banner.hidden = !unpaid;
+  if(salFld) salFld.hidden = unpaid;
+  if(negWrap) negWrap.hidden = unpaid;
+  if(unpaid) return;
+  if(compLbl) compLbl.textContent = 'Stipend range you offer';
+  if(compMin) compMin.textContent = 'Min stipend (₹/month)';
+  if(compMax) compMax.textContent = 'Max stipend (Optional)';
+  if(negLbl) negLbl.textContent = 'Stipend negotiable';
+  if(negSub) negSub.textContent = 'Optional — shown only if you allow negotiation on stipend.';
+}
+function internCompSummary(){
+  if(!isInternHire()) return null;
+  if(state.internStipend === 'UNPAID'){
+    return 'Unpaid · experience & certificate (no stipend shown)';
+  }
+  const salMin = document.getElementById('smin')?.value || '0';
+  const salMax = document.getElementById('smax')?.value || '';
+  return 'Paid stipend · ₹' + salMin + (salMax ? ' – ₹' + salMax : '') + (state.neg ? ' (Negotiable)' : '') + '/month';
+}
 function renderS4(){
+  syncCompUI();
   const gEl = document.getElementById('genderChips');
   if(gEl){
     gEl.innerHTML = GENDERS.map(g =>
@@ -9459,9 +9531,10 @@ function renderS5(){
   syncBenefitUI();
   const s=sector(), p=position();
   const emp = C.employmentTypes.find(e=>e.code===state.emp)?.label;
+  const loc = document.getElementById('loc').value;
   const salMin = document.getElementById('smin').value;
   const salMax = document.getElementById('smax').value;
-  const loc = document.getElementById('loc').value;
+  const internComp = internCompSummary();
   document.getElementById('summary').innerHTML = [
     ['Job Type', emp],
     ['Sector', s.label],
@@ -9477,7 +9550,9 @@ function renderS5(){
     ['Age range', state.ageMin + ' – ' + state.ageMax + ' years'],
     ['Work schedule', workScheduleLabel()],
     ['Location', loc],
-    ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
+    isInternHire()
+      ? ['Compensation', internComp || '—']
+      : ['Salary', '₹'+salMin+(salMax?' – ₹'+salMax:'')+(state.neg?' (Negotiable)':'')],
     ['Vacancies', state.vac],
     ['Employee benefits', benefitsSummary()],
   ].map(([k,v])=>`<div class="line"><span>${k}</span><b>${v}</b></div>`).join('');
@@ -9550,7 +9625,26 @@ function toggleLang(l){
 }
 
 document.getElementById('empTypes').addEventListener('click', e => {
-  const b=e.target.closest('[data-e]'); if(!b) return; state.emp=b.dataset.e; renderS1();
+  const b=e.target.closest('[data-e]'); if(!b) return;
+  state.emp=b.dataset.e;
+  if(state.emp !== 'INTERN'){
+    state.qualStatus = '';
+    state.internStipend = 'PAID';
+  }
+  renderS1();
+});
+document.getElementById('internPayPick').addEventListener('click', e => {
+  const b = e.target.closest('[data-ipay]');
+  if(!b) return;
+  state.internStipend = b.dataset.ipay;
+  syncCompUI();
+  matchCount();
+});
+document.getElementById('qualStatusPick').addEventListener('click', e => {
+  const b=e.target.closest('[data-qst]');
+  if(!b) return;
+  state.qualStatus = b.dataset.qst;
+  syncQualUI();
 });
 document.getElementById('sectors').addEventListener('click', e => {
   const b=e.target.closest('[data-s]'); if(!b) return;
@@ -9595,7 +9689,10 @@ document.getElementById('skillChips').addEventListener('click', e => {
   const x=e.target.dataset.x; if(!x) return;
   state.skills=state.skills.filter(s=>s!==x); renderS3();
 });
-document.getElementById('qual').addEventListener('change', syncQualUI);
+document.getElementById('qual').addEventListener('change', () => {
+  state.qualStatus = '';
+  syncQualUI();
+});
 document.getElementById('qualPct').addEventListener('input', sanitizeQualPctInput);
 document.getElementById('c3').onclick = () => {
   if(!validateQualification()) return;
@@ -9629,6 +9726,14 @@ document.getElementById('clrLoc').onclick = () => { document.getElementById('loc
 document.getElementById('c4').onclick = () => {
   if(!state.genders.length){ toast('Select at least one preferred gender.'); return; }
   if(!state.workSchedule){ toast('Select day time or shift job.'); return; }
+  if(isInternHire() && state.internStipend === 'PAID'){
+    const min = +(document.getElementById('smin')?.value || 0);
+    if(!min || min < 1){ toast('Enter minimum stipend per month.'); return; }
+  }
+  if(isInternHire() && !state.internStipend){
+    toast('Select paid or unpaid internship.');
+    return;
+  }
   show('s5'); renderS5();
 };
 document.getElementById('benAccom').addEventListener('change', function(){
