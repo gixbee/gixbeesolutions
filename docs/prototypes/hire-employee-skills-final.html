@@ -9475,8 +9475,14 @@ function syncCompUI(){
   const unpaid = state.internStipend === 'UNPAID';
   if(banner) banner.hidden = !unpaid;
   if(salFld) salFld.hidden = unpaid;
-  if(negWrap) negWrap.hidden = unpaid;
-  if(unpaid) return;
+  if(unpaid){
+    if(negWrap) negWrap.hidden = true;
+    state.neg = false;
+    const neg = document.getElementById('neg');
+    if(neg) neg.classList.remove('on');
+    return;
+  }
+  if(negWrap) negWrap.hidden = false;
   if(compLbl) compLbl.textContent = 'Stipend range you offer';
   if(compMin) compMin.textContent = 'Min stipend (₹/month)';
   if(compMax) compMax.textContent = 'Max stipend (Optional)';
