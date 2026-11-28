@@ -9073,21 +9073,25 @@ function renderPkg(){
   ).join('');
   const p = selectedPkg();
   const use = Math.min(state.walletCoins, p.coins);
-  const pay = Math.max(0, p.coins - state.walletCoins);
+  const walletCoversAll = state.walletCoins >= p.coins;
   const rem = state.walletCoins - use;
   const set = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
   set('pkgPriceLine', p.coins + ' Coins (₹' + p.coins + ')');
   set('pkgWalletLine', '− ' + use + ' Coins (₹' + use + ')');
-  set('pkgPayAmt', '₹' + pay);
+  set('pkgPayAmt', walletCoversAll ? '₹0' : ('₹' + p.coins));
   set('pkgWalRem', rem + ' Coins (₹' + rem + ')');
   set('walHdr', state.walletCoins + ' Coins');
   const btn = document.getElementById('cPkgStart');
-  if(btn) btn.textContent = pay > 0 ? ('Pay ₹' + pay + ' & Start Matching →') : ('Use ' + use + ' Coins & Start Matching →');
+  if(btn){
+    btn.textContent = walletCoversAll
+      ? ('Use ' + p.coins + ' Coins & Start Matching →')
+      : ('Pay ₹' + p.coins + ' & Start Matching →');
+  }
   const info = document.querySelector('#sPkg .ic-info div');
   if(info){
-    info.innerHTML = pay > 0
-      ? '<b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Complete payment for the balance to start matching.'
-      : '<b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Wallet balance completely covers this transaction. No external payment required.';
+    info.innerHTML = walletCoversAll
+      ? '<b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Wallet balance completely covers this transaction. No external payment required.'
+      : '<b>1 Coin = ₹1</b> towards eligible Gixbee services.<br/>Pay ₹' + p.coins + ' for this package. Wallet coins are applied first where available.';
   }
 }
 const LANG_QUICK = ['English', 'Malayalam', 'Hindi', 'Tamil'];
@@ -9512,7 +9516,11 @@ document.getElementById('benFood').addEventListener('change', function(){
   state.benefitFood = this.checked;
   renderS5();
 });
-document.getElementById('c5').onclick = () => { show('sPkg'); renderPkg(); };
+document.getElementById('c5').onclick = () => {
+  state.walletCoins = 70;
+  show('sPkg');
+  renderPkg();
+};
 document.getElementById('icPkgGrid').addEventListener('click', e => {
   const b = e.target.closest('[data-pkg]');
   if(!b) return;
